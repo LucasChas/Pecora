@@ -4,10 +4,12 @@ import ProductCard from './ProductCard'
 interface Props {
   productos: ProductoConCategoria[]
   onEditar: (producto: ProductoConCategoria) => void
+  // Se llama después de una edición inline para refrescar los datos.
+  onChanged: () => void
 }
 
 // Lista de productos del panel (cards, no tabla).
-export default function ProductList({ productos, onEditar }: Props) {
+export default function ProductList({ productos, onEditar, onChanged }: Props) {
   if (productos.length === 0) {
     return (
       <div className="list">
@@ -23,7 +25,7 @@ export default function ProductList({ productos, onEditar }: Props) {
   return (
     <div className="list">
       {productos.map((p) => (
-        <ProductCard key={p.id} producto={p} onEditar={onEditar} />
+        <ProductCard key={p.id} producto={p} onEditar={onEditar} onChanged={onChanged} />
       ))}
     </div>
   )

@@ -7,12 +7,20 @@ interface Props {
   categorias: Categoria[]
   productos: ProductoConCategoria[]
   onClose: () => void
+  // Refresca los datos después de agregar/eliminar una categoría.
+  onChanged: () => void
 }
 
 // Hoja para gestionar categorías: listar con la cantidad de productos de cada
 // una, agregar nuevas y eliminar. El borrado se bloquea si la categoría tiene
 // productos (además el backend lo rechaza vía FK/trigger, ver migración).
-export default function CategoryManagerSheet({ open, categorias, productos, onClose }: Props) {
+export default function CategoryManagerSheet({
+  open,
+  categorias,
+  productos,
+  onClose,
+  onChanged,
+}: Props) {
   const [nueva, setNueva] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -31,6 +39,7 @@ export default function CategoryManagerSheet({ open, categorias, productos, onCl
     }
     setNueva('')
     setError(null)
+    onChanged() // Refresca la lista de categorías.
   }
 
   async function eliminar(categoria: Categoria) {
@@ -41,6 +50,7 @@ export default function CategoryManagerSheet({ open, categorias, productos, onCl
       setError('No se pudo eliminar: ' + error.message)
     } else {
       setError(null)
+      onChanged() // Refresca la lista tras borrar.
     }
   }
 

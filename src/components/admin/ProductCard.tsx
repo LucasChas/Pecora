@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabaseClient'
 interface Props {
   producto: ProductoConCategoria
   onEditar: (producto: ProductoConCategoria) => void
+  // Refresca los datos después de guardar una edición inline.
+  onChanged: () => void
 }
 
 const IMG_PLACEHOLDER = 'https://placehold.co/120x120/EEE1C4/B08F55?text=Pecora'
@@ -12,7 +14,7 @@ const IMG_PLACEHOLDER = 'https://placehold.co/120x120/EEE1C4/B08F55?text=Pecora'
 // Card de producto en el panel admin, con edición inline de precio y stock.
 // Los cambios se guardan al salir del campo (onBlur) y Realtime refresca la
 // vista (acá y en el catálogo público).
-export default function ProductCard({ producto, onEditar }: Props) {
+export default function ProductCard({ producto, onEditar, onChanged }: Props) {
   const disponible = producto.stock > 0
 
   // Estado local para poder escribir libremente; se confirma al salir del input.
@@ -31,6 +33,7 @@ export default function ProductCard({ producto, onEditar }: Props) {
       .update({ [campo]: valor })
       .eq('id', producto.id)
     if (error) alert('No se pudo guardar el cambio: ' + error.message)
+    else onChanged() // Refresca datos tras guardar (pill de stock, catálogo, etc.)
   }
 
   return (

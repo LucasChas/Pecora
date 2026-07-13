@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../hooks/useAuth'
 import { useProducts } from '../hooks/useProducts'
@@ -15,13 +15,21 @@ import '../styles/admin.css'
 // Vista ADMINISTRADORA (mobile-first), protegida por login.
 export default function AdminPage() {
   const { session, loading: cargandoSesion } = useAuth()
-  const { productos } = useProducts()
-  const { categorias } = useCategories()
+  const { productos, refetch: refetchProductos } = useProducts()
+  const { categorias, refetch: refetchCategorias } = useCategories()
 
   // Control de las dos hojas (bottom sheets).
   const [sheetAbierta, setSheetAbierta] = useState(false)
   const [editando, setEditando] = useState<ProductoConCategoria | null>(null)
   const [catSheetAbierta, setCatSheetAbierta] = useState(false)
+
+  // Refresca datos después de CUALQUIER edición (alta/edición/borrado de
+  // producto o categoría, edición inline). Garantiza que los cambios se
+  // apliquen en pantalla al instante, sin depender de que Realtime dispare.
+  const refrescar = useCallback(() => {
+    refetchProductos()
+    refetchCategorias()
+  }, [refetchProductos, refetchCategorias])
 
   // Mientras se resuelve la sesión no mostramos nada (evita parpadeo).
   if (cargandoSesion) return null
@@ -75,7 +83,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <ProductList productos={productos} onEditar={abrirEdicion} />
+        <ProductList productos={productos} onEditar={abrirEdicion} onChanged={refrescar} />
 
         <button className="fab" aria-label="Nuevo producto" onClick={abrirNuevo}>
           +
@@ -89,6 +97,7 @@ export default function AdminPage() {
         categorias={categorias}
         onClose={() => setSheetAbierta(false)}
         onGestionarCategorias={() => setCatSheetAbierta(true)}
+        onChanged={refrescar}
       />
 
       {/* Hoja de gestión de categorías */}
@@ -97,6 +106,7 @@ export default function AdminPage() {
         categorias={categorias}
         productos={productos}
         onClose={() => setCatSheetAbierta(false)}
+        onChanged={refrescar}
       />
     </div>
   )

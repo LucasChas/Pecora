@@ -10,6 +10,8 @@ interface Props {
   categorias: Categoria[]
   onClose: () => void
   onGestionarCategorias: () => void
+  // Refresca los datos después de guardar/borrar/crear categoría.
+  onChanged: () => void
 }
 
 // Sube un archivo al bucket "productos" de Storage y devuelve su URL pública.
@@ -33,6 +35,7 @@ export default function ProductFormSheet({
   categorias,
   onClose,
   onGestionarCategorias,
+  onChanged,
 }: Props) {
   const [nombre, setNombre] = useState('')
   const [categoriaId, setCategoriaId] = useState('')
@@ -87,6 +90,7 @@ export default function ProductFormSheet({
     setCategoriaId(data.id)
     setNuevaCat('')
     setMostrarNuevaCat(false)
+    onChanged() // Refresca la lista de categorías (acá y en el catálogo).
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -118,7 +122,8 @@ export default function ProductFormSheet({
         const { error } = await supabase.from('productos').insert(payload)
         if (error) throw error
       }
-      onClose() // Realtime refresca la lista y el catálogo.
+      onChanged() // Refresca los datos para que el cambio se vea al instante.
+      onClose()
     } catch (err) {
       setError('No se pudo guardar: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
@@ -134,6 +139,7 @@ export default function ProductFormSheet({
       setError('No se pudo eliminar: ' + error.message)
       return
     }
+    onChanged() // Refresca la lista tras borrar.
     onClose()
   }
 
