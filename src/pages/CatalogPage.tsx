@@ -4,8 +4,10 @@ import Scallop from '../components/Scallop'
 import SearchBar from '../components/catalog/SearchBar'
 import CategoryFilters from '../components/catalog/CategoryFilters'
 import ProductGrid from '../components/catalog/ProductGrid'
+import ProductDetail from '../components/catalog/ProductDetail'
 import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
+import type { ProductoConCategoria } from '../types'
 import '../styles/catalog.css'
 
 // Vista CLIENTE: muestrario público, sin login.
@@ -17,6 +19,8 @@ export default function CatalogPage() {
 
   const [busqueda, setBusqueda] = useState('')
   const [categoriaActiva, setCategoriaActiva] = useState('Todos')
+  // Producto abierto en el detalle (modal). null = ninguno.
+  const [seleccionado, setSeleccionado] = useState<ProductoConCategoria | null>(null)
 
   // Filtrado por categoría + término de búsqueda (nombre, descripción, categoría).
   const visibles = useMemo(() => {
@@ -37,7 +41,7 @@ export default function CatalogPage() {
     <div className="catalog-root">
       <header>
         <Logo />
-        <p>Ropa de bebé · Muestrario</p>
+        <p>Accesorios de bebé · Muestrario</p>
       </header>
 
       {/* Borde festoneado: elemento de marca */}
@@ -55,7 +59,7 @@ export default function CatalogPage() {
         {loading ? (
           <div className="no-results">Cargando muestrario…</div>
         ) : (
-          <ProductGrid productos={visibles} />
+          <ProductGrid productos={visibles} onSelect={setSeleccionado} />
         )}
       </main>
 
@@ -63,6 +67,11 @@ export default function CatalogPage() {
         Pecora — para consultar y coordinar la compra de cualquier prenda,
         escribinos por WhatsApp.
       </footer>
+
+      {/* Detalle de producto (galería + info). Se abre al tocar un producto. */}
+      {seleccionado && (
+        <ProductDetail producto={seleccionado} onClose={() => setSeleccionado(null)} />
+      )}
     </div>
   )
 }

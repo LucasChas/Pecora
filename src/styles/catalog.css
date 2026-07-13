@@ -238,3 +238,205 @@
   font-size: 0.78rem;
   color: #8A7A5E;
 }
+
+/* ---------- Card clickeable + CTA ---------- */
+/* La parte de arriba de la card (imagen + textos) es un botón que abre el
+   detalle; el botón de WhatsApp queda aparte para no dispararlo. */
+.card-open {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.card-body {
+  padding-bottom: 6px;
+}
+.card-cta {
+  padding: 4px 16px 18px;
+}
+/* Contador de fotos (esquina de la imagen, cuando hay más de una) */
+.photo-count {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(51, 48, 42, 0.72);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 100px;
+}
+
+/* ---------- Detalle de producto (modal) ---------- */
+.pd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(51, 48, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+.pd-panel {
+  position: relative;
+  width: 100%;
+  max-width: 920px;
+  background: var(--cream);
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  gap: 0;
+  max-height: 92vh;
+  box-shadow: 0 20px 50px rgba(51, 48, 42, 0.28);
+}
+.pd-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(51, 48, 42, 0.2);
+}
+
+/* Galería */
+.pd-gallery {
+  flex: 1 1 55%;
+  min-width: 0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+.pd-main {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: var(--cream-deep);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.pd-main img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.pd-main.unavailable img {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.pd-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pd-thumb {
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--cream-deep);
+}
+.pd-thumb.active {
+  border-color: var(--sage);
+}
+.pd-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Información */
+.pd-info {
+  flex: 1 1 45%;
+  min-width: 0;
+  padding: 40px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+.pd-breadcrumb {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pd-breadcrumb span {
+  color: var(--sage-deep);
+  font-weight: 600;
+}
+.pd-name {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  margin: 0;
+}
+.pd-price {
+  font-weight: 600;
+  font-size: 1.3rem;
+  margin: 2px 0 6px;
+}
+.pd-price.off {
+  color: var(--unavailable);
+}
+.pd-stock-msg {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--danger);
+  font-weight: 500;
+}
+.pd-desc {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #6E6350;
+  white-space: pre-line;
+}
+.pd-wa {
+  margin-top: 8px;
+  align-self: flex-start;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+
+/* Mobile: galería arriba, info abajo */
+@media (max-width: 720px) {
+  .pd-panel {
+    flex-direction: column;
+    max-height: 94vh;
+    overflow-y: auto;
+  }
+  .pd-info {
+    padding: 16px 20px 24px;
+  }
+  .pd-name {
+    font-size: 1.3rem;
+  }
+  .pd-wa {
+    align-self: stretch;
+  }
+}

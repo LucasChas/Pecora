@@ -14,7 +14,9 @@
       "PowerShell(git -C $repo add -A)",
       "PowerShell(git -C $repo commit -m \"Admin: arreglos de testing \\(inline edit revierte vacio a valor guardado; confirmacion al borrar categoria; reset de la hoja de categorias al abrir\\)\" -m \"Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\" 2>&1)",
       "PowerShell(git -C $repo push 2>&1)",
-      "PowerShell(\"---\")"
+      "PowerShell(\"---\")",
+      "PowerShell(git -C $repo checkout -b Feature/descripcion-de-producto 2>&1)",
+      "PowerShell(git -C $repo branch --show-current)"
     ]
   }
 }
