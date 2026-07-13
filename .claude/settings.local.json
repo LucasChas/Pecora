@@ -5,7 +5,11 @@
       "PowerShell(git config --global user.name)",
       "PowerShell(git config --global user.email)",
       "PowerShell(git ls-remote https://github.com/LucasChas/Pecora.git 2>&1)",
-      "PowerShell(\"---REMOTE CHECK---\")"
+      "PowerShell(\"---REMOTE CHECK---\")",
+      "PowerShell(git -C $repo branch -M main)",
+      "PowerShell(git -C $repo remote add origin https://github.com/LucasChas/Pecora.git)",
+      "PowerShell(git -C $repo push -u origin main 2>&1)",
+      "PowerShell($repo=\"C:\\\\Users\\\\chasd\\\\Downloads\\\\Pecora\")"
     ]
   }
 }
