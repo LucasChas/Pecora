@@ -238,6 +238,23 @@
   font-size: 0.78rem;
   color: #8A7A5E;
 }
+.catalog-root footer p {
+  margin: 0 0 10px;
+}
+.footer-ig {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--sage-deep);
+}
+.footer-ig svg {
+  width: 15px;
+  height: 15px;
+}
+.footer-ig:hover {
+  color: var(--ink);
+}
 
 /* ---------- Card clickeable + CTA ---------- */
 /* La parte de arriba de la card (imagen + textos) es un botón que abre el
@@ -416,11 +433,43 @@
   color: #6E6350;
   white-space: pre-line;
 }
-.pd-wa {
-  margin-top: 8px;
+/* Botones de consulta (WhatsApp + Instagram) */
+.pd-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
   align-self: flex-start;
+  min-width: 250px;
+}
+.pd-wa,
+.pd-ig {
   padding-left: 22px;
   padding-right: 22px;
+}
+/* Botón de Instagram: variante secundaria (outline) para diferenciarlo. */
+.ig-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 100px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--sage-deep);
+  border: 1px solid var(--sage);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ig-btn:hover {
+  background: var(--sage);
+  color: #fff;
+}
+.ig-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 /* Mobile: galería arriba, info abajo */
@@ -436,7 +485,8 @@
   .pd-name {
     font-size: 1.3rem;
   }
-  .pd-wa {
+  .pd-actions {
     align-self: stretch;
+    min-width: 0;
   }
 }
