@@ -1,0 +1,21 @@
+/* ============================================================
+   Tokens de diseño de Pecora.
+   Paleta y radios extraídos tal cual de los prototipos HTML.
+   Cambiá acá los valores y se propagan a toda la app.
+   ============================================================ */
+:root {
+  --cream: #F8F1E1;         /* fondo principal (lino cálido)      */
+  --cream-deep: #EEE1C4;    /* fondo secundario / cards           */
+  --ink: #3B2F22;           /* texto principal (marrón cálido)    */
+  --ink-soft: #7C6E54;      /* texto secundario                   */
+  --sage: #B08F55;          /* dorado camel: marca, botones       */
+  --sage-deep: #8E7040;     /* hover del dorado                   */
+  --sage-pale: #F1E6CB;     /* fondo suave (pills "disponible")   */
+  --clay: #A97C55;          /* acento cálido                      */
+  --line: #E7DAB6;          /* bordes / separadores               */
+  --danger: #C9645A;        /* acciones destructivas (rojo apagado)*/
+  --danger-pale: #F3E4E1;   /* fondo de estados destructivos      */
+  --unavailable: #A79A82;   /* texto "sin stock"                  */
+  --unavailable-bg: #EFE6D2;/* fondo botón "sin stock"            */
+  --radius: 14px;
+}

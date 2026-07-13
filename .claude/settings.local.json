@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git -C \"C:\\\\Users\\\\chasd\\\\Downloads\\\\Pecora\" rev-parse --is-inside-work-tree 2>&1)",
+      "PowerShell(git config --global user.name)",
+      "PowerShell(git config --global user.email)",
+      "PowerShell(git ls-remote https://github.com/LucasChas/Pecora.git 2>&1)",
+      "PowerShell(\"---REMOTE CHECK---\")"
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: true
+# pnpm >= 11: acá se declaran las dependencias a las que se les permite correr
+# sus build scripts al instalar. esbuild lo necesita para bajar su binario.
+onlyBuiltDependencies:
+  - esbuild
