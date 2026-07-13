@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Categoria, ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 
@@ -24,6 +24,14 @@ export default function CategoryManagerSheet({
   const [nueva, setNueva] = useState('')
   const [error, setError] = useState<string | null>(null)
 
+  // Al abrir la hoja, limpiamos el input y cualquier error viejo.
+  useEffect(() => {
+    if (open) {
+      setNueva('')
+      setError(null)
+    }
+  }, [open])
+
   // Cuenta cuántos productos usan cada categoría.
   function contar(categoriaId: string): number {
     return productos.filter((p) => p.categoria_id === categoriaId).length
@@ -45,6 +53,7 @@ export default function CategoryManagerSheet({
   async function eliminar(categoria: Categoria) {
     // Guardia en el frontend (el backend igual lo refuerza).
     if (contar(categoria.id) > 0) return
+    if (!confirm(`¿Eliminar la categoría "${categoria.nombre}"?`)) return
     const { error } = await supabase.from('categorias').delete().eq('id', categoria.id)
     if (error) {
       setError('No se pudo eliminar: ' + error.message)

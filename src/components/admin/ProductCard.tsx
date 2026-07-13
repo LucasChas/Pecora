@@ -36,6 +36,19 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
     else onChanged() // Refresca datos tras guardar (pill de stock, catálogo, etc.)
   }
 
+  // Al salir del campo: si quedó vacío o inválido, revertimos al valor guardado
+  // (evita que un borrado accidental deje el precio/stock en 0). Si no cambió,
+  // no escribimos de más.
+  function confirmarCampo(campo: 'precio' | 'stock', texto: string, actual: number) {
+    const n = Number(texto)
+    if (texto.trim() === '' || Number.isNaN(n) || n < 0) {
+      campo === 'precio' ? setPrecio(String(actual)) : setStock(String(actual))
+      return
+    }
+    if (n === actual) return
+    guardarCampo(campo, n)
+  }
+
   return (
     <div className="prod-card">
       <img src={producto.imagen_url || IMG_PLACEHOLDER} alt="" />
@@ -58,7 +71,7 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
               min={0}
               value={precio}
               onChange={(e) => setPrecio(e.target.value)}
-              onBlur={() => guardarCampo('precio', Number(precio) || 0)}
+              onBlur={() => confirmarCampo('precio', precio, producto.precio)}
             />
           </div>
           <div className="mini-field">
@@ -68,7 +81,7 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
               min={0}
               value={stock}
               onChange={(e) => setStock(e.target.value)}
-              onBlur={() => guardarCampo('stock', Number(stock) || 0)}
+              onBlur={() => confirmarCampo('stock', stock, producto.stock)}
             />
           </div>
         </div>
