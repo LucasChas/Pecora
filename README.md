@@ -96,21 +96,42 @@ npm run preview
 
 ---
 
-## 5. Deploy (Netlify o Vercel)
+## 5. Deploy en Vercel — dos URLs (muestrario público + admin privado)
 
-El repo ya trae la configuración para ambos; elegí uno.
+La app usa la variable `VITE_APP_MODE` para exponer una sola vista por deploy.
+Con eso creás **dos proyectos de Vercel desde el MISMO repo**: uno público
+(muestrario) y otro privado (admin), cada uno con su dominio. El admin **no es
+accesible** desde la web pública porque en ese deploy la ruta ni se registra.
 
-**Común a los dos:** en el panel del hosting, cargá las 3 variables de entorno
-(`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_WHATSAPP_NUMBER`).
+**Variables comunes a los dos** (Project Settings → Environment Variables):
+`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_WHATSAPP_NUMBER`.
+En ambos, framework preset **Vite** (build `npm run build`, output `dist`).
 
-### Netlify
+### Proyecto 1 — Muestrario (público)
+1. Vercel → **Add New → Project** → importá el repo `LucasChas/Pecora`.
+2. Agregá las 3 variables comunes **+** `VITE_APP_MODE = catalog`.
+3. Deploy. Ese dominio (ej. `pecora.vercel.app`) es el que compartís con clientes.
+
+### Proyecto 2 — Admin (privado)
+1. Vercel → **Add New → Project** → importá **el mismo repo** otra vez.
+2. Poné un nombre distinto (ej. `pecora-admin`) → dominio propio, ej.
+   `pecora-admin.vercel.app` (o uno menos adivinable).
+3. Agregá las 3 variables comunes **+** `VITE_APP_MODE = admin`.
+4. Deploy. Ese link es el que usan solo vos y tu novia; el panel abre en la raíz `/`.
+
+> La privacidad real la sigue dando el **login + RLS**: aunque alguien encuentre
+> la URL del admin, sin usuario y contraseña no puede hacer nada.
+
+Ambos proyectos apuntan a la misma base de Supabase, así que lo que se carga en
+el admin aparece automáticamente en el muestrario.
+
+Ya incluido: [`vercel.json`](vercel.json) con el rewrite de SPA (para que las
+rutas no den 404 al recargar).
+
+### Alternativa: Netlify
 - Build command: `npm run build` · Publish directory: `dist`
-- Ya incluido: [`netlify.toml`](netlify.toml) y [`public/_redirects`](public/_redirects)
-  (para que `/admin` no dé 404 al recargar).
-
-### Vercel
-- Framework preset: **Vite** (build `npm run build`, output `dist`).
-- Ya incluido: [`vercel.json`](vercel.json) con el rewrite de SPA.
+- Mismo esquema de dos sitios con `VITE_APP_MODE`.
+- Ya incluido: [`netlify.toml`](netlify.toml) y [`public/_redirects`](public/_redirects).
 
 ---
 
@@ -133,10 +154,10 @@ supabase/
 
 ## Reemplazar el logo
 
-El isologo vive en [`src/assets/logo.svg`](src/assets/logo.svg) (hoy es un
-placeholder). Reemplazá ese archivo por el logo real —sirve `.svg`, `.png` o
-`.webp`—. Si cambiás la extensión, ajustá el import en
-[`src/components/Logo.tsx`](src/components/Logo.tsx).
+El isologo del header vive en [`src/assets/logo.png`](src/assets/logo.png) y el
+favicon en `src/assets/logo-index.jpeg`. Para cambiarlos, reemplazá esos archivos
+(sirve `.png`, `.webp`, `.jpeg` o `.svg`). Si cambiás la extensión del isologo,
+ajustá el import en [`src/components/Logo.tsx`](src/components/Logo.tsx).
 
 ## Notas de diseño
 
