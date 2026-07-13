@@ -278,6 +278,9 @@
 }
 .card-cta {
   padding: 4px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 /* Contador de fotos (esquina de la imagen, cuando hay más de una) */
 .photo-count {

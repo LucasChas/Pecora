@@ -1,6 +1,6 @@
 import type { ProductoConCategoria } from '../../types'
 import { money } from '../../lib/format'
-import { waLink } from '../../lib/config'
+import { waLink, instagramHabilitado, instagramDmLink } from '../../lib/config'
 import { portadaDe } from '../../lib/images'
 
 interface Props {
@@ -43,6 +43,22 @@ export default function ProductCard({ producto, onSelect }: Props) {
           </svg>
           {disponible ? 'Consultar por WhatsApp' : 'Consultar disponibilidad'}
         </a>
+
+        {instagramHabilitado && (
+          <a
+            className="ig-btn"
+            href={instagramDmLink()}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <rect x="2" y="2" width="20" height="20" rx="5.5" />
+              <circle cx="12" cy="12" r="4.2" />
+              <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none" />
+            </svg>
+            Consultar por Instagram
+          </a>
+        )}
       </div>
     </div>
   )
