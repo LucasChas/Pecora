@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface Props {
   // URL de la imagen ya guardada (al editar). Puede ser null en un alta.
@@ -7,12 +7,11 @@ interface Props {
   onFileSelected: (file: File | null) => void
 }
 
-// Selector de imagen pensado para el celular: abre cámara o galería
-// (input file con capture) y muestra una vista previa antes de guardar.
-// El archivo se sube a Supabase Storage recién al guardar el producto
-// (lo hace ProductFormSheet), no acá.
+// Selector de imagen pensado para el celular: abre la GALERÍA de fotos
+// (sin el atributo capture, para que no vaya directo a la cámara) y muestra
+// una vista previa antes de guardar. El archivo se sube a Supabase Storage
+// recién al guardar el producto (lo hace ProductFormSheet), no acá.
 export default function ImagePicker({ imagenActual, onFileSelected }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(imagenActual)
 
   // Si cambia la imagen actual (p. ej. al abrir la hoja para otro producto),
@@ -41,18 +40,12 @@ export default function ImagePicker({ imagenActual, onFileSelected }: Props) {
           <circle cx="12" cy="12.5" r="3.4" />
         </svg>
         <span>
-          Tocá para sacar una foto
-          <br />o elegirla de la galería
+          Tocá para elegir una foto
+          <br />de la galería
         </span>
       </div>
       <span className="retake">Cambiar foto</span>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={onChange}
-      />
+      <input type="file" accept="image/*" onChange={onChange} />
     </label>
   )
 }
