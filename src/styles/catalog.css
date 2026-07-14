@@ -295,56 +295,42 @@
   border-radius: 100px;
 }
 
-/* ---------- Detalle de producto (modal) ---------- */
-.pd-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: rgba(51, 48, 42, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  overflow-y: auto;
+/* ---------- Detalle de producto (página /producto/:id) ---------- */
+.product-page {
+  max-width: 1000px;
 }
-.pd-panel {
-  position: relative;
-  width: 100%;
-  max-width: 920px;
-  background: var(--cream);
-  border-radius: 18px;
-  overflow: hidden;
-  display: flex;
-  gap: 0;
-  max-height: 92vh;
-  box-shadow: 0 20px 50px rgba(51, 48, 42, 0.28);
+.pp-breadcrumb {
+  margin-bottom: 16px;
 }
-.pd-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 2;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.9);
+.pp-breadcrumb a {
+  color: var(--sage-deep);
+}
+.pp-back {
+  display: inline-block;
+  margin-top: 24px;
+  font-weight: 600;
+  color: var(--sage-deep);
+}
+.pp-back:hover {
   color: var(--ink);
-  font-size: 1rem;
-  line-height: 1;
-  box-shadow: 0 1px 4px rgba(51, 48, 42, 0.2);
+}
+/* Contenedor galería + info (card blanca) */
+.pd-content {
+  display: flex;
+  gap: 28px;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
 }
 
 /* Galería */
 .pd-gallery {
   flex: 1 1 55%;
   min-width: 0;
-  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  overflow-y: auto;
 }
 .pd-main {
   position: relative;
@@ -392,11 +378,10 @@
 .pd-info {
   flex: 1 1 45%;
   min-width: 0;
-  padding: 40px 24px 24px;
+  padding: 8px 8px 8px 4px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow-y: auto;
 }
 .pd-breadcrumb {
   margin: 0;
@@ -477,13 +462,12 @@
 
 /* Mobile: galería arriba, info abajo */
 @media (max-width: 720px) {
-  .pd-panel {
+  .pd-content {
     flex-direction: column;
-    max-height: 94vh;
-    overflow-y: auto;
+    gap: 16px;
   }
   .pd-info {
-    padding: 16px 20px 24px;
+    padding: 4px;
   }
   .pd-name {
     font-size: 1.3rem;

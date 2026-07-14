@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Categoria, ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
+import { comprimirImagen } from '../../lib/imageCompress'
 import ImagePicker from './ImagePicker'
 
 interface Props {
@@ -14,13 +15,13 @@ interface Props {
   onChanged: () => void
 }
 
-// Sube un archivo al bucket "productos" de Storage y devuelve su URL pública.
+// Comprime y sube un archivo al bucket "productos" de Storage; devuelve su URL.
 async function subirImagen(file: File): Promise<string> {
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
-  const nombre = `${crypto.randomUUID()}.${ext}`
+  const blob = await comprimirImagen(file) // se sube liviana (JPEG)
+  const nombre = `${crypto.randomUUID()}.jpg`
   const { error } = await supabase.storage
     .from('productos')
-    .upload(nombre, file, { cacheControl: '3600', upsert: false })
+    .upload(nombre, blob, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' })
   if (error) throw error
   const { data } = supabase.storage.from('productos').getPublicUrl(nombre)
   return data.publicUrl

@@ -1,28 +1,19 @@
+import { Link } from 'react-router-dom'
 import type { ProductoConCategoria } from '../../types'
 import { money } from '../../lib/format'
 import { waLink, instagramHabilitado, instagramDmLink } from '../../lib/config'
 import { portadaDe } from '../../lib/images'
 
-interface Props {
-  producto: ProductoConCategoria
-  onSelect: (producto: ProductoConCategoria) => void
-}
-
 // Card de producto del catálogo. Si stock = 0: card grisada, badge "Sin stock"
 // y el botón cambia de texto (mismo link de WhatsApp, mensaje distinto).
-// Tocar la card (imagen, nombre o descripción) abre el detalle con la galería.
-export default function ProductCard({ producto, onSelect }: Props) {
+// Tocar la card (imagen, nombre o descripción) abre la página del producto.
+export default function ProductCard({ producto }: { producto: ProductoConCategoria }) {
   const disponible = producto.stock > 0
   const cantidadFotos = (producto.imagenes ?? []).filter(Boolean).length
 
   return (
     <div className={disponible ? 'card' : 'card unavailable'}>
-      <button
-        type="button"
-        className="card-open"
-        onClick={() => onSelect(producto)}
-        aria-label={`Ver ${producto.nombre}`}
-      >
+      <Link to={`/producto/${producto.id}`} className="card-open" aria-label={`Ver ${producto.nombre}`}>
         <div className="card-img">
           <img src={portadaDe(producto)} alt={producto.nombre} />
           {!disponible && <span className="badge">Sin stock</span>}
@@ -33,7 +24,7 @@ export default function ProductCard({ producto, onSelect }: Props) {
           <p className="desc">{producto.descripcion}</p>
           <p className="price">{money(producto.precio)}</p>
         </div>
-      </button>
+      </Link>
 
       <div className="card-cta">
         <a className="wa-btn" href={waLink(producto)} target="_blank" rel="noopener noreferrer">
