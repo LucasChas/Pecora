@@ -194,6 +194,13 @@
 .card.unavailable .price {
   color: var(--unavailable);
 }
+/* Aviso de pocas unidades en la card */
+.low-stock {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--danger);
+}
 
 .wa-btn {
   display: flex;
@@ -413,6 +420,18 @@
   font-size: 0.85rem;
   color: var(--danger);
   font-weight: 500;
+}
+.pd-low-stock {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--danger);
+}
+.pd-note {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
 }
 .pd-desc {
   margin: 0;

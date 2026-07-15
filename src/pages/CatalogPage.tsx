@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
 import SearchBar from '../components/catalog/SearchBar'
@@ -10,14 +11,35 @@ import { instagramHabilitado, instagramPerfilLink } from '../lib/config'
 import '../styles/catalog.css'
 
 // Vista CLIENTE: muestrario público, sin login.
-// Los datos vienen de Supabase y se actualizan solos (Realtime) cuando la
-// administradora carga o edita algo.
+// La categoría y la búsqueda viven en la URL (?cat=...&q=...): así el filtro es
+// compartible, el botón "atrás" funciona y al volver de un producto se conserva.
 export default function CatalogPage() {
   const { productos, loading } = useProducts()
   const { categorias } = useCategories()
 
-  const [busqueda, setBusqueda] = useState('')
-  const [categoriaActiva, setCategoriaActiva] = useState('Todos')
+  const [params, setParams] = useSearchParams()
+  const busqueda = params.get('q') ?? ''
+  const categoriaActiva = params.get('cat') ?? 'Todos'
+
+  // Actualiza un parámetro de la URL sin perder los demás.
+  const setBusqueda = (v: string) =>
+    setParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        if (v) p.set('q', v)
+        else p.delete('q')
+        return p
+      },
+      { replace: true }, // no llenamos el historial en cada tecla
+    )
+
+  const setCategoria = (c: string) =>
+    setParams((prev) => {
+      const p = new URLSearchParams(prev)
+      if (c && c !== 'Todos') p.set('cat', c)
+      else p.delete('cat')
+      return p
+    })
 
   // Filtrado por categoría + término de búsqueda (nombre, descripción, categoría).
   const visibles = useMemo(() => {
@@ -50,7 +72,7 @@ export default function CatalogPage() {
         <CategoryFilters
           categorias={categorias.map((c) => c.nombre)}
           activa={categoriaActiva}
-          onSelect={setCategoriaActiva}
+          onSelect={setCategoria}
         />
 
         {loading ? (

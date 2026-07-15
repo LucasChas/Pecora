@@ -3,6 +3,7 @@ import type { ProductoConCategoria } from '../../types'
 import { money } from '../../lib/format'
 import { waLink, instagramHabilitado, instagramDmLink } from '../../lib/config'
 import { imagenesDe } from '../../lib/images'
+import { avisoStockBajo } from '../../lib/stock'
 
 // Contenido del detalle de un producto (galería + info). Es presentacional:
 // lo usa la página /producto/:id. No maneja overlay ni navegación.
@@ -10,6 +11,7 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
   const imagenes = imagenesDe(producto)
   const [activa, setActiva] = useState(0)
   const disponible = producto.stock > 0
+  const stockBajo = avisoStockBajo(producto.stock)
 
   return (
     <div className="pd-content">
@@ -42,6 +44,7 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
         <p className={disponible ? 'pd-price' : 'pd-price off'}>{money(producto.precio)}</p>
 
         {!disponible && <p className="pd-stock-msg">Sin stock por el momento.</p>}
+        {disponible && stockBajo && <p className="pd-low-stock">{stockBajo}</p>}
 
         {producto.descripcion && <p className="pd-desc">{producto.descripcion}</p>}
 
@@ -75,6 +78,10 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
             </a>
           )}
         </div>
+
+        <p className="pd-note">
+          Coordinás el pago y el envío escribiéndonos por WhatsApp o Instagram.
+        </p>
       </div>
     </div>
   )

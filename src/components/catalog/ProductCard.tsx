@@ -3,6 +3,7 @@ import type { ProductoConCategoria } from '../../types'
 import { money } from '../../lib/format'
 import { waLink, instagramHabilitado, instagramDmLink } from '../../lib/config'
 import { portadaDe } from '../../lib/images'
+import { avisoStockBajo } from '../../lib/stock'
 
 // Card de producto del catálogo. Si stock = 0: card grisada, badge "Sin stock"
 // y el botón cambia de texto (mismo link de WhatsApp, mensaje distinto).
@@ -10,6 +11,7 @@ import { portadaDe } from '../../lib/images'
 export default function ProductCard({ producto }: { producto: ProductoConCategoria }) {
   const disponible = producto.stock > 0
   const cantidadFotos = (producto.imagenes ?? []).filter(Boolean).length
+  const stockBajo = avisoStockBajo(producto.stock)
 
   return (
     <div className={disponible ? 'card' : 'card unavailable'}>
@@ -23,6 +25,7 @@ export default function ProductCard({ producto }: { producto: ProductoConCategor
           <h3>{producto.nombre}</h3>
           <p className="desc">{producto.descripcion}</p>
           <p className="price">{money(producto.precio)}</p>
+          {stockBajo && <p className="low-stock">{stockBajo}</p>}
         </div>
       </Link>
 
