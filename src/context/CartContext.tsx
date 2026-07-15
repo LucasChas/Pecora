@@ -22,6 +22,8 @@ interface CartContextValue {
   setCantidad: (id: string, cantidad: number) => void
   quitar: (id: string) => void
   vaciar: () => void
+  // Reemplaza el contenido completo (lo usa el checkout al revalidar contra la base).
+  reemplazar: (items: CartItem[]) => void
 }
 
 const CartContext = createContext<CartContextValue | null>(null)
@@ -83,6 +85,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const vaciar = useCallback(() => setItems([]), [])
 
+  const reemplazar = useCallback((nuevos: CartItem[]) => setItems(nuevos), [])
+
   const cantidadTotal = useMemo(() => items.reduce((n, i) => n + i.cantidad, 0), [items])
   const subtotal = useMemo(
     () => items.reduce((n, i) => n + i.precio * i.cantidad, 0),
@@ -97,6 +101,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCantidad,
     quitar,
     vaciar,
+    reemplazar,
   }
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

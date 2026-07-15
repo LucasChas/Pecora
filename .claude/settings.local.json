@@ -22,7 +22,8 @@
       "PowerShell(gh auth status 2>&1)",
       "PowerShell(git -C $repo log --oneline main..Feature/descripcion-de-producto)",
       "PowerShell(\"---AUTH---\")",
-      "PowerShell(\"---COMMITS \\(main..rama\\)---\")"
+      "PowerShell(\"---COMMITS \\(main..rama\\)---\")",
+      "PowerShell(git -C $repo commit -m \"Ecommerce Fases 2 y 3: checkout como invitada + cierre por WhatsApp con pedido registrado\" -m \"Migracion 0003: tabla pedidos \\(numero de orden, datos de contacto/entrega, items jsonb, estado\\) con RLS: insert publico, lectura/gestion solo autenticada. Pagina /checkout: formulario invitada \\(retiro o envio a domicilio\\), revalidacion de stock/precios contra la base antes de confirmar \\(ajusta el carrito y avisa\\), registro del pedido y pantalla de exito con envio del detalle por WhatsApp \\(numero de orden + datos\\). El carrito ahora lleva al checkout y deja el cierre express por WhatsApp como alternativa.\" -m \"Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\" 2>&1)"
     ]
   }
 }

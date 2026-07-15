@@ -72,18 +72,20 @@ export default function CartPage() {
                 <strong>{money(subtotal)}</strong>
               </div>
               <p className="cart-note">
-                El costo de envío y los medios de pago (incluido pago online) se
-                agregan en el checkout — próximamente. Por ahora cerrás el pedido
-                por WhatsApp.
+                En el siguiente paso cargás tus datos y la entrega. El pago online
+                llega pronto; por ahora se coordina por WhatsApp.
               </p>
 
+              <Link className="btn btn-primary" to="/checkout">
+                Finalizar pedido
+              </Link>
               <a
-                className="btn btn-primary"
+                className="cart-wa-express"
                 href={waPedidoLink(items, subtotal)}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Finalizar pedido por WhatsApp
+                o cerralo rápido por WhatsApp (sin formulario)
               </a>
               <div className="cart-actions">
                 <Link className="pp-back" to="/">

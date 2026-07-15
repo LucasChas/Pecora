@@ -37,13 +37,48 @@ interface ItemPedido {
 }
 
 // Link de WhatsApp para cerrar un PEDIDO (carrito) con el detalle y el subtotal.
-// Es el cierre interino, hasta tener el checkout con MercadoPago/envíos.
+// Cierre rápido sin checkout (la alternativa "express").
 export function waPedidoLink(items: ItemPedido[], subtotal: number): string {
   const lineas = items
     .map((i) => `• ${i.cantidad}x ${i.nombre} — ${money(i.precio * i.cantidad)}`)
     .join('\n')
   const msg = `Hola! Quiero hacer este pedido (Pecora):\n${lineas}\n\nSubtotal: ${money(subtotal)}`
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
+
+// Datos del checkout que van en el mensaje del pedido confirmado.
+export interface DatosPedido {
+  nombre: string
+  entrega: 'envio' | 'coordinar'
+  direccion?: string
+  localidad?: string
+  cp?: string
+  notas?: string
+}
+
+// Link de WhatsApp para un pedido YA REGISTRADO en la base (checkout):
+// incluye el número de orden, el detalle y los datos de entrega.
+export function waPedidoConfirmadoLink(
+  numero: number,
+  items: ItemPedido[],
+  subtotal: number,
+  datos: DatosPedido,
+): string {
+  const lineas = items
+    .map((i) => `• ${i.cantidad}x ${i.nombre} — ${money(i.precio * i.cantidad)}`)
+    .join('\n')
+  const entrega =
+    datos.entrega === 'envio'
+      ? `Envío a domicilio: ${datos.direccion ?? ''}, ${datos.localidad ?? ''} (CP ${datos.cp ?? ''})`
+      : 'Entrega: a coordinar / retiro'
+  const partes = [
+    `Hola! Soy ${datos.nombre}. Acabo de hacer el pedido #${numero} en la web de Pecora:`,
+    lineas,
+    `Subtotal: ${money(subtotal)}`,
+    entrega,
+  ]
+  if (datos.notas) partes.push(`Notas: ${datos.notas}`)
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(partes.join('\n\n'))}`
 }
 
 // ¿Está configurado Instagram? (para mostrar u ocultar el botón)
