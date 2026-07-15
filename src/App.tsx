@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import CatalogPage from './pages/CatalogPage'
 import ProductPage from './pages/ProductPage'
+import CartPage from './pages/CartPage'
 import AdminPage from './pages/AdminPage'
 
 // El "modo" define qué expone cada deploy (ver VITE_APP_MODE en .env):
@@ -32,6 +33,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<CatalogPage />} />
           <Route path="/producto/:id" element={<ProductPage />} />
+          <Route path="/carrito" element={<CartPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
@@ -44,6 +46,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<CatalogPage />} />
         <Route path="/producto/:id" element={<ProductPage />} />
+        <Route path="/carrito" element={<CartPage />} />
         <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </BrowserRouter>

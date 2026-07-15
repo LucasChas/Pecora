@@ -1,4 +1,5 @@
 import type { ProductoConCategoria } from '../types'
+import { money } from './format'
 
 // ============================================================================
 // Configuración de contacto (WhatsApp + Instagram).
@@ -25,6 +26,23 @@ function mensajeWhatsApp(producto: ProductoConCategoria): string {
 // Link de WhatsApp (wa.me) con el mensaje ya cargado.
 export function waLink(producto: ProductoConCategoria): string {
   const msg = mensajeWhatsApp(producto)
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
+
+// Ítem mínimo para armar el mensaje de pedido.
+interface ItemPedido {
+  nombre: string
+  precio: number
+  cantidad: number
+}
+
+// Link de WhatsApp para cerrar un PEDIDO (carrito) con el detalle y el subtotal.
+// Es el cierre interino, hasta tener el checkout con MercadoPago/envíos.
+export function waPedidoLink(items: ItemPedido[], subtotal: number): string {
+  const lineas = items
+    .map((i) => `• ${i.cantidad}x ${i.nombre} — ${money(i.precio * i.cantidad)}`)
+    .join('\n')
+  const msg = `Hola! Quiero hacer este pedido (Pecora):\n${lineas}\n\nSubtotal: ${money(subtotal)}`
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
 }
 

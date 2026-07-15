@@ -17,7 +17,12 @@
       "PowerShell(\"---\")",
       "PowerShell(git -C $repo checkout -b Feature/descripcion-de-producto 2>&1)",
       "PowerShell(git -C $repo branch --show-current)",
-      "PowerShell(git -C $repo commit -m \"Roadmap 3 y 4: categorias por URL + aviso de ultimas unidades\" -m \"Categoria y busqueda ahora viven en la URL \\(?cat=&q=\\): filtro compartible, deep-link y boton atras. Ficha mas rica y honesta: aviso 'ultimas N unidades' \\(stock bajo\\) en card y detalle, y nota de como se coordina pago/envio. NO se agregan cuotas ni costo de envio porque requieren checkout/pasarela real \\(fase ecommerce\\).\" -m \"Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\" 2>&1)"
+      "PowerShell(git -C $repo commit -m \"Roadmap 3 y 4: categorias por URL + aviso de ultimas unidades\" -m \"Categoria y busqueda ahora viven en la URL \\(?cat=&q=\\): filtro compartible, deep-link y boton atras. Ficha mas rica y honesta: aviso 'ultimas N unidades' \\(stock bajo\\) en card y detalle, y nota de como se coordina pago/envio. NO se agregan cuotas ni costo de envio porque requieren checkout/pasarela real \\(fase ecommerce\\).\" -m \"Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>\" 2>&1)",
+      "PowerShell(gh --version 2>&1)",
+      "PowerShell(gh auth status 2>&1)",
+      "PowerShell(git -C $repo log --oneline main..Feature/descripcion-de-producto)",
+      "PowerShell(\"---AUTH---\")",
+      "PowerShell(\"---COMMITS \\(main..rama\\)---\")"
     ]
   }
 }

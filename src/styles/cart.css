@@ -1,0 +1,221 @@
+/* ============================================================
+   Estilos del carrito y del CTA "Agregar al carrito".
+   ============================================================ */
+
+/* Botón base (el catálogo no carga admin.css, así que lo definimos acá). */
+.btn {
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 13px 18px;
+  border-radius: 100px;
+  width: 100%;
+}
+.btn-primary {
+  background: var(--sage);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--sage-deep);
+}
+
+/* Header con ícono de carrito arriba a la derecha */
+.cart-header {
+  position: relative;
+}
+.cart-icon {
+  position: absolute;
+  top: 50%;
+  right: 24px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.12);
+}
+.cart-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.cart-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 100px;
+  background: var(--sage);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Selector de cantidad (reutilizable en ficha y carrito) */
+.qty {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  overflow: hidden;
+  background: #fff;
+}
+.qty button {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+.qty button:active {
+  background: var(--cream-deep);
+}
+.qty span {
+  min-width: 30px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* CTA "Agregar al carrito" en la ficha */
+.add-cart {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+.add-cart-btn {
+  width: auto;
+  flex: 1;
+  max-width: 300px;
+}
+
+/* ---------- Página del carrito ---------- */
+.cart-page {
+  max-width: 760px;
+}
+.cart-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  margin: 0 0 18px;
+}
+.cart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cart-item {
+  display: flex;
+  gap: 14px;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+}
+.cart-item > img {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--cream-deep);
+  flex-shrink: 0;
+}
+.cart-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cart-item-name {
+  font-family: 'Fraunces', serif;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+.cart-item-price {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.cart-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.cart-item-total {
+  margin: 0;
+  font-weight: 700;
+}
+.cart-remove {
+  border: none;
+  background: none;
+  color: var(--danger);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Resumen y acciones */
+.cart-summary {
+  margin-top: 20px;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+}
+.cart-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 1.05rem;
+}
+.cart-subtotal strong {
+  font-size: 1.3rem;
+}
+.cart-note {
+  margin: 10px 0 16px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.cart-summary .btn-primary {
+  text-align: center;
+  display: block;
+}
+.cart-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+}
+.cart-clear {
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .cart-icon {
+    right: 16px;
+  }
+  .add-cart-btn {
+    max-width: none;
+  }
+}

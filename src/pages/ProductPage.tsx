@@ -4,8 +4,10 @@ import { supabase } from '../lib/supabaseClient'
 import type { ProductoConCategoria } from '../types'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
+import CartIcon from '../components/cart/CartIcon'
 import ProductDetailView from '../components/catalog/ProductDetailView'
 import '../styles/catalog.css'
+import '../styles/cart.css'
 
 type Estado = 'cargando' | 'ok' | 'no-encontrado'
 
@@ -48,11 +50,12 @@ export default function ProductPage() {
 
   return (
     <div className="catalog-root">
-      <header>
+      <header className="cart-header">
         <Link to="/">
           <Logo />
         </Link>
         <p>Accesorios de bebé · Muestrario</p>
+        <CartIcon />
       </header>
       <Scallop />
 
