@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Categoria, ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
+import { comprimirImagen } from '../../lib/imageCompress'
 import ImagePicker from './ImagePicker'
 
 interface Props {
@@ -14,16 +15,24 @@ interface Props {
   onChanged: () => void
 }
 
-// Sube un archivo al bucket "productos" de Storage y devuelve su URL pública.
+// Comprime y sube un archivo al bucket "productos" de Storage; devuelve su URL.
 async function subirImagen(file: File): Promise<string> {
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
-  const nombre = `${crypto.randomUUID()}.${ext}`
+  const blob = await comprimirImagen(file) // se sube liviana (JPEG)
+  const nombre = `${crypto.randomUUID()}.jpg`
   const { error } = await supabase.storage
     .from('productos')
-    .upload(nombre, file, { cacheControl: '3600', upsert: false })
+    .upload(nombre, blob, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' })
   if (error) throw error
   const { data } = supabase.storage.from('productos').getPublicUrl(nombre)
   return data.publicUrl
+}
+
+// Imágenes ya guardadas de un producto (galería nueva, o la portada vieja).
+function imagenesGuardadas(p: ProductoConCategoria | null): string[] {
+  if (!p) return []
+  const arr = (p.imagenes ?? []).filter(Boolean)
+  if (arr.length) return arr
+  return p.imagen_url ? [p.imagen_url] : []
 }
 
 // Hoja (bottom sheet) para crear o editar un producto.
@@ -42,7 +51,9 @@ export default function ProductFormSheet({
   const [descripcion, setDescripcion] = useState('')
   const [precio, setPrecio] = useState('')
   const [stock, setStock] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  // Galería: URLs ya guardadas que se conservan + archivos nuevos a subir.
+  const [keepUrls, setKeepUrls] = useState<string[]>([])
+  const [newFiles, setNewFiles] = useState<File[]>([])
 
   const [mostrarNuevaCat, setMostrarNuevaCat] = useState(false)
   const [nuevaCat, setNuevaCat] = useState('')
@@ -58,12 +69,18 @@ export default function ProductFormSheet({
     setDescripcion(producto?.descripcion ?? '')
     setPrecio(producto ? String(producto.precio) : '')
     setStock(producto ? String(producto.stock) : '')
-    setFile(null)
+    setKeepUrls(imagenesGuardadas(producto))
+    setNewFiles([])
     setMostrarNuevaCat(false)
     setNuevaCat('')
     setError(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, producto])
+
+  // Manejo de la galería de imágenes.
+  const agregarFiles = (files: File[]) => setNewFiles((prev) => [...prev, ...files])
+  const quitarUrl = (i: number) => setKeepUrls((prev) => prev.filter((_, idx) => idx !== i))
+  const quitarFile = (i: number) => setNewFiles((prev) => prev.filter((_, idx) => idx !== i))
 
   function onCategoriaChange(valor: string) {
     if (valor === '__new__') {
@@ -102,9 +119,11 @@ export default function ProductFormSheet({
     setGuardando(true)
     setError(null)
     try {
-      // Si eligió una imagen nueva, la subimos; si no, conservamos la anterior.
-      let imagen_url = producto?.imagen_url ?? null
-      if (file) imagen_url = await subirImagen(file)
+      // Subimos las imágenes nuevas y armamos la galería final
+      // (las que se conservan + las nuevas, en ese orden).
+      const subidas: string[] = []
+      for (const f of newFiles) subidas.push(await subirImagen(f))
+      const imagenes = [...keepUrls, ...subidas]
 
       const payload = {
         nombre,
@@ -112,7 +131,8 @@ export default function ProductFormSheet({
         descripcion,
         precio: Number(precio) || 0,
         stock: Number(stock) || 0,
-        imagen_url,
+        imagenes,
+        imagen_url: imagenes[0] ?? null, // portada para la grilla / compatibilidad
       }
 
       if (producto) {
@@ -155,7 +175,13 @@ export default function ProductFormSheet({
         <h2>{producto ? 'Editar producto' : 'Nuevo producto'}</h2>
 
         <form onSubmit={onSubmit}>
-          <ImagePicker imagenActual={producto?.imagen_url ?? null} onFileSelected={setFile} />
+          <ImagePicker
+            keepUrls={keepUrls}
+            newFiles={newFiles}
+            onAddFiles={agregarFiles}
+            onRemoveUrl={quitarUrl}
+            onRemoveFile={quitarFile}
+          />
 
           <div className="field">
             <label>Nombre</label>

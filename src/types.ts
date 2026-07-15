@@ -14,6 +14,9 @@ export interface Producto {
   precio: number
   stock: number
   imagen_url: string | null
+  // Galería de imágenes (columna "imagenes text[]", ver migración 0002).
+  // Puede venir undefined si todavía no corriste esa migración.
+  imagenes?: string[] | null
   created_at: string
   updated_at: string
 }

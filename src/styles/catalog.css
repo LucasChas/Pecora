@@ -194,6 +194,13 @@
 .card.unavailable .price {
   color: var(--unavailable);
 }
+/* Aviso de pocas unidades en la card */
+.low-stock {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--danger);
+}
 
 .wa-btn {
   display: flex;
@@ -237,4 +244,255 @@
   padding: 26px;
   font-size: 0.78rem;
   color: #8A7A5E;
+}
+.catalog-root footer p {
+  margin: 0 0 10px;
+}
+.footer-ig {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--sage-deep);
+}
+.footer-ig svg {
+  width: 15px;
+  height: 15px;
+}
+.footer-ig:hover {
+  color: var(--ink);
+}
+
+/* ---------- Card clickeable + CTA ---------- */
+/* La parte de arriba de la card (imagen + textos) es un botón que abre el
+   detalle; el botón de WhatsApp queda aparte para no dispararlo. */
+.card-open {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  background: none;
+  border: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.card-body {
+  padding-bottom: 6px;
+}
+.card-cta {
+  padding: 4px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Contador de fotos (esquina de la imagen, cuando hay más de una) */
+.photo-count {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(51, 48, 42, 0.72);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 100px;
+}
+
+/* ---------- Detalle de producto (página /producto/:id) ---------- */
+.product-page {
+  max-width: 1000px;
+}
+.pp-breadcrumb {
+  margin-bottom: 16px;
+}
+.pp-breadcrumb a {
+  color: var(--sage-deep);
+}
+.pp-back {
+  display: inline-block;
+  margin-top: 24px;
+  font-weight: 600;
+  color: var(--sage-deep);
+}
+.pp-back:hover {
+  color: var(--ink);
+}
+/* Contenedor galería + info (card blanca) */
+.pd-content {
+  display: flex;
+  gap: 28px;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+}
+
+/* Galería */
+.pd-gallery {
+  flex: 1 1 55%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pd-main {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: var(--cream-deep);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.pd-main img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.pd-main.unavailable img {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.pd-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pd-thumb {
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--cream-deep);
+}
+.pd-thumb.active {
+  border-color: var(--sage);
+}
+.pd-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Información */
+.pd-info {
+  flex: 1 1 45%;
+  min-width: 0;
+  padding: 8px 8px 8px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pd-breadcrumb {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pd-breadcrumb span {
+  color: var(--sage-deep);
+  font-weight: 600;
+}
+.pd-name {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  margin: 0;
+}
+.pd-price {
+  font-weight: 600;
+  font-size: 1.3rem;
+  margin: 2px 0 6px;
+}
+.pd-price.off {
+  color: var(--unavailable);
+}
+.pd-stock-msg {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--danger);
+  font-weight: 500;
+}
+.pd-low-stock {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--danger);
+}
+.pd-note {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.pd-desc {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #6E6350;
+  white-space: pre-line;
+}
+/* Botones de consulta (WhatsApp + Instagram) */
+.pd-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  align-self: flex-start;
+  min-width: 250px;
+}
+.pd-wa,
+.pd-ig {
+  padding-left: 22px;
+  padding-right: 22px;
+}
+/* Botón de Instagram: variante secundaria (outline) para diferenciarlo. */
+.ig-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 100px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--sage-deep);
+  border: 1px solid var(--sage);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ig-btn:hover {
+  background: var(--sage);
+  color: #fff;
+}
+.ig-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Mobile: galería arriba, info abajo */
+@media (max-width: 720px) {
+  .pd-content {
+    flex-direction: column;
+    gap: 16px;
+  }
+  .pd-info {
+    padding: 4px;
+  }
+  .pd-name {
+    font-size: 1.3rem;
+  }
+  .pd-actions {
+    align-self: stretch;
+    min-width: 0;
+  }
 }

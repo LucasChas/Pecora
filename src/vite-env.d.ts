@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string
   readonly VITE_SUPABASE_ANON_KEY: string
   readonly VITE_WHATSAPP_NUMBER: string
+  // Usuario de Instagram (sin @). Opcional: si falta, no se muestra el botón.
+  readonly VITE_INSTAGRAM_USER?: string
   // 'catalog' | 'admin' | undefined. Define qué vista expone el deploy.
   readonly VITE_APP_MODE?: 'catalog' | 'admin'
 }
