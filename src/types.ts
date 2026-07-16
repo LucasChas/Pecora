@@ -26,3 +26,30 @@ export interface Producto {
 export interface ProductoConCategoria extends Producto {
   categoria_nombre: string | null
 }
+
+// ---- Pedidos (checkout como invitada, ver migración 0003) ----
+export type EstadoPedido = 'nuevo' | 'confirmado' | 'entregado' | 'cancelado'
+
+export interface PedidoItem {
+  id: string
+  nombre: string
+  precio: number
+  cantidad: number
+}
+
+export interface Pedido {
+  id: string
+  numero: number
+  nombre: string
+  telefono: string
+  email: string | null
+  entrega: 'envio' | 'coordinar'
+  direccion: string | null
+  localidad: string | null
+  cp: string | null
+  notas: string | null
+  items: PedidoItem[]
+  subtotal: number
+  estado: EstadoPedido
+  created_at: string
+}

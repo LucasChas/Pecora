@@ -54,3 +54,15 @@ create policy "pedidos gestion autenticada"
   to authenticated
   using (true)
   with check (true);
+
+-- ----------------------------------------------------------------------------
+-- Realtime: publicar la tabla para que el panel de pedidos se actualice solo
+-- cuando entra un pedido nuevo o cambia un estado.
+-- ----------------------------------------------------------------------------
+do $$
+begin
+  begin
+    alter publication supabase_realtime add table public.pedidos;
+  exception when duplicate_object then null;
+  end;
+end $$;
