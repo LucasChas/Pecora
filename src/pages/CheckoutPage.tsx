@@ -9,7 +9,6 @@ import { waPedidoConfirmadoLink, type DatosPedido } from '../lib/config'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 
-// Pedido ya confirmado (para la pantalla de éxito, después de vaciar el carrito).
 interface PedidoConfirmado {
   numero: number
   items: CartItem[]
@@ -17,9 +16,10 @@ interface PedidoConfirmado {
   datos: DatosPedido
 }
 
-// Checkout como INVITADA (/checkout): datos de contacto y entrega, revalidación
-// de stock/precios contra la base, y registro del pedido en la tabla "pedidos".
-// El pago online (MercadoPago) y el cálculo de envío se enchufan acá más adelante.
+type MetodoPago = 'whatsapp' | 'mercadopago'
+
+// Checkout como INVITADA (/checkout): datos de contacto y entrega, método de
+// pago, revalidación de stock/precios contra la base y registro del pedido.
 export default function CheckoutPage() {
   const { items, subtotal, reemplazar, vaciar } = useCart()
 
@@ -31,6 +31,7 @@ export default function CheckoutPage() {
   const [localidad, setLocalidad] = useState('')
   const [cp, setCp] = useState('')
   const [notas, setNotas] = useState('')
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>('whatsapp')
 
   const [enviando, setEnviando] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -38,7 +39,6 @@ export default function CheckoutPage() {
   const [confirmado, setConfirmado] = useState<PedidoConfirmado | null>(null)
 
   // Revalida el carrito contra la base: precios vigentes y stock disponible.
-  // Devuelve los ítems corregidos y una lista de cambios (vacía si está todo ok).
   async function revalidarCarrito(): Promise<{ corregidos: CartItem[]; cambios: string[] }> {
     const ids = items.map((i) => i.id)
     const { data, error } = await supabase
@@ -76,7 +76,6 @@ export default function CheckoutPage() {
     setAviso(null)
     setEnviando(true)
     try {
-      // 1) Revalidamos contra la base antes de registrar nada.
       const { corregidos, cambios } = await revalidarCarrito()
       if (cambios.length > 0) {
         reemplazar(corregidos)
@@ -92,7 +91,6 @@ export default function CheckoutPage() {
         return
       }
 
-      // 2) Registramos el pedido.
       const datos: DatosPedido = {
         nombre,
         entrega,
@@ -125,7 +123,8 @@ export default function CheckoutPage() {
         .single()
       if (error) throw new Error(error.message)
 
-      // 3) Éxito: guardamos la copia local para la pantalla final y vaciamos.
+      // TODO (fase MercadoPago): si metodoPago === 'mercadopago', acá se llama a
+      // la Edge Function que crea la preferencia y se redirige al checkout de MP.
       setConfirmado({ numero: data.numero, items: corregidos, subtotal: subtotalFinal, datos })
       vaciar()
     } catch (err) {
@@ -147,7 +146,7 @@ export default function CheckoutPage() {
       </header>
       <Scallop />
 
-      <main className="cart-page">
+      <main className="checkout">
         {/* ---------- Pantalla de éxito ---------- */}
         {confirmado ? (
           <div className="checkout-ok">
@@ -175,7 +174,6 @@ export default function CheckoutPage() {
             </Link>
           </div>
         ) : items.length === 0 ? (
-          /* ---------- Carrito vacío ---------- */
           <div className="no-results">
             Tu carrito está vacío.
             <br />
@@ -184,103 +182,137 @@ export default function CheckoutPage() {
             </Link>
           </div>
         ) : (
-          /* ---------- Formulario ---------- */
           <>
-            <h1 className="cart-title">Finalizar pedido</h1>
+            <h1 className="cart-title">Finalizar compra</h1>
 
-            {/* Resumen compacto */}
-            <div className="checkout-resumen">
-              {items.map((i) => (
-                <div className="checkout-linea" key={i.id}>
-                  <span>
-                    {i.cantidad}x {i.nombre}
-                  </span>
-                  <span>{money(i.precio * i.cantidad)}</span>
-                </div>
-              ))}
-              <div className="checkout-linea total">
-                <span>Subtotal</span>
-                <strong>{money(subtotal)}</strong>
-              </div>
-            </div>
-
-            <form onSubmit={onSubmit} className="checkout-form">
-              <div className="field">
-                <label>Nombre y apellido</label>
-                <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" />
-              </div>
-
-              <div className="field">
-                <label>Teléfono (WhatsApp)</label>
-                <input type="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" />
-              </div>
-
-              <div className="field">
-                <label>Email (opcional)</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
-              </div>
-
-              <div className="field">
-                <label>Entrega</label>
-                <div className="entrega-opciones">
-                  <label className={entrega === 'coordinar' ? 'entrega-op active' : 'entrega-op'}>
-                    <input
-                      type="radio"
-                      name="entrega"
-                      checked={entrega === 'coordinar'}
-                      onChange={() => setEntrega('coordinar')}
-                    />
-                    Retiro / a coordinar
-                  </label>
-                  <label className={entrega === 'envio' ? 'entrega-op active' : 'entrega-op'}>
-                    <input
-                      type="radio"
-                      name="entrega"
-                      checked={entrega === 'envio'}
-                      onChange={() => setEntrega('envio')}
-                    />
-                    Envío a domicilio
-                  </label>
-                </div>
-              </div>
-
-              {entrega === 'envio' && (
-                <>
+            <div className="checkout-grid">
+              {/* ---------- Columna formulario ---------- */}
+              <form onSubmit={onSubmit} className="checkout-col-form checkout-form">
+                <section className="checkout-card">
+                  <h2 className="checkout-h">
+                    <span className="paso">1</span> Tus datos
+                  </h2>
                   <div className="field">
-                    <label>Dirección</label>
-                    <input type="text" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" />
+                    <label>Nombre y apellido</label>
+                    <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" />
                   </div>
-                  <div className="row2">
-                    <div className="field">
-                      <label>Localidad</label>
-                      <input type="text" required value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Ciudad" />
-                    </div>
-                    <div className="field">
-                      <label>Código postal</label>
-                      <input type="text" required value={cp} onChange={(e) => setCp(e.target.value)} placeholder="CP" />
-                    </div>
+                  <div className="field">
+                    <label>Teléfono (WhatsApp)</label>
+                    <input type="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" />
                   </div>
-                  <p className="cart-note">
-                    El costo del envío se coordina por WhatsApp al confirmar el pedido.
-                  </p>
-                </>
-              )}
+                  <div className="field">
+                    <label>Email (opcional)</label>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
+                  </div>
+                </section>
 
-              <div className="field">
-                <label>Notas (opcional)</label>
-                <textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Aclaraciones, horarios, etc." />
-              </div>
+                <section className="checkout-card">
+                  <h2 className="checkout-h">
+                    <span className="paso">2</span> Entrega
+                  </h2>
+                  <div className="entrega-opciones">
+                    <label className={entrega === 'coordinar' ? 'entrega-op active' : 'entrega-op'}>
+                      <input type="radio" name="entrega" checked={entrega === 'coordinar'} onChange={() => setEntrega('coordinar')} />
+                      Retiro / a coordinar
+                    </label>
+                    <label className={entrega === 'envio' ? 'entrega-op active' : 'entrega-op'}>
+                      <input type="radio" name="entrega" checked={entrega === 'envio'} onChange={() => setEntrega('envio')} />
+                      Envío a domicilio
+                    </label>
+                  </div>
 
-              {aviso && <p className="checkout-aviso">{aviso}</p>}
-              {error && <p className="form-error">{error}</p>}
+                  {entrega === 'envio' && (
+                    <div className="entrega-datos">
+                      <div className="field">
+                        <label>Dirección</label>
+                        <input type="text" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" />
+                      </div>
+                      <div className="row2">
+                        <div className="field">
+                          <label>Localidad</label>
+                          <input type="text" required value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Ciudad" />
+                        </div>
+                        <div className="field">
+                          <label>Código postal</label>
+                          <input type="text" required value={cp} onChange={(e) => setCp(e.target.value)} placeholder="CP" />
+                        </div>
+                      </div>
+                      <p className="cart-note">El costo del envío se coordina al confirmar el pedido.</p>
+                    </div>
+                  )}
+                </section>
 
-              <button type="submit" className="btn btn-primary" disabled={enviando}>
-                {enviando ? 'Registrando…' : 'Confirmar pedido'}
-              </button>
-              <Link className="pp-back" to="/carrito">
-                ← Volver al carrito
-              </Link>
-            </form>
+                <section className="checkout-card">
+                  <h2 className="checkout-h">
+                    <span className="paso">3</span> Pago
+                  </h2>
+                  <div className="pago-opciones">
+                    <label className={metodoPago === 'whatsapp' ? 'pago-op active' : 'pago-op'}>
+                      <input type="radio" name="pago" checked={metodoPago === 'whatsapp'} onChange={() => setMetodoPago('whatsapp')} />
+                      <div className="pago-txt">
+                        <strong>Coordinar por WhatsApp</strong>
+                        <span>Acordás el pago (efectivo, transferencia…) al confirmar el pedido.</span>
+                      </div>
+                    </label>
+                    <label className="pago-op disabled" title="Lo activamos muy pronto">
+                      <input type="radio" name="pago" disabled />
+                      <div className="pago-txt">
+                        <strong>
+                          Pagar online <span className="badge-pronto">Muy pronto</span>
+                        </strong>
+                        <span>Con MercadoPago: tarjeta, débito o dinero en cuenta.</span>
+                      </div>
+                    </label>
+                  </div>
+                </section>
+
+                <div className="field">
+                  <label>Notas (opcional)</label>
+                  <textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Aclaraciones, horarios, etc." />
+                </div>
+
+                {aviso && <p className="checkout-aviso">{aviso}</p>}
+                {error && <p className="form-error">{error}</p>}
+
+                <button type="submit" className="btn btn-primary" disabled={enviando}>
+                  {enviando ? 'Registrando…' : 'Confirmar pedido'}
+                </button>
+                <Link className="pp-back" to="/carrito">
+                  ← Volver al carrito
+                </Link>
+              </form>
+
+              {/* ---------- Columna resumen ---------- */}
+              <aside className="checkout-col-summary">
+                <div className="checkout-card summary-card">
+                  <h2 className="checkout-h">Tu pedido</h2>
+                  <div className="summary-items">
+                    {items.map((i) => (
+                      <div className="summary-item" key={i.id}>
+                        <div className="summary-thumb">
+                          <img src={i.imagen} alt={i.nombre} />
+                          <span className="summary-qty">{i.cantidad}</span>
+                        </div>
+                        <span className="summary-name">{i.nombre}</span>
+                        <span className="summary-total">{money(i.precio * i.cantidad)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="summary-linea">
+                    <span>Subtotal</span>
+                    <span>{money(subtotal)}</span>
+                  </div>
+                  <div className="summary-linea muted">
+                    <span>Envío</span>
+                    <span>a coordinar</span>
+                  </div>
+                  <div className="summary-linea total">
+                    <span>Total</span>
+                    <strong>{money(subtotal)}</strong>
+                  </div>
+                </div>
+              </aside>
+            </div>
           </>
         )}
       </main>
