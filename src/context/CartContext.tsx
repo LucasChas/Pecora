@@ -24,6 +24,10 @@ interface CartContextValue {
   vaciar: () => void
   // Reemplaza el contenido completo (lo usa el checkout al revalidar contra la base).
   reemplazar: (items: CartItem[]) => void
+  // Estado del carrito lateral (drawer).
+  drawerAbierto: boolean
+  abrirDrawer: () => void
+  cerrarDrawer: () => void
 }
 
 const CartContext = createContext<CartContextValue | null>(null)
@@ -40,6 +44,7 @@ function leerStorage(): CartItem[] {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(leerStorage)
+  const [drawerAbierto, setDrawerAbierto] = useState(false)
 
   // Persistimos el carrito en localStorage ante cualquier cambio.
   useEffect(() => {
@@ -69,6 +74,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         },
       ]
     })
+    // Feedback inmediato: abrimos el carrito lateral al agregar.
+    setDrawerAbierto(true)
   }, [])
 
   const setCantidad = useCallback((id: string, cantidad: number) => {
@@ -102,6 +109,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     quitar,
     vaciar,
     reemplazar,
+    drawerAbierto,
+    abrirDrawer: () => setDrawerAbierto(true),
+    cerrarDrawer: () => setDrawerAbierto(false),
   }
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
