@@ -60,6 +60,109 @@
   justify-content: center;
 }
 
+/* ---------- Modal de éxito del pedido ---------- */
+.success-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(51, 48, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: success-fade 0.2s ease;
+}
+.success-card {
+  background: var(--cream);
+  border-radius: 20px;
+  padding: 34px 26px 26px;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(51, 48, 42, 0.32);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: success-pop 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+.success-check {
+  width: 84px;
+  height: 84px;
+}
+.success-check svg {
+  width: 84px;
+  height: 84px;
+}
+.success-check-circle {
+  stroke: #7ba05b;
+  stroke-width: 3;
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  animation: success-draw 0.5s ease forwards 0.1s;
+}
+.success-check-mark {
+  stroke: #7ba05b;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: success-draw 0.35s ease forwards 0.5s;
+}
+.success-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin: 0;
+}
+.success-text {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+.success-card .btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 4px;
+}
+.success-wa-ic {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.success-volver {
+  border: none;
+  background: none;
+  color: var(--sage-deep);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 2px;
+}
+.success-volver:hover {
+  color: var(--ink);
+}
+@keyframes success-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes success-pop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+@keyframes success-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 /* ---------- Carrito lateral (drawer) ---------- */
 .drawer-overlay {
   position: fixed;

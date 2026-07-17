@@ -6,6 +6,7 @@ import { useCart, type CartItem } from '../context/CartContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
 import { waPedidoConfirmadoLink, type DatosPedido } from '../lib/config'
+import OrderSuccess from '../components/cart/OrderSuccess'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 
@@ -147,32 +148,8 @@ export default function CheckoutPage() {
       <Scallop />
 
       <main className="checkout">
-        {/* ---------- Pantalla de éxito ---------- */}
         {confirmado ? (
-          <div className="checkout-ok">
-            <h1 className="cart-title">¡Pedido #{confirmado.numero} registrado! 🎉</h1>
-            <p className="cart-note">
-              Guardamos tu pedido. Para confirmarlo y coordinar
-              {confirmado.datos.entrega === 'envio' ? ' el pago y el envío' : ' el pago y la entrega'},
-              envianos el detalle por WhatsApp con un toque:
-            </p>
-            <a
-              className="btn btn-primary"
-              href={waPedidoConfirmadoLink(
-                confirmado.numero,
-                confirmado.items,
-                confirmado.subtotal,
-                confirmado.datos,
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Enviar pedido #{confirmado.numero} por WhatsApp
-            </a>
-            <Link className="pp-back" to="/">
-              ← Volver al muestrario
-            </Link>
-          </div>
+          <div className="no-results">Pedido registrado ✓</div>
         ) : items.length === 0 ? (
           <div className="no-results">
             Tu carrito está vacío.
@@ -316,6 +293,20 @@ export default function CheckoutPage() {
           </>
         )}
       </main>
+
+      {/* Modal de éxito */}
+      {confirmado && (
+        <OrderSuccess
+          numero={confirmado.numero}
+          entrega={confirmado.datos.entrega}
+          waHref={waPedidoConfirmadoLink(
+            confirmado.numero,
+            confirmado.items,
+            confirmado.subtotal,
+            confirmado.datos,
+          )}
+        />
+      )}
     </div>
   )
 }
