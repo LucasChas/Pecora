@@ -24,11 +24,18 @@
 .cart-header {
   position: relative;
 }
-.cart-icon {
+/* Acciones del header (cuenta + carrito) */
+.header-actions {
   position: absolute;
   top: 50%;
   right: 24px;
   transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cart-icon {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -38,6 +45,8 @@
   background: #fff;
   color: var(--ink);
   box-shadow: 0 1px 3px rgba(51, 48, 42, 0.12);
+  border: none;
+  cursor: pointer;
 }
 .cart-icon svg {
   width: 22px;
@@ -58,6 +67,53 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Menú de cuenta (desplegable del ícono de usuario) */
+.account-menu-wrap {
+  position: relative;
+}
+.account-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+.account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 31;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(51, 48, 42, 0.16);
+  padding: 6px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+}
+.account-menu-hola {
+  padding: 8px 12px 6px;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.account-menu a,
+.account-menu button {
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 9px 12px;
+  border-radius: 8px;
+}
+.account-menu a:hover,
+.account-menu button:hover {
+  background: var(--cream-deep);
 }
 
 /* ---------- Modal de éxito del pedido ---------- */
@@ -808,7 +864,7 @@
 }
 
 @media (max-width: 480px) {
-  .cart-icon {
+  .header-actions {
     right: 16px;
   }
   .add-cart-btn {

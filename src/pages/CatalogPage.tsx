@@ -5,7 +5,7 @@ import Scallop from '../components/Scallop'
 import SearchBar from '../components/catalog/SearchBar'
 import CategoryFilters from '../components/catalog/CategoryFilters'
 import ProductGrid from '../components/catalog/ProductGrid'
-import CartIcon from '../components/cart/CartIcon'
+import HeaderActions from '../components/account/HeaderActions'
 import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
 import { instagramHabilitado, instagramPerfilLink } from '../lib/config'
@@ -63,7 +63,7 @@ export default function CatalogPage() {
       <header className="cart-header">
         <Logo />
         <p>Accesorios de bebé · Muestrario</p>
-        <CartIcon />
+        <HeaderActions />
       </header>
 
       {/* Borde festoneado: elemento de marca */}

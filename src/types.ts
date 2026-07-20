@@ -27,7 +27,16 @@ export interface ProductoConCategoria extends Producto {
   categoria_nombre: string | null
 }
 
-// ---- Pedidos (checkout como invitada, ver migración 0003) ----
+// ---- Cuentas de clientas (ver migración 0005) ----
+export interface Perfil {
+  id: string
+  nombre: string | null
+  telefono: string | null
+  rol: 'cliente' | 'admin'
+  created_at: string
+}
+
+// ---- Pedidos (ver migraciones 0003 / 0005) ----
 export type EstadoPedido = 'nuevo' | 'confirmado' | 'entregado' | 'cancelado'
 
 export interface PedidoItem {

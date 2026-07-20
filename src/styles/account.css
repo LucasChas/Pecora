@@ -1,0 +1,165 @@
+/* ============================================================
+   Cuenta de clientas: login/registro y "Mis pedidos".
+   ============================================================ */
+
+.account {
+  max-width: 460px;
+}
+
+/* ---------- Card de login / registro ---------- */
+.account-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+}
+.account-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.account-tabs button {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px;
+  border-radius: 100px;
+  cursor: pointer;
+}
+.account-tabs button.active {
+  background: var(--sage);
+  color: #fff;
+  border-color: var(--sage);
+}
+.account-intro {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin: 0 0 16px;
+  text-align: center;
+}
+.account-aviso {
+  background: var(--sage-pale);
+  border: 1px solid var(--sage);
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-size: 0.85rem;
+  color: var(--ink);
+  margin: 0 0 12px;
+}
+.account-card .pp-back {
+  display: block;
+  text-align: center;
+  margin-top: 14px;
+}
+
+/* Campos (esta hoja no carga admin.css/cart.css necesariamente) */
+.account-form .field {
+  margin-bottom: 13px;
+}
+.account-form .field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+  color: var(--ink-soft);
+}
+.account-form .field input {
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 0.95rem;
+  background: #fff;
+  color: var(--ink);
+}
+.account-form .field input:focus {
+  outline: 2px solid var(--sage);
+  outline-offset: 1px;
+}
+.account-form .form-error {
+  color: var(--danger);
+  font-size: 0.82rem;
+  margin: 0 0 12px;
+}
+
+/* ---------- Mis pedidos ---------- */
+.mis-pedidos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mp-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mp-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.mp-num {
+  font-weight: 700;
+  font-size: 1rem;
+}
+.mp-fecha {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  margin-left: 8px;
+}
+.mp-estado {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+.mp-estado.e-nuevo {
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+}
+.mp-estado.e-confirmado {
+  background: #FBEBD8;
+  color: var(--clay);
+}
+.mp-estado.e-entregado {
+  background: #E4EFDA;
+  color: #5f8043;
+}
+.mp-estado.e-cancelado {
+  background: var(--danger-pale);
+  color: var(--danger);
+}
+.mp-items {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mp-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.88rem;
+}
+.mp-item.total {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 7px;
+}
+.mp-entrega {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  background: var(--cream);
+  border-radius: 8px;
+  padding: 8px 10px;
+}

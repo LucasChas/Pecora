@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
-import CartIcon from '../components/cart/CartIcon'
+import HeaderActions from '../components/account/HeaderActions'
 import { useCart } from '../context/CartContext'
 import { money } from '../lib/format'
 import { waPedidoLink } from '../lib/config'
@@ -20,7 +20,7 @@ export default function CartPage() {
         <Link to="/">
           <Logo />
         </Link>
-        <CartIcon />
+        <HeaderActions />
       </header>
       <Scallop />
 

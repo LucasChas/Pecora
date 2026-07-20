@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, Navigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
 import { useCart, type CartItem } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
 import { waPedidoConfirmadoLink, type DatosPedido } from '../lib/config'
@@ -23,6 +24,7 @@ type MetodoPago = 'whatsapp' | 'mercadopago'
 // pago, revalidación de stock/precios contra la base y registro del pedido.
 export default function CheckoutPage() {
   const { items, subtotal, reemplazar, vaciar } = useCart()
+  const { session, perfil, loading: cargandoSesion } = useAuth()
 
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -38,6 +40,13 @@ export default function CheckoutPage() {
   const [aviso, setAviso] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmado, setConfirmado] = useState<PedidoConfirmado | null>(null)
+
+  // Prefill de nombre/teléfono con los datos de la cuenta (si están cargados).
+  useEffect(() => {
+    if (!perfil) return
+    setNombre((n) => n || perfil.nombre || '')
+    setTelefono((t) => t || perfil.telefono || '')
+  }, [perfil])
 
   // Revalida el carrito contra la base: precios vigentes y stock disponible.
   async function revalidarCarrito(): Promise<{ corregidos: CartItem[]; cambios: string[] }> {
@@ -135,6 +144,10 @@ export default function CheckoutPage() {
       setEnviando(false)
     }
   }
+
+  // Para comprar hay que estar logueada: si no, va a /cuenta y vuelve al checkout.
+  if (cargandoSesion) return null
+  if (!session) return <Navigate to="/cuenta?next=/checkout" replace />
 
   return (
     <div className="catalog-root">

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../context/AuthContext'
 import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
 import { useOrders } from '../hooks/useOrders'
@@ -18,7 +18,7 @@ type Vista = 'productos' | 'pedidos'
 
 // Vista ADMINISTRADORA (mobile-first), protegida por login.
 export default function AdminPage() {
-  const { session, loading: cargandoSesion } = useAuth()
+  const { session, esAdmin, loading: cargandoSesion } = useAuth()
   const { productos, refetch: refetchProductos } = useProducts()
   const { categorias, refetch: refetchCategorias } = useCategories()
   const { pedidos, loading: cargandoPedidos, error: errorPedidos, refetch: refetchPedidos } = useOrders()
@@ -44,6 +44,21 @@ export default function AdminPage() {
     return (
       <div className="admin-root">
         <LoginForm />
+      </div>
+    )
+  }
+
+  // Logueado pero SIN rol admin (ej. una clienta) => sin acceso al panel.
+  if (!esAdmin) {
+    return (
+      <div className="admin-root">
+        <div className="login-root">
+          <h1>Panel de Pecora</h1>
+          <p className="sub">Esta cuenta no tiene acceso al panel de administración.</p>
+          <button className="btn btn-ghost" onClick={() => supabase.auth.signOut()}>
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     )
   }

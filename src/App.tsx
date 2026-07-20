@@ -3,6 +3,8 @@ import CatalogPage from './pages/CatalogPage'
 import ProductPage from './pages/ProductPage'
 import CartPage from './pages/CartPage'
 import CheckoutPage from './pages/CheckoutPage'
+import AccountPage from './pages/AccountPage'
+import MyOrdersPage from './pages/MyOrdersPage'
 import AdminPage from './pages/AdminPage'
 import CartDrawer from './components/cart/CartDrawer'
 
@@ -34,6 +36,8 @@ function RutasCatalogo() {
       <Route path="/producto/:id" element={<ProductPage />} />
       <Route path="/carrito" element={<CartPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/cuenta" element={<AccountPage />} />
+      <Route path="/mis-pedidos" element={<MyOrdersPage />} />
     </Route>
   )
 }
