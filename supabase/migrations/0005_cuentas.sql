@@ -64,7 +64,7 @@ $$;
 insert into public.profiles (id, rol, nombre)
 select id, 'admin', 'Pecora'
 from auth.users
-where email = 'luquitaschasdiaz3@gmail.com'
+where email in ('luquitaschasdiaz3@gmail.com', 'abrileder27@gmail.com')
 on conflict (id) do update set rol = 'admin';
 
 -- ----------------------------------------------------------------------------
@@ -124,11 +124,13 @@ drop policy if exists "pedidos insert publico" on public.pedidos;
 drop policy if exists "pedidos lectura autenticada" on public.pedidos;
 drop policy if exists "pedidos gestion autenticada" on public.pedidos;
 
+drop policy if exists "pedidos select propio o admin" on public.pedidos;
 create policy "pedidos select propio o admin"
   on public.pedidos for select to authenticated
   using (user_id = auth.uid() or public.es_admin());
 
 -- Solo la admin cambia el estado del pedido.
+drop policy if exists "pedidos update admin" on public.pedidos;
 create policy "pedidos update admin"
   on public.pedidos for update to authenticated
   using (public.es_admin()) with check (public.es_admin());
@@ -137,11 +139,13 @@ create policy "pedidos update admin"
 -- Escritura de productos y categorías: SOLO admin (antes era cualquier auth).
 -- ----------------------------------------------------------------------------
 drop policy if exists "productos escritura autenticada" on public.productos;
+drop policy if exists "productos escritura admin" on public.productos;
 create policy "productos escritura admin"
   on public.productos for all to authenticated
   using (public.es_admin()) with check (public.es_admin());
 
 drop policy if exists "categorias escritura autenticada" on public.categorias;
+drop policy if exists "categorias escritura admin" on public.categorias;
 create policy "categorias escritura admin"
   on public.categorias for all to authenticated
   using (public.es_admin()) with check (public.es_admin());
@@ -150,16 +154,19 @@ create policy "categorias escritura admin"
 -- Storage (bucket productos): subir/editar/borrar imágenes, SOLO admin.
 -- ----------------------------------------------------------------------------
 drop policy if exists "productos storage insert autenticada" on storage.objects;
+drop policy if exists "productos storage insert admin" on storage.objects;
 create policy "productos storage insert admin"
   on storage.objects for insert to authenticated
   with check (bucket_id = 'productos' and public.es_admin());
 
 drop policy if exists "productos storage update autenticada" on storage.objects;
+drop policy if exists "productos storage update admin" on storage.objects;
 create policy "productos storage update admin"
   on storage.objects for update to authenticated
   using (bucket_id = 'productos' and public.es_admin());
 
 drop policy if exists "productos storage delete autenticada" on storage.objects;
+drop policy if exists "productos storage delete admin" on storage.objects;
 create policy "productos storage delete admin"
   on storage.objects for delete to authenticated
   using (bucket_id = 'productos' and public.es_admin());
