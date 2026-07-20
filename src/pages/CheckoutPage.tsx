@@ -101,32 +101,30 @@ export default function CheckoutPage() {
         notas: notas || undefined,
       }
       const subtotalFinal = corregidos.reduce((n, i) => n + i.precio * i.cantidad, 0)
-      const { data, error } = await supabase
-        .from('pedidos')
-        .insert({
-          nombre,
-          telefono,
-          email: email || null,
-          entrega,
-          direccion: datos.direccion ?? null,
-          localidad: datos.localidad ?? null,
-          cp: datos.cp ?? null,
-          notas: datos.notas ?? null,
-          items: corregidos.map((i) => ({
-            id: i.id,
-            nombre: i.nombre,
-            precio: i.precio,
-            cantidad: i.cantidad,
-          })),
-          subtotal: subtotalFinal,
-        })
-        .select('numero')
-        .single()
+      // Usamos la función crear_pedido (SECURITY DEFINER): registra el pedido y
+      // nos devuelve el número de orden, sin exponer la lectura de pedidos.
+      const { data: numero, error } = await supabase.rpc('crear_pedido', {
+        p_nombre: nombre,
+        p_telefono: telefono,
+        p_email: email || null,
+        p_entrega: entrega,
+        p_direccion: datos.direccion ?? null,
+        p_localidad: datos.localidad ?? null,
+        p_cp: datos.cp ?? null,
+        p_notas: datos.notas ?? null,
+        p_items: corregidos.map((i) => ({
+          id: i.id,
+          nombre: i.nombre,
+          precio: i.precio,
+          cantidad: i.cantidad,
+        })),
+        p_subtotal: subtotalFinal,
+      })
       if (error) throw new Error(error.message)
 
       // TODO (fase MercadoPago): si metodoPago === 'mercadopago', acá se llama a
       // la Edge Function que crea la preferencia y se redirige al checkout de MP.
-      setConfirmado({ numero: data.numero, items: corregidos, subtotal: subtotalFinal, datos })
+      setConfirmado({ numero: numero as number, items: corregidos, subtotal: subtotalFinal, datos })
       vaciar()
     } catch (err) {
       setError(
