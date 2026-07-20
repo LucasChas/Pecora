@@ -6,11 +6,25 @@ interface Props {
   loading: boolean
   error: string | null
   onChanged: () => void
+  hayMas: boolean
+  onVerMas: () => void
+  // Si hay filtro o búsqueda activos, el mensaje de "vacío" es distinto.
+  filtrando: boolean
+  papelera: boolean
 }
 
 // Lista de pedidos del panel. Contempla el estado de carga, error (típico si
 // falta correr la migración 0003) y vacío.
-export default function OrdersList({ pedidos, loading, error, onChanged }: Props) {
+export default function OrdersList({
+  pedidos,
+  loading,
+  error,
+  onChanged,
+  hayMas,
+  onVerMas,
+  filtrando,
+  papelera,
+}: Props) {
   if (error) {
     return (
       <div className="list">
@@ -39,9 +53,25 @@ export default function OrdersList({ pedidos, loading, error, onChanged }: Props
     return (
       <div className="list">
         <div className="empty">
-          Todavía no hay pedidos.
-          <br />
-          Cuando una clienta finalice una compra en el muestrario, aparece acá.
+          {papelera ? (
+            <>
+              La papelera está vacía.
+              <br />
+              Los pedidos que borres van a parar acá y podés recuperarlos.
+            </>
+          ) : filtrando ? (
+            <>
+              Ningún pedido coincide con la búsqueda.
+              <br />
+              Probá con otro nombre, teléfono o número.
+            </>
+          ) : (
+            <>
+              Todavía no hay pedidos.
+              <br />
+              Cuando una clienta finalice una compra en el muestrario, aparece acá.
+            </>
+          )}
         </div>
       </div>
     )
@@ -52,6 +82,11 @@ export default function OrdersList({ pedidos, loading, error, onChanged }: Props
       {pedidos.map((p) => (
         <OrderCard key={p.id} pedido={p} onChanged={onChanged} />
       ))}
+      {hayMas && (
+        <button type="button" className="orders-mas" onClick={onVerMas}>
+          Ver más pedidos
+        </button>
+      )}
     </div>
   )
 }

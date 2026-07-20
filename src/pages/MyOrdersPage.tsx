@@ -6,6 +6,7 @@ import HeaderActions from '../components/account/HeaderActions'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
+import { waConsultaCancelacionLink } from '../lib/config'
 import type { EstadoPedido, Pedido } from '../types'
 import '../styles/catalog.css'
 import '../styles/account.css'
@@ -16,6 +17,12 @@ const ESTADO_CLIENTE: Record<EstadoPedido, { texto: string; clase: string }> = {
   confirmado: { texto: 'Confirmado · en preparación', clase: 'e-confirmado' },
   entregado: { texto: 'Entregado', clase: 'e-entregado' },
   cancelado: { texto: 'Cancelado', clase: 'e-cancelado' },
+}
+
+// Un pedido que la admin mandó a la papelera se le muestra a la clienta como
+// "Cancelado": para ella el efecto es el mismo y así no desaparece sin aviso.
+function estadoVisible(pedido: Pedido): EstadoPedido {
+  return pedido.eliminado_at ? 'cancelado' : pedido.estado
 }
 
 function fecha(iso: string): string {
@@ -29,19 +36,29 @@ export default function MyOrdersPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [cargando, setCargando] = useState(true)
 
-  const fetchPedidos = useCallback(async () => {
-    // RLS garantiza que solo trae los pedidos de la clienta logueada.
-    const { data } = await supabase.from('pedidos').select('*').order('created_at', { ascending: false })
+  const fetchPedidos = useCallback(async (uid: string) => {
+    // Filtramos por user_id explícitamente. No alcanza con confiar en RLS: la
+    // política permite leer "los propios O todos si sos admin", así que la
+    // administradora vería acá los pedidos de todas las clientas como si fueran
+    // suyos. "Mis pedidos" siempre son los de la cuenta logueada.
+    const { data } = await supabase
+      .from('pedidos')
+      .select('*')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
     setPedidos((data ?? []) as Pedido[])
     setCargando(false)
   }, [])
 
   useEffect(() => {
     if (!session) return
-    fetchPedidos()
+    const uid = session.user.id
+    fetchPedidos(uid)
     const canal = supabase
       .channel('mis-pedidos')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, fetchPedidos)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, () =>
+        fetchPedidos(uid),
+      )
       .subscribe()
     return () => {
       supabase.removeChannel(canal)
@@ -78,7 +95,8 @@ export default function MyOrdersPage() {
         ) : (
           <div className="mis-pedidos">
             {pedidos.map((p) => {
-              const est = ESTADO_CLIENTE[p.estado]
+              const estado = estadoVisible(p)
+              const est = ESTADO_CLIENTE[estado]
               return (
                 <div className="mp-card" key={p.id}>
                   <div className="mp-top">
@@ -107,6 +125,19 @@ export default function MyOrdersPage() {
                       ? `Envío a ${p.direccion}, ${p.localidad} (CP ${p.cp})`
                       : 'Retiro / a coordinar'}
                   </div>
+
+                  {/* Un pedido cancelado siempre tiene una explicación del otro
+                      lado: le damos a la clienta cómo pedirla. */}
+                  {estado === 'cancelado' && (
+                    <a
+                      className="mp-consultar"
+                      href={waConsultaCancelacionLink(p.numero)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Consultar el motivo por WhatsApp
+                    </a>
+                  )}
                 </div>
               )
             })}

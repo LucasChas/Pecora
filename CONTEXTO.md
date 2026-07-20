@@ -119,7 +119,7 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 |---|---|
 | `set_updated_at()` | Trigger: mantiene `productos.updated_at`. |
 | `impedir_borrar_categoria_con_productos()` | Trigger + FK `restrict`: **no se puede borrar una categoría con productos** (doble protección en backend). |
-| `crear_pedido(...)` | **SECURITY DEFINER**. Inserta el pedido y **devuelve el `numero`**. Exige `auth.uid()` (login). |
+| `crear_pedido(...)` | **SECURITY DEFINER**. Exige `auth.uid()` (login), **descuenta el stock**, arma los ítems y el subtotal **con los precios de la base** (ignora los que manda el front) e inserta el pedido devolviendo el `numero`. |
 | `es_admin()` | **SECURITY DEFINER stable**. `true` si el usuario actual tiene `rol='admin'`. Se usa en las políticas RLS. |
 | `handle_new_user()` | Trigger en `auth.users`: crea el `profiles` al registrarse (toma `nombre`/`telefono` del metadata). |
 
@@ -147,6 +147,9 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `0003_pedidos.sql` | Tabla `pedidos`, RLS, realtime. |
 | `0004_crear_pedido.sql` | Función RPC `crear_pedido`. |
 | `0005_cuentas.sql` | `profiles` + roles, `es_admin()`, `pedidos.user_id`, RLS endurecida, `crear_pedido` exige login. **Idempotente.** |
+| `0006_stock_y_precios.sql` | `crear_pedido` descuenta stock de forma atómica y recalcula precios/subtotal contra la base; `check (stock >= 0)`. **Idempotente.** |
+| `0007_borrar_pedidos.sql` | Policy de **delete** de pedidos (solo admin) + índices por `estado` y `numero`. **Idempotente.** |
+| `0008_devolver_stock.sql` | Triggers: cancelar o borrar un pedido **devuelve el stock**; reactivar uno cancelado lo vuelve a descontar. **Idempotente.** |
 
 **Todas se corren a mano** pegándolas en el **SQL Editor** de Supabase (no se usa Supabase CLI todavía).
 
@@ -238,6 +241,10 @@ supabase/migrations/0001..0005
 4. **Clientas y admin son ambas `authenticated`** → sin `es_admin()` en las políticas, una clienta podría editar productos. Ya está blindado.
 5. **Imágenes**: se comprimen en el navegador (JPEG ~1400px, calidad 0.82) antes de subir; las fotos del cel pesaban 1-5 MB.
 6. **Emails**: los clientes de correo no soportan CSS moderno ni SVG → las plantillas usan **tablas + estilos inline**.
+7. **Hooks que leen tablas con RLS deben depender de `session`**: `useOrders` hacía el fetch una sola vez al montar (antes del login, como anónimo) y no lo repetía al ingresar, así que la admin abría el panel y veía la lista de pedidos vacía o incompleta. Quien consulta define qué devuelve RLS.
+8. **Descontar stock es del backend, no del front**: el checkout revalida contra la base para avisar antes, pero la única protección real contra dos clientas comprando la última unidad es el `update ... where stock >= cantidad` dentro de `crear_pedido`.
+9. **El stock se descuenta y se devuelve**: descontar al crear el pedido es solo la mitad. Cancelarlo o borrarlo tiene que reponerlo (triggers de la 0008), si no la mercadería queda invisible aunque esté en el cajón.
+10. **Un `delete` bloqueado por RLS no da error**: devuelve 0 filas y `error: null`. Si el botón no chequea las filas afectadas (`.select()`), queda mudo y parece que no hace nada.
 
 ---
 

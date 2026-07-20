@@ -92,12 +92,25 @@
   display: flex;
   flex-direction: column;
 }
-.account-menu-hola {
-  padding: 8px 12px 6px;
-  font-size: 0.78rem;
-  color: var(--ink-soft);
+/* Cabecera del menú: quién está logueada (nombre + email). */
+.account-menu-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px 8px;
   border-bottom: 1px solid var(--line);
   margin-bottom: 4px;
+}
+.account-menu-nombre {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.account-menu-email {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  /* Los mails largos no deben ensanchar el menú. */
+  overflow-wrap: anywhere;
 }
 .account-menu a,
 .account-menu button {
@@ -177,6 +190,46 @@
   font-size: 0.88rem;
   color: var(--ink-soft);
   line-height: 1.55;
+}
+/* Desglose de lo comprado dentro del modal de éxito. */
+.success-detalle {
+  width: 100%;
+  background: var(--sage-pale);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.success-linea {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+}
+.success-linea.total {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+.success-entrega {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.success-link {
+  color: var(--sage-deep);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+.success-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
 }
 .success-card .btn-primary {
   display: flex;
@@ -527,7 +580,11 @@
 .cart-actions {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  /* baseline y no center: los dos textos tienen tamaños distintos y con "center"
+     quedaban descolgados uno respecto del otro. */
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-top: 14px;
 }
 .cart-clear {
@@ -863,10 +920,47 @@
   text-align: center;
 }
 
-@media (max-width: 480px) {
-  .header-actions {
-    right: 16px;
+/* Mobile: el wordmark centrado y grande no convive con los botones absolutos
+   (se pisaban). Achicamos el logo y ponemos las acciones AL COSTADO, en la misma
+   línea; el subtítulo baja a un renglón propio. */
+@media (max-width: 620px) {
+  .catalog-root header,
+  .cart-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 16px 16px 14px;
+    text-align: left;
   }
+  .cart-header .logo-img,
+  .catalog-root header .logo-img {
+    height: 42px;
+    margin: 0;
+    order: 1;
+  }
+  .header-actions {
+    position: static;
+    transform: none;
+    margin: 0;
+    order: 2;
+  }
+  /* El subtítulo va al final, en su propio renglón debajo de logo + acciones. */
+  .catalog-root header p {
+    order: 3;
+    width: 100%;
+    margin: 0;
+    font-size: 0.72rem;
+  }
+  /* Botones un poco más compactos para ganar aire en pantallas muy angostas. */
+  .cart-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
   .add-cart-btn {
     max-width: none;
   }

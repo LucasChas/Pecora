@@ -163,3 +163,17 @@
   border-radius: 8px;
   padding: 8px 10px;
 }
+/* Consulta por un pedido cancelado: presente pero sin gritar. */
+.mp-consultar {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--sage-deep);
+  text-decoration: none;
+  padding: 2px 0;
+}
+.mp-consultar:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}

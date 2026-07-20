@@ -70,7 +70,11 @@ export default function CheckoutPage() {
       let cantidad = item.cantidad
       if (cantidad > actual.stock) {
         cantidad = actual.stock
-        cambios.push(`"${item.nombre}": quedan ${actual.stock} unidades (ajustamos la cantidad).`)
+        cambios.push(
+          actual.stock === 1
+            ? `"${item.nombre}": queda 1 unidad (ajustamos la cantidad).`
+            : `"${item.nombre}": quedan ${actual.stock} unidades (ajustamos la cantidad).`,
+        )
       }
       if (actual.precio !== item.precio) {
         cambios.push(`"${item.nombre}": el precio se actualizó a ${money(actual.precio)}.`)
@@ -136,9 +140,12 @@ export default function CheckoutPage() {
       setConfirmado({ numero: numero as number, items: corregidos, subtotal: subtotalFinal, datos })
       vaciar()
     } catch (err) {
+      // crear_pedido devuelve mensajes ya redactados para la clienta (falta de
+      // stock, carrito vacío…), así que los mostramos tal cual.
       setError(
-        'No pudimos registrar el pedido: ' +
-          (err instanceof Error ? err.message : String(err)),
+        err instanceof Error
+          ? err.message
+          : 'No pudimos registrar el pedido. Probá de nuevo en un momento.',
       )
     } finally {
       setEnviando(false)
@@ -160,7 +167,7 @@ export default function CheckoutPage() {
 
       <main className="checkout">
         {confirmado ? (
-          <div className="no-results">Pedido registrado ✓</div>
+          <div className="no-results">¡Gracias por tu compra! ✓</div>
         ) : items.length === 0 ? (
           <div className="no-results">
             Tu carrito está vacío.
@@ -308,7 +315,8 @@ export default function CheckoutPage() {
       {/* Modal de éxito */}
       {confirmado && (
         <OrderSuccess
-          numero={confirmado.numero}
+          items={confirmado.items}
+          subtotal={confirmado.subtotal}
           entrega={confirmado.datos.entrega}
           waHref={waPedidoConfirmadoLink(
             confirmado.numero,

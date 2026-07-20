@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import type { Session } from '@supabase/supabase-js'
+import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import type { Perfil } from '../types'
 
@@ -28,25 +28,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   // Trae el perfil (rol, nombre) del usuario logueado.
-  const cargarPerfil = useCallback(async (uid: string | undefined) => {
-    if (!uid) {
+  //
+  // Las cuentas creadas antes del trigger handle_new_user no tienen fila en
+  // profiles (o la tienen sin nombre/teléfono). Para que la app no se quede sin
+  // datos, completamos con el metadata que guardó Supabase Auth al registrarse.
+  const cargarPerfil = useCallback(async (usuario: User | undefined) => {
+    if (!usuario) {
       setPerfil(null)
       return
     }
-    const { data } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle()
-    setPerfil((data as Perfil) ?? null)
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', usuario.id)
+      .maybeSingle()
+
+    const meta = usuario.user_metadata ?? {}
+    const fila = data as Perfil | null
+    setPerfil({
+      id: usuario.id,
+      nombre: fila?.nombre || (meta.nombre as string) || null,
+      telefono: fila?.telefono || (meta.telefono as string) || null,
+      rol: fila?.rol ?? 'cliente',
+      created_at: fila?.created_at ?? '',
+    })
   }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session)
-      await cargarPerfil(data.session?.user.id)
+      await cargarPerfil(data.session?.user)
       setLoading(false)
     })
 
     const { data: sub } = supabase.auth.onAuthStateChange((_e, nueva) => {
       setSession(nueva)
-      cargarPerfil(nueva?.user.id)
+      cargarPerfil(nueva?.user)
     })
     return () => sub.subscription.unsubscribe()
   }, [cargarPerfil])

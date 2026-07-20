@@ -81,6 +81,15 @@ export function waPedidoConfirmadoLink(
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(partes.join('\n\n'))}`
 }
 
+// Link de WhatsApp para preguntar por qué se canceló un pedido. Lo usa la
+// clienta desde "Mis pedidos": es su única vía para entender qué pasó.
+export function waConsultaCancelacionLink(numero: number): string {
+  const msg =
+    `Hola! Vi que mi pedido #${numero} en Pecora figura como cancelado. ` +
+    '¿Me podrías decir qué pasó?'
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
+
 // ¿Está configurado Instagram? (para mostrar u ocultar el botón)
 export const instagramHabilitado = INSTAGRAM_USER !== ''
 

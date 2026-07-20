@@ -39,7 +39,13 @@ export default function AccountButton() {
         <>
           <div className="account-menu-backdrop" onClick={() => setAbierto(false)} />
           <div className="account-menu">
-            {perfil?.nombre && <span className="account-menu-hola">Hola, {perfil.nombre.split(' ')[0]}</span>}
+            {/* Identidad de la cuenta: nombre y email de quien está logueada. */}
+            <div className="account-menu-id">
+              <span className="account-menu-nombre">
+                {perfil?.nombre || 'Mi cuenta'}
+              </span>
+              <span className="account-menu-email">{session.user.email}</span>
+            </div>
             <Link to="/mis-pedidos" onClick={() => setAbierto(false)}>
               Mis pedidos
             </Link>

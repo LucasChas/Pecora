@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
+import { useDialog } from '../context/DialogContext'
 import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
-import { useOrders } from '../hooks/useOrders'
+import { useOrders, type FiltroEstado } from '../hooks/useOrders'
 import type { ProductoConCategoria } from '../types'
 import Logo from '../components/Logo'
 import LoginForm from '../components/admin/LoginForm'
@@ -16,14 +17,38 @@ import '../styles/admin.css'
 
 type Vista = 'productos' | 'pedidos'
 
+// Chips de filtro de la pestaña Pedidos. El texto es el que usa la clienta en
+// "Mis pedidos", para hablar el mismo idioma en las dos puntas.
+const FILTROS: { valor: FiltroEstado; texto: string }[] = [
+  { valor: 'todos', texto: 'Todos' },
+  { valor: 'nuevo', texto: 'Nuevos' },
+  { valor: 'confirmado', texto: 'En preparación' },
+  { valor: 'entregado', texto: 'Entregados' },
+  { valor: 'cancelado', texto: 'Cancelados' },
+  { valor: 'eliminados', texto: 'Papelera' },
+]
+
 // Vista ADMINISTRADORA (mobile-first), protegida por login.
 export default function AdminPage() {
   const { session, esAdmin, loading: cargandoSesion } = useAuth()
   const { productos, refetch: refetchProductos } = useProducts()
   const { categorias, refetch: refetchCategorias } = useCategories()
-  const { pedidos, loading: cargandoPedidos, error: errorPedidos, refetch: refetchPedidos } = useOrders()
-
+  const { confirmar } = useDialog()
   const [vista, setVista] = useState<Vista>('productos')
+
+  // Filtro y búsqueda de la pestaña Pedidos (la consulta se hace en la base).
+  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos')
+  const [busqueda, setBusqueda] = useState('')
+
+  const {
+    pedidos,
+    conteos,
+    loading: cargandoPedidos,
+    error: errorPedidos,
+    hayMas,
+    verMas,
+    refetch: refetchPedidos,
+  } = useOrders(filtroEstado, busqueda)
 
   // Control de las dos hojas (bottom sheets).
   const [sheetAbierta, setSheetAbierta] = useState(false)
@@ -64,7 +89,8 @@ export default function AdminPage() {
   }
 
   const inicial = (session.user.email?.[0] ?? 'A').toUpperCase()
-  const pedidosNuevos = pedidos.filter((p) => p.estado === 'nuevo').length
+  // Del conteo de la base, no de la página cargada.
+  const pedidosNuevos = conteos.nuevo
 
   function abrirNuevo() {
     setEditando(null)
@@ -77,7 +103,12 @@ export default function AdminPage() {
   }
 
   async function cerrarSesion() {
-    if (confirm('¿Cerrar sesión?')) await supabase.auth.signOut()
+    const ok = await confirmar({
+      titulo: '¿Cerrar sesión?',
+      mensaje: 'Vas a tener que ingresar de nuevo para entrar al panel.',
+      textoOk: 'Cerrar sesión',
+    })
+    if (ok) await supabase.auth.signOut()
   }
 
   return (
@@ -132,17 +163,45 @@ export default function AdminPage() {
               <div>
                 <h1>Pedidos</h1>
                 <p>
-                  {pedidos.length === 0
+                  {conteos.todos === 0
                     ? 'Los pedidos del muestrario aparecen acá.'
-                    : `${pedidos.length} en total · ${pedidosNuevos} sin gestionar.`}
+                    : `${conteos.todos} en total · ${pedidosNuevos} sin gestionar.`}
                 </p>
               </div>
             </div>
+
+            {/* Buscador + chips de estado */}
+            <div className="orders-tools">
+              <input
+                className="orders-search"
+                type="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre, teléfono o nº"
+              />
+              <div className="orders-chips">
+                {FILTROS.map((f) => (
+                  <button
+                    key={f.valor}
+                    className={filtroEstado === f.valor ? 'chip active' : 'chip'}
+                    onClick={() => setFiltroEstado(f.valor)}
+                  >
+                    {f.texto}
+                    <span className="chip-num">{conteos[f.valor]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <OrdersList
               pedidos={pedidos}
               loading={cargandoPedidos}
               error={errorPedidos}
               onChanged={refetchPedidos}
+              hayMas={hayMas}
+              onVerMas={verMas}
+              filtrando={filtroEstado !== 'todos' || busqueda.trim() !== ''}
+              papelera={filtroEstado === 'eliminados'}
             />
           </>
         )}

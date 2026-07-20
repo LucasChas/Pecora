@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
+import { useDialog } from '../../context/DialogContext'
 
 interface Props {
   producto: ProductoConCategoria
@@ -15,6 +16,7 @@ const IMG_PLACEHOLDER = 'https://placehold.co/120x120/EEE1C4/B08F55?text=Pecora'
 // Los cambios se guardan al salir del campo (onBlur) y Realtime refresca la
 // vista (acá y en el catálogo público).
 export default function ProductCard({ producto, onEditar, onChanged }: Props) {
+  const { avisar } = useDialog()
   const disponible = producto.stock > 0
 
   // Estado local para poder escribir libremente; se confirma al salir del input.
@@ -32,7 +34,7 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
       .from('productos')
       .update({ [campo]: valor })
       .eq('id', producto.id)
-    if (error) alert('No se pudo guardar el cambio: ' + error.message)
+    if (error) await avisar({ titulo: 'No se pudo guardar el cambio', mensaje: error.message })
     else onChanged() // Refresca datos tras guardar (pill de stock, catálogo, etc.)
   }
 

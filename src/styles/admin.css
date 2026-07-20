@@ -201,6 +201,125 @@
   border-radius: 8px;
   padding: 8px 10px;
 }
+/* Card que está en la papelera: apagada, para distinguirla de un vistazo. */
+.order-card.en-papelera {
+  opacity: 0.72;
+  border-left-color: var(--unavailable);
+  background: #FBF9F4;
+}
+.order-card.en-papelera .order-estado {
+  opacity: 0.6;
+}
+
+/* Pie de la card: acciones destructivas, discretas para no invitar al toque. */
+.order-pie {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.order-restaurar {
+  margin-right: auto;
+  background: var(--sage-pale);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--sage-deep);
+  padding: 6px 12px;
+  border-radius: 100px;
+  font-family: inherit;
+}
+.order-restaurar:hover {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: #fff;
+}
+.order-borrar {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+.order-borrar:hover {
+  color: var(--danger);
+  background: rgba(201, 100, 90, 0.08);
+}
+
+/* ---------- Buscador y filtros de pedidos ---------- */
+.orders-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 16px 10px;
+}
+.orders-search {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: #fff;
+  padding: 11px 16px;
+  font-size: 0.9rem;
+  color: var(--ink);
+  font-family: inherit;
+}
+.orders-search:focus {
+  outline: none;
+  border-color: var(--sage);
+}
+/* Los chips bajan de renglón en vez de scrollear: así se ven todos de una,
+   sin que la admin tenga que descubrir que la fila se desplaza. */
+.orders-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.orders-chips .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+  border-radius: 100px;
+  padding: 7px 11px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.orders-chips .chip.active {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: #fff;
+}
+.chip-num {
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+.orders-mas {
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 100px;
+  padding: 12px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.orders-mas:hover {
+  background: var(--sage-pale);
+}
 
 /* ---------- Franja de estadísticas ---------- */
 .stats {

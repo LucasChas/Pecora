@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Categoria, ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
+import { useDialog } from '../../context/DialogContext'
 
 interface Props {
   open: boolean
@@ -21,6 +22,7 @@ export default function CategoryManagerSheet({
   onClose,
   onChanged,
 }: Props) {
+  const { confirmar } = useDialog()
   const [nueva, setNueva] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -53,7 +55,12 @@ export default function CategoryManagerSheet({
   async function eliminar(categoria: Categoria) {
     // Guardia en el frontend (el backend igual lo refuerza).
     if (contar(categoria.id) > 0) return
-    if (!confirm(`¿Eliminar la categoría "${categoria.nombre}"?`)) return
+    const ok = await confirmar({
+      titulo: `¿Eliminar la categoría "${categoria.nombre}"?`,
+      textoOk: 'Eliminar',
+      peligro: true,
+    })
+    if (!ok) return
     const { error } = await supabase.from('categorias').delete().eq('id', categoria.id)
     if (error) {
       setError('No se pudo eliminar: ' + error.message)

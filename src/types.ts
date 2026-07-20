@@ -61,4 +61,6 @@ export interface Pedido {
   subtotal: number
   estado: EstadoPedido
   created_at: string
+  // Papelera: si tiene fecha, la admin lo mandó a la papelera (ver migración 0009).
+  eliminado_at: string | null
 }
