@@ -54,7 +54,6 @@ export default function ProductPage() {
         <Link to="/">
           <Logo />
         </Link>
-        <p>Accesorios de bebé · Muestrario</p>
         <HeaderActions />
       </header>
       <Scallop />
