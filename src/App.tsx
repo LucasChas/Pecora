@@ -1,7 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import CatalogPage from './pages/CatalogPage'
 import ProductPage from './pages/ProductPage'
+import CartPage from './pages/CartPage'
+import CheckoutPage from './pages/CheckoutPage'
+import AccountPage from './pages/AccountPage'
+import MyOrdersPage from './pages/MyOrdersPage'
 import AdminPage from './pages/AdminPage'
+import CartDrawer from './components/cart/CartDrawer'
 
 // El "modo" define qué expone cada deploy (ver VITE_APP_MODE en .env):
 //   - 'admin'   -> deploy privado: SOLO el panel, servido en la raíz "/".
@@ -11,6 +16,31 @@ import AdminPage from './pages/AdminPage'
 // Con esto podés crear dos proyectos de Vercel desde el MISMO repo, cada uno
 // con su dominio y su variable, sin que el admin sea accesible desde la web pública.
 const mode = import.meta.env.VITE_APP_MODE
+
+// Layout del catálogo: monta el carrito lateral (drawer) una sola vez, disponible
+// en todas las vistas públicas (muestrario, producto, carrito, checkout).
+function CatalogLayout() {
+  return (
+    <>
+      <Outlet />
+      <CartDrawer />
+    </>
+  )
+}
+
+// Rutas públicas del catálogo (se reusan en modo 'catalog' y en local).
+function RutasCatalogo() {
+  return (
+    <Route element={<CatalogLayout />}>
+      <Route path="/" element={<CatalogPage />} />
+      <Route path="/producto/:id" element={<ProductPage />} />
+      <Route path="/carrito" element={<CartPage />} />
+      <Route path="/checkout" element={<CheckoutPage />} />
+      <Route path="/cuenta" element={<AccountPage />} />
+      <Route path="/mis-pedidos" element={<MyOrdersPage />} />
+    </Route>
+  )
+}
 
 export default function App() {
   if (mode === 'admin') {
@@ -26,12 +56,11 @@ export default function App() {
   }
 
   if (mode === 'catalog') {
-    // Deploy público: muestrario + detalle de producto. No se registra /admin.
+    // Deploy público: muestrario + detalle + carrito/checkout. No se registra /admin.
     return (
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<CatalogPage />} />
-          <Route path="/producto/:id" element={<ProductPage />} />
+          {RutasCatalogo()}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
@@ -42,8 +71,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<CatalogPage />} />
-        <Route path="/producto/:id" element={<ProductPage />} />
+        {RutasCatalogo()}
         <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </BrowserRouter>

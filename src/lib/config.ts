@@ -1,4 +1,5 @@
 import type { ProductoConCategoria } from '../types'
+import { money } from './format'
 
 // ============================================================================
 // Configuración de contacto (WhatsApp + Instagram).
@@ -25,6 +26,67 @@ function mensajeWhatsApp(producto: ProductoConCategoria): string {
 // Link de WhatsApp (wa.me) con el mensaje ya cargado.
 export function waLink(producto: ProductoConCategoria): string {
   const msg = mensajeWhatsApp(producto)
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
+
+// Ítem mínimo para armar el mensaje de pedido.
+interface ItemPedido {
+  nombre: string
+  precio: number
+  cantidad: number
+}
+
+// Link de WhatsApp para cerrar un PEDIDO (carrito) con el detalle y el subtotal.
+// Cierre rápido sin checkout (la alternativa "express").
+export function waPedidoLink(items: ItemPedido[], subtotal: number): string {
+  const lineas = items
+    .map((i) => `• ${i.cantidad}x ${i.nombre} — ${money(i.precio * i.cantidad)}`)
+    .join('\n')
+  const msg = `Hola! Quiero hacer este pedido (Pecora):\n${lineas}\n\nSubtotal: ${money(subtotal)}`
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
+
+// Datos del checkout que van en el mensaje del pedido confirmado.
+export interface DatosPedido {
+  nombre: string
+  entrega: 'envio' | 'coordinar'
+  direccion?: string
+  localidad?: string
+  cp?: string
+  notas?: string
+}
+
+// Link de WhatsApp para un pedido YA REGISTRADO en la base (checkout):
+// incluye el número de orden, el detalle y los datos de entrega.
+export function waPedidoConfirmadoLink(
+  numero: number,
+  items: ItemPedido[],
+  subtotal: number,
+  datos: DatosPedido,
+): string {
+  const lineas = items
+    .map((i) => `• ${i.cantidad}x ${i.nombre} — ${money(i.precio * i.cantidad)}`)
+    .join('\n')
+  const entrega =
+    datos.entrega === 'envio'
+      ? `Envío a domicilio: ${datos.direccion ?? ''}, ${datos.localidad ?? ''} (CP ${datos.cp ?? ''})`
+      : 'Entrega: a coordinar / retiro'
+  const partes = [
+    `Hola! Soy ${datos.nombre}. Acabo de hacer el pedido #${numero} en la web de Pecora:`,
+    lineas,
+    `Subtotal: ${money(subtotal)}`,
+    entrega,
+  ]
+  if (datos.notas) partes.push(`Notas: ${datos.notas}`)
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(partes.join('\n\n'))}`
+}
+
+// Link de WhatsApp para preguntar por qué se canceló un pedido. Lo usa la
+// clienta desde "Mis pedidos": es su única vía para entender qué pasó.
+export function waConsultaCancelacionLink(numero: number): string {
+  const msg =
+    `Hola! Vi que mi pedido #${numero} en Pecora figura como cancelado. ` +
+    '¿Me podrías decir qué pasó?'
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
 }
 

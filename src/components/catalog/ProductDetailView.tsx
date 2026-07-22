@@ -4,6 +4,7 @@ import { money } from '../../lib/format'
 import { waLink, instagramHabilitado, instagramDmLink } from '../../lib/config'
 import { imagenesDe } from '../../lib/images'
 import { avisoStockBajo } from '../../lib/stock'
+import AddToCart from '../cart/AddToCart'
 
 // Contenido del detalle de un producto (galería + info). Es presentacional:
 // lo usa la página /producto/:id. No maneja overlay ni navegación.
@@ -48,6 +49,10 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
 
         {producto.descripcion && <p className="pd-desc">{producto.descripcion}</p>}
 
+        {/* CTA principal de ecommerce: agregar al carrito */}
+        <AddToCart producto={producto} />
+
+        {/* Consulta directa (WhatsApp / Instagram) como alternativa */}
         <div className="pd-actions">
           <a
             className="wa-btn pd-wa"

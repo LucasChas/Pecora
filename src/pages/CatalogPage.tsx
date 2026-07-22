@@ -5,10 +5,12 @@ import Scallop from '../components/Scallop'
 import SearchBar from '../components/catalog/SearchBar'
 import CategoryFilters from '../components/catalog/CategoryFilters'
 import ProductGrid from '../components/catalog/ProductGrid'
+import HeaderActions from '../components/account/HeaderActions'
 import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
 import { instagramHabilitado, instagramPerfilLink } from '../lib/config'
 import '../styles/catalog.css'
+import '../styles/cart.css'
 
 // Vista CLIENTE: muestrario público, sin login.
 // La categoría y la búsqueda viven en la URL (?cat=...&q=...): así el filtro es
@@ -58,9 +60,10 @@ export default function CatalogPage() {
 
   return (
     <div className="catalog-root">
-      <header>
+      <header className="cart-header">
         <Logo />
         <p>Accesorios de bebé · Muestrario</p>
+        <HeaderActions />
       </header>
 
       {/* Borde festoneado: elemento de marca */}

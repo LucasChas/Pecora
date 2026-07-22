@@ -26,3 +26,41 @@ export interface Producto {
 export interface ProductoConCategoria extends Producto {
   categoria_nombre: string | null
 }
+
+// ---- Cuentas de clientas (ver migración 0005) ----
+export interface Perfil {
+  id: string
+  nombre: string | null
+  telefono: string | null
+  rol: 'cliente' | 'admin'
+  created_at: string
+}
+
+// ---- Pedidos (ver migraciones 0003 / 0005) ----
+export type EstadoPedido = 'nuevo' | 'confirmado' | 'entregado' | 'cancelado'
+
+export interface PedidoItem {
+  id: string
+  nombre: string
+  precio: number
+  cantidad: number
+}
+
+export interface Pedido {
+  id: string
+  numero: number
+  nombre: string
+  telefono: string
+  email: string | null
+  entrega: 'envio' | 'coordinar'
+  direccion: string | null
+  localidad: string | null
+  cp: string | null
+  notas: string | null
+  items: PedidoItem[]
+  subtotal: number
+  estado: EstadoPedido
+  created_at: string
+  // Papelera: si tiene fecha, la admin lo mandó a la papelera (ver migración 0009).
+  eliminado_at: string | null
+}

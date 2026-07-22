@@ -1,0 +1,967 @@
+/* ============================================================
+   Estilos del carrito y del CTA "Agregar al carrito".
+   ============================================================ */
+
+/* Botón base (el catálogo no carga admin.css, así que lo definimos acá). */
+.btn {
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 13px 18px;
+  border-radius: 100px;
+  width: 100%;
+}
+.btn-primary {
+  background: var(--sage);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--sage-deep);
+}
+
+/* Header con ícono de carrito arriba a la derecha */
+.cart-header {
+  position: relative;
+}
+/* Acciones del header (cuenta + carrito) */
+.header-actions {
+  position: absolute;
+  top: 50%;
+  right: 24px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cart-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.12);
+  border: none;
+  cursor: pointer;
+}
+.cart-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.cart-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 100px;
+  background: var(--sage);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Menú de cuenta (desplegable del ícono de usuario) */
+.account-menu-wrap {
+  position: relative;
+}
+.account-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+.account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 31;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(51, 48, 42, 0.16);
+  padding: 6px;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+}
+/* Cabecera del menú: quién está logueada (nombre + email). */
+.account-menu-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.account-menu-nombre {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.account-menu-email {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  /* Los mails largos no deben ensanchar el menú. */
+  overflow-wrap: anywhere;
+}
+.account-menu a,
+.account-menu button {
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 9px 12px;
+  border-radius: 8px;
+}
+.account-menu a:hover,
+.account-menu button:hover {
+  background: var(--cream-deep);
+}
+
+/* ---------- Modal de éxito del pedido ---------- */
+.success-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(51, 48, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: success-fade 0.2s ease;
+}
+.success-card {
+  background: var(--cream);
+  border-radius: 20px;
+  padding: 34px 26px 26px;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(51, 48, 42, 0.32);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: success-pop 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+.success-check {
+  width: 84px;
+  height: 84px;
+}
+.success-check svg {
+  width: 84px;
+  height: 84px;
+}
+.success-check-circle {
+  stroke: #7ba05b;
+  stroke-width: 3;
+  stroke-dasharray: 151;
+  stroke-dashoffset: 151;
+  animation: success-draw 0.5s ease forwards 0.1s;
+}
+.success-check-mark {
+  stroke: #7ba05b;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: success-draw 0.35s ease forwards 0.5s;
+}
+.success-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin: 0;
+}
+.success-text {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+/* Desglose de lo comprado dentro del modal de éxito. */
+.success-detalle {
+  width: 100%;
+  background: var(--sage-pale);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.success-linea {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+}
+.success-linea.total {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+.success-entrega {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.success-link {
+  color: var(--sage-deep);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+.success-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+.success-card .btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 4px;
+}
+.success-wa-ic {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.success-volver {
+  border: none;
+  background: none;
+  color: var(--sage-deep);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 2px;
+}
+.success-volver:hover {
+  color: var(--ink);
+}
+@keyframes success-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes success-pop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+@keyframes success-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---------- Carrito lateral (drawer) ---------- */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(51, 48, 42, 0);
+  visibility: hidden;
+  transition: background 0.25s ease, visibility 0s linear 0.25s;
+}
+.drawer-overlay.open {
+  background: rgba(51, 48, 42, 0.45);
+  visibility: visible;
+  transition: background 0.25s ease;
+}
+.drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(420px, 100%);
+  background: var(--cream);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+  box-shadow: -12px 0 30px rgba(51, 48, 42, 0.18);
+}
+.drawer.open {
+  transform: translateX(0);
+}
+.drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer-head h2 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.15rem;
+  margin: 0;
+}
+.drawer-head h2 span {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.drawer-close {
+  border: none;
+  background: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--ink-soft);
+  padding: 4px 8px;
+}
+.drawer-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  color: var(--ink-soft);
+}
+.drawer-empty .btn {
+  width: auto;
+  padding-left: 26px;
+  padding-right: 26px;
+}
+.drawer-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.drawer-item {
+  display: flex;
+  gap: 12px;
+}
+.drawer-item > img {
+  width: 68px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--cream-deep);
+  flex-shrink: 0;
+}
+.drawer-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.drawer-item-name {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+.drawer-item-price {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.drawer-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.drawer-item-total {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.drawer-remove {
+  border: none;
+  background: none;
+  color: var(--danger);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.drawer-foot {
+  border-top: 1px solid var(--line);
+  padding: 16px 20px calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.drawer-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 1rem;
+}
+.drawer-subtotal strong {
+  font-size: 1.25rem;
+}
+.drawer-nota {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+.drawer-seguir {
+  border: none;
+  background: none;
+  color: var(--sage-deep);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 2px;
+}
+
+/* variante compacta del selector de cantidad (drawer) */
+.qty-sm button {
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+}
+.qty-sm span {
+  min-width: 26px;
+  font-size: 0.88rem;
+}
+
+/* Selector de cantidad (reutilizable en ficha y carrito) */
+.qty {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  overflow: hidden;
+  background: #fff;
+}
+.qty button {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+.qty button:active {
+  background: var(--cream-deep);
+}
+.qty span {
+  min-width: 30px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* CTA "Agregar al carrito" en la ficha */
+.add-cart {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+.add-cart-btn {
+  width: auto;
+  flex: 1;
+  max-width: 300px;
+}
+
+/* ---------- Página del carrito ---------- */
+.cart-page {
+  max-width: 760px;
+}
+.cart-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  margin: 0 0 18px;
+}
+.cart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cart-item {
+  display: flex;
+  gap: 14px;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+}
+.cart-item > img {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--cream-deep);
+  flex-shrink: 0;
+}
+.cart-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cart-item-name {
+  font-family: 'Fraunces', serif;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+.cart-item-price {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.cart-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.cart-item-total {
+  margin: 0;
+  font-weight: 700;
+}
+.cart-remove {
+  border: none;
+  background: none;
+  color: var(--danger);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Resumen y acciones */
+.cart-summary {
+  margin-top: 20px;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+}
+.cart-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 1.05rem;
+}
+.cart-subtotal strong {
+  font-size: 1.3rem;
+}
+.cart-note {
+  margin: 10px 0 16px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.cart-summary .btn-primary {
+  text-align: center;
+  display: block;
+}
+.cart-actions {
+  display: flex;
+  justify-content: space-between;
+  /* baseline y no center: los dos textos tienen tamaños distintos y con "center"
+     quedaban descolgados uno respecto del otro. */
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.cart-clear {
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Cierre express por WhatsApp (alternativa al checkout) */
+.cart-wa-express {
+  display: block;
+  text-align: center;
+  margin-top: 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--sage-deep);
+}
+.cart-wa-express:hover {
+  color: var(--ink);
+}
+
+/* ---------- Checkout (rediseño tipo pasarela) ---------- */
+.checkout {
+  max-width: 940px;
+}
+.checkout-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-areas: 'form summary';
+  gap: 20px;
+  align-items: start;
+}
+.checkout-col-form {
+  grid-area: form;
+}
+.checkout-col-summary {
+  grid-area: summary;
+}
+/* Tarjeta de sección */
+.checkout-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+  margin-bottom: 16px;
+}
+.checkout-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin: 0 0 14px;
+}
+.checkout-h .paso {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--sage);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.entrega-datos {
+  margin-top: 14px;
+}
+
+/* Opciones de pago (tarjetas seleccionables) */
+.pago-opciones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pago-op {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 13px 14px;
+  cursor: pointer;
+  background: #fff;
+}
+.pago-op.active {
+  border-color: var(--sage);
+  background: var(--sage-pale);
+}
+.pago-op.disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+  background: var(--cream);
+}
+.pago-op input {
+  accent-color: var(--sage);
+  margin-top: 2px;
+}
+.pago-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.pago-txt strong {
+  font-size: 0.92rem;
+}
+.pago-txt span {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.badge-pronto {
+  display: inline-block;
+  margin-left: 6px;
+  background: var(--clay);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 100px;
+  vertical-align: middle;
+}
+
+/* Resumen (columna derecha) */
+.summary-card {
+  position: sticky;
+  top: 16px;
+}
+.summary-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+.summary-thumb {
+  position: relative;
+  flex-shrink: 0;
+}
+.summary-thumb img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--cream-deep);
+}
+.summary-qty {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 100px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.summary-name {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+.summary-total {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.summary-linea {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  padding: 3px 0;
+}
+.summary-linea.muted {
+  color: var(--ink-soft);
+}
+.summary-linea.total {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+  padding-top: 10px;
+  font-size: 1.05rem;
+}
+.summary-linea.total strong {
+  font-size: 1.2rem;
+}
+
+@media (max-width: 720px) {
+  .checkout-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'summary' 'form';
+  }
+  .summary-card {
+    position: static;
+  }
+}
+
+/* ---------- Campos de formulario (el catálogo no carga admin.css) ---------- */
+.checkout-form .field {
+  margin-bottom: 14px;
+}
+.checkout-form .field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+  color: var(--ink-soft);
+}
+.checkout-form .field input,
+.checkout-form .field textarea {
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 0.95rem;
+  background: #fff;
+  color: var(--ink);
+}
+.checkout-form .field textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+.checkout-form .field input:focus,
+.checkout-form .field textarea:focus {
+  outline: 2px solid var(--sage);
+  outline-offset: 1px;
+}
+.checkout-form .row2 {
+  display: flex;
+  gap: 10px;
+}
+.checkout-form .row2 .field {
+  flex: 1;
+}
+.checkout-form .form-error {
+  color: var(--danger);
+  font-size: 0.82rem;
+  margin: 0 0 12px;
+}
+.checkout-form .pp-back {
+  display: block;
+  text-align: center;
+}
+
+/* Resumen compacto del pedido */
+.checkout-resumen {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+  margin-bottom: 18px;
+}
+.checkout-linea {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.9rem;
+  padding: 4px 0;
+}
+.checkout-linea.total {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+  padding-top: 10px;
+  font-size: 1rem;
+}
+
+/* Opciones de entrega (radios como chips) */
+.entrega-opciones {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.entrega-op {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 9px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: #fff;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.entrega-op.active {
+  border-color: var(--sage);
+  color: var(--sage-deep);
+  background: var(--sage-pale);
+}
+.entrega-op input {
+  accent-color: var(--sage);
+  margin: 0;
+}
+
+/* Aviso de revalidación (stock/precio cambiado) */
+.checkout-aviso {
+  white-space: pre-line;
+  background: var(--sage-pale);
+  border: 1px solid var(--sage);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  color: var(--ink);
+  margin: 0 0 12px;
+}
+
+/* Pantalla de éxito */
+.checkout-ok {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 480px;
+}
+.checkout-ok .pp-back {
+  text-align: center;
+}
+
+/* Mobile: el wordmark centrado y grande no convive con los botones absolutos
+   (se pisaban). Achicamos el logo y ponemos las acciones AL COSTADO, en la misma
+   línea; el subtítulo baja a un renglón propio. */
+@media (max-width: 620px) {
+  .catalog-root header,
+  .cart-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 16px 16px 14px;
+    text-align: left;
+  }
+  .cart-header .logo-img,
+  .catalog-root header .logo-img {
+    height: 42px;
+    margin: 0;
+    order: 1;
+  }
+  .header-actions {
+    position: static;
+    transform: none;
+    margin: 0;
+    order: 2;
+  }
+  /* El subtítulo va al final, en su propio renglón debajo de logo + acciones. */
+  .catalog-root header p {
+    order: 3;
+    width: 100%;
+    margin: 0;
+    font-size: 0.72rem;
+  }
+  /* Botones un poco más compactos para ganar aire en pantallas muy angostas. */
+  .cart-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .add-cart-btn {
+    max-width: none;
+  }
+}

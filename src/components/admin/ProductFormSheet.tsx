@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Categoria, ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { comprimirImagen } from '../../lib/imageCompress'
+import { useDialog } from '../../context/DialogContext'
 import ImagePicker from './ImagePicker'
 
 interface Props {
@@ -58,6 +59,7 @@ export default function ProductFormSheet({
   const [mostrarNuevaCat, setMostrarNuevaCat] = useState(false)
   const [nuevaCat, setNuevaCat] = useState('')
 
+  const { confirmar } = useDialog()
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -153,7 +155,13 @@ export default function ProductFormSheet({
 
   async function eliminar() {
     if (!producto) return
-    if (!confirm(`¿Eliminar "${producto.nombre}"? Esta acción no se puede deshacer.`)) return
+    const ok = await confirmar({
+      titulo: `¿Eliminar "${producto.nombre}"?`,
+      mensaje: 'Esta acción no se puede deshacer.',
+      textoOk: 'Eliminar',
+      peligro: true,
+    })
+    if (!ok) return
     const { error } = await supabase.from('productos').delete().eq('id', producto.id)
     if (error) {
       setError('No se pudo eliminar: ' + error.message)
