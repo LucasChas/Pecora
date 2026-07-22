@@ -62,7 +62,6 @@ export default function CatalogPage() {
     <div className="catalog-root">
       <header className="cart-header">
         <Logo />
-        <p>Accesorios de bebé · Muestrario</p>
         <HeaderActions />
       </header>
 
