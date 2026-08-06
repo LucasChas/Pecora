@@ -35,7 +35,7 @@ function RutasCatalogo() {
   return (
     <Route element={<CatalogLayout />}>
       <Route path="/" element={<CatalogPage />} />
-      <Route path="/producto/:id" element={<ProductPage />} />
+      <Route path="/producto/:param" element={<ProductPage />} />
       <Route path="/carrito" element={<CartPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/cuenta" element={<AccountPage />} />

@@ -11,22 +11,30 @@ import '../styles/cart.css'
 
 type Estado = 'cargando' | 'ok' | 'no-encontrado'
 
-// Página de detalle de un producto, con URL propia (/producto/:id).
+// Un producto puede resolverse por su slug (ej: "body-manga-larga") o, para
+// links viejos ya compartidos, por su uuid. slugify() nunca puede producir
+// algo con esta forma (colapsa corridas de caracteres a un solo guion), así
+// que un match del regex siempre es un id y un miss siempre es un slug —
+// no hace falta probar las dos columnas.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// Página de detalle de un producto, con URL propia (/producto/:param).
 // Es compartible (se puede mandar el link) y sienta la base para SEO/ecommerce.
 export default function ProductPage() {
-  const { id } = useParams<{ id: string }>()
+  const { param } = useParams<{ param: string }>()
   const [producto, setProducto] = useState<ProductoConCategoria | null>(null)
   const [estado, setEstado] = useState<Estado>('cargando')
 
-  // Traemos el producto directamente por id (así funciona incluso si alguien
-  // abre el link sin haber pasado por el catálogo).
+  // Traemos el producto directamente por slug o id (así funciona incluso si
+  // alguien abre el link sin haber pasado por el catálogo).
   useEffect(() => {
     let vivo = true
     setEstado('cargando')
+    const columna = param && UUID_RE.test(param) ? 'id' : 'slug'
     supabase
       .from('productos')
       .select('*, categorias(nombre)')
-      .eq('id', id)
+      .eq(columna, param)
       .maybeSingle()
       .then(({ data, error }) => {
         if (!vivo) return
@@ -46,7 +54,7 @@ export default function ProductPage() {
     return () => {
       vivo = false
     }
-  }, [id])
+  }, [param])
 
   return (
     <div className="catalog-root">

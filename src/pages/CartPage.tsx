@@ -41,7 +41,7 @@ export default function CartPage() {
                 <div className="cart-item" key={i.id}>
                   <img src={i.imagen} alt={i.nombre} />
                   <div className="cart-item-main">
-                    <Link to={`/producto/${i.id}`} className="cart-item-name">
+                    <Link to={`/producto/${i.slug ?? i.id}`} className="cart-item-name">
                       {i.nombre}
                     </Link>
                     <p className="cart-item-price">{money(i.precio)}</p>
