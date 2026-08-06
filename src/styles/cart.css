@@ -154,6 +154,11 @@
   align-items: center;
   gap: 14px;
   animation: success-pop 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  /* El overlay tiene padding:20px; con pedidos largos el contenido no debe
+     desbordar la pantalla — mismo patrón que .sheet en admin.css. */
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .success-check {
   width: 84px;
