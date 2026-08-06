@@ -410,6 +410,8 @@
   flex-direction: column;
   gap: 12px;
 }
+/* Carrusel embla (D9): .pd-main es el viewport (overflow:hidden), .pd-main-viewport
+   es el track flex que embla traslada, cada .pd-main-slide es una imagen. */
 .pd-main {
   position: relative;
   aspect-ratio: 1 / 1;
@@ -417,15 +419,72 @@
   border-radius: 12px;
   overflow: hidden;
 }
-.pd-main img {
+.pd-main-viewport {
+  display: flex;
+  height: 100%;
+}
+.pd-main-slide {
+  position: relative;
+  flex: 0 0 100%;
+  min-width: 0;
+  height: 100%;
+}
+.pd-main-slide img {
   width: 100%;
   height: 100%;
   object-fit: contain;
   display: block;
+  cursor: zoom-in;
 }
-.pd-main.unavailable img {
+.pd-main.unavailable .pd-main-slide img {
   filter: grayscale(1);
   opacity: 0.6;
+}
+
+/* ---------- Zoom de imagen (D9) ----------
+   Overlay fullscreen; el pinch-zoom nativo del navegador funciona dentro de
+   este contenedor scrolleable (touch-action: pinch-zoom), sin librería. */
+.image-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(20, 18, 14, 0.94);
+}
+.image-zoom-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  touch-action: pinch-zoom;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.image-zoom-img {
+  width: auto;
+  height: auto;
+  max-width: none;
+  display: block;
+}
+.image-zoom-close {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 101;
+  width: 40px;
+  height: 40px;
+  border-radius: 100px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.image-zoom-close svg {
+  width: 20px;
+  height: 20px;
 }
 .pd-thumbs {
   display: flex;

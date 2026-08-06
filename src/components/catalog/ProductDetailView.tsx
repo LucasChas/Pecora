@@ -1,25 +1,62 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import useEmblaCarousel from 'embla-carousel-react'
 import type { ProductoConCategoria } from '../../types'
 import { money } from '../../lib/format'
 import { waLink, instagramHabilitado, instagramDmLink } from '../../lib/config'
 import { imagenesDe } from '../../lib/images'
 import { avisoStockBajo } from '../../lib/stock'
 import AddToCart from '../cart/AddToCart'
+import ImageZoom from './ImageZoom'
 
 // Contenido del detalle de un producto (galería + info). Es presentacional:
 // lo usa la página /producto/:id. No maneja overlay ni navegación.
 export default function ProductDetailView({ producto }: { producto: ProductoConCategoria }) {
   const imagenes = imagenesDe(producto)
-  const [activa, setActiva] = useState(0)
   const disponible = producto.stock > 0
   const stockBajo = avisoStockBajo(producto.stock)
+
+  // Carrusel de imágenes (D9): embla maneja swipe/touch; el strip de
+  // miniaturas existente pasa a ser un controlador (scrollTo / selectedScrollSnap).
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false })
+  const [activa, setActiva] = useState(0)
+  const [zoomAbierto, setZoomAbierto] = useState(false)
+
+  useEffect(() => {
+    if (!emblaApi) return
+    const onSelect = () => setActiva(emblaApi.selectedScrollSnap())
+    emblaApi.on('select', onSelect)
+    onSelect()
+    return () => {
+      emblaApi.off('select', onSelect)
+    }
+  }, [emblaApi])
+
+  const irAImagen = useCallback(
+    (i: number) => {
+      emblaApi?.scrollTo(i)
+    },
+    [emblaApi],
+  )
 
   return (
     <div className="pd-content">
       {/* Galería */}
       <div className="pd-gallery">
-        <div className={disponible ? 'pd-main' : 'pd-main unavailable'}>
-          <img src={imagenes[activa]} alt={producto.nombre} />
+        <div
+          className={disponible ? 'pd-main' : 'pd-main unavailable'}
+          ref={emblaRef}
+        >
+          <div className="pd-main-viewport">
+            {imagenes.map((src, i) => (
+              <div className="pd-main-slide" key={i}>
+                <img
+                  src={src}
+                  alt={producto.nombre}
+                  onClick={() => setZoomAbierto(true)}
+                />
+              </div>
+            ))}
+          </div>
           {!disponible && <span className="badge">Sin stock</span>}
         </div>
 
@@ -29,7 +66,7 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
               <button
                 key={i}
                 className={i === activa ? 'pd-thumb active' : 'pd-thumb'}
-                onClick={() => setActiva(i)}
+                onClick={() => irAImagen(i)}
                 aria-label={`Imagen ${i + 1}`}
               >
                 <img src={src} alt="" />
@@ -38,6 +75,14 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
           </div>
         )}
       </div>
+
+      {zoomAbierto && (
+        <ImageZoom
+          src={imagenes[activa]}
+          alt={producto.nombre}
+          onClose={() => setZoomAbierto(false)}
+        />
+      )}
 
       {/* Información */}
       <div className="pd-info">
