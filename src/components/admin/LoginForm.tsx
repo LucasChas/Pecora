@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import Logo from '../Logo'
+import PasswordInput from '../common/PasswordInput'
 
 // Pantalla de login (email + contraseña) previa a entrar al panel /admin.
 // Al iniciar sesión, useAuth detecta la nueva sesión y AdminPage muestra el panel.
@@ -44,8 +45,7 @@ export default function LoginForm() {
 
       <div className="field">
         <label>Contraseña</label>
-        <input
-          type="password"
+        <PasswordInput
           autoComplete="current-password"
           required
           value={password}
