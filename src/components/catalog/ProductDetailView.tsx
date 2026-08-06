@@ -6,7 +6,6 @@ import { waLink, instagramHabilitado, instagramDmLink } from '../../lib/config'
 import { imagenesDe } from '../../lib/images'
 import { avisoStockBajo } from '../../lib/stock'
 import AddToCart from '../cart/AddToCart'
-import ImageZoom from './ImageZoom'
 
 // Contenido del detalle de un producto (galería + info). Es presentacional:
 // lo usa la página /producto/:id. No maneja overlay ni navegación.
@@ -19,7 +18,6 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
   // miniaturas existente pasa a ser un controlador (scrollTo / selectedScrollSnap).
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false })
   const [activa, setActiva] = useState(0)
-  const [zoomAbierto, setZoomAbierto] = useState(false)
 
   useEffect(() => {
     if (!emblaApi) return
@@ -49,11 +47,7 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
           <div className="pd-main-viewport">
             {imagenes.map((src, i) => (
               <div className="pd-main-slide" key={i}>
-                <img
-                  src={src}
-                  alt={producto.nombre}
-                  onClick={() => setZoomAbierto(true)}
-                />
+                <img src={src} alt={producto.nombre} />
               </div>
             ))}
           </div>
@@ -75,14 +69,6 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
           </div>
         )}
       </div>
-
-      {zoomAbierto && (
-        <ImageZoom
-          src={imagenes[activa]}
-          alt={producto.nombre}
-          onClose={() => setZoomAbierto(false)}
-        />
-      )}
 
       {/* Información */}
       <div className="pd-info">

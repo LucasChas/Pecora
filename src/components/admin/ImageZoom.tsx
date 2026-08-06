@@ -2,8 +2,9 @@ import { useEffect } from 'react'
 
 // Overlay de zoom nativo: se apoya en el pinch-zoom del navegador dentro de
 // un contenedor scrolleable (touch-action: pinch-zoom), sin librería de zoom.
-// Se abre al tocar la imagen principal del carrusel (ProductDetailView) y
-// muestra la imagen a tamaño natural para permitir pinch (touch) y scroll.
+// Se abre al tocar/clickear la imagen de un tile en ImagePicker y muestra la
+// imagen a tamaño natural para permitir pinch (touch) y scroll, así el admin
+// puede inspeccionar calidad/detalle de la foto mientras gestiona el producto.
 export default function ImageZoom({
   src,
   alt,
