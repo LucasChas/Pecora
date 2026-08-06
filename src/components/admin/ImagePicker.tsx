@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useState } from 'react'
-import ImageZoom from './ImageZoom'
+import ImageZoom from '../common/ImageZoom'
 
 // Imagen ya guardada en Storage (URL) o imagen nueva elegida del teléfono
 // (todavía sin subir). `key` es estable por ítem: lo usa dnd-kit para

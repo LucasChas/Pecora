@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
 import { waConsultaCancelacionLink } from '../lib/config'
 import { IMG_PLACEHOLDER, portadaDe } from '../lib/images'
+import ImageZoom from '../components/common/ImageZoom'
 import type { EstadoPedido, Pedido } from '../types'
 import '../styles/catalog.css'
 import '../styles/account.css'
@@ -42,6 +43,7 @@ export default function MyOrdersPage() {
   // el producto cambió de foto o se borró, se ve la portada actual o el
   // placeholder, no la que tenía el día de la compra.
   const [imagenes, setImagenes] = useState<Record<string, string>>({})
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null)
 
   const fetchPedidos = useCallback(async (uid: string) => {
     // Filtramos por user_id explícitamente. No alcanza con confiar en RLS: la
@@ -119,7 +121,7 @@ export default function MyOrdersPage() {
               const estado = estadoVisible(p)
               const est = ESTADO_CLIENTE[estado]
               return (
-                <div className="mp-card" key={p.id}>
+                <div className={`mp-card ${est.clase}`} key={p.id}>
                   <div className="mp-top">
                     <div>
                       {/* El número de pedido es un dato interno del admin
@@ -130,25 +132,61 @@ export default function MyOrdersPage() {
                     <span className={`mp-estado ${est.clase}`}>{est.texto}</span>
                   </div>
                   <div className="mp-items">
-                    {p.items.map((i, idx) => (
-                      <div className="mp-item" key={idx}>
-                        <span className="mp-item-info">
-                          <img
-                            className="mp-item-img"
-                            src={imagenes[i.id] ?? IMG_PLACEHOLDER}
-                            alt=""
-                          />
-                          {i.cantidad}x {i.nombre}
-                        </span>
-                        <span>{money(i.precio * i.cantidad)}</span>
-                      </div>
-                    ))}
+                    {p.items.map((i, idx) => {
+                      const src = imagenes[i.id] ?? IMG_PLACEHOLDER
+                      return (
+                        <div className="mp-item" key={idx}>
+                          <span className="mp-item-info">
+                            <button
+                              type="button"
+                              className="mp-item-img-btn"
+                              onClick={() => setZoomSrc(src)}
+                              aria-label={`Ampliar foto de ${i.nombre}`}
+                            >
+                              <img className="mp-item-img" src={src} alt="" />
+                            </button>
+                            {i.cantidad}x {i.nombre}
+                          </span>
+                          <span>{money(i.precio * i.cantidad)}</span>
+                        </div>
+                      )
+                    })}
                     <div className="mp-item total">
                       <span>Total</span>
                       <strong>{money(p.subtotal)}</strong>
                     </div>
                   </div>
                   <div className="mp-entrega">
+                    {p.entrega === 'envio' ? (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mp-entrega-ic"
+                        aria-hidden="true"
+                      >
+                        <path d="M21 8L12 3 3 8v8l9 5 9-5V8z" />
+                        <path d="M3 8l9 5 9-5" />
+                        <path d="M12 13v8" />
+                      </svg>
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="mp-entrega-ic"
+                        aria-hidden="true"
+                      >
+                        <path d="M6 8h12l-1 12H7L6 8z" />
+                        <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+                      </svg>
+                    )}
                     {p.entrega === 'envio'
                       ? `Envío a ${p.direccion}, ${p.localidad} (CP ${p.cp})`
                       : 'Retiro / a coordinar'}
@@ -180,6 +218,8 @@ export default function MyOrdersPage() {
           </Link>
         )}
       </main>
+
+      {zoomSrc && <ImageZoom src={zoomSrc} alt="" onClose={() => setZoomSrc(null)} />}
     </div>
   )
 }
