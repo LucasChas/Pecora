@@ -125,6 +125,33 @@
   /* Separación entre los filtros de categoría y las publicaciones. */
   margin-top: 34px;
 }
+
+/* Mobile: 2 columnas fijas (garantizado, no depende de minmax) + tipografía
+   y descripción más compactas para que la card no quede desbordada. */
+@media (max-width: 720px) {
+  .catalog-root main {
+    padding: 24px 14px 72px;
+  }
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-top: 22px;
+  }
+  .card-body h3 {
+    font-size: 0.95rem;
+  }
+  .card-body .desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+}
+@media (max-width: 380px) {
+  .grid {
+    gap: 10px;
+  }
+}
 .card {
   background: #fff;
   border-radius: var(--radius);
