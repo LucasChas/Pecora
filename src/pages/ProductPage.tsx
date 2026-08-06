@@ -67,7 +67,12 @@ export default function ProductPage() {
       <Scallop />
 
       <main className="product-page">
-        {estado === 'cargando' && <p className="no-results">Cargando producto…</p>}
+        {estado === 'cargando' && (
+          <div className="loading-state">
+            <span className="loading-spinner" aria-hidden="true" />
+            Cargando producto…
+          </div>
+        )}
 
         {estado === 'no-encontrado' && (
           <div className="no-results">

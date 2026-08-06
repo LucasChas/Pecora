@@ -10,12 +10,12 @@ import '../styles/account.css'
 // Página de cuenta de clientas (/cuenta): ingresar o crear cuenta. Al entrar,
 // redirige a "next" (ej. el checkout desde el que vino) o a "Mis pedidos".
 export default function AccountPage() {
-  const { session, ingresar, registrar } = useAuth()
+  const { session, ingresar, registrar, recuperarPassword } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const next = params.get('next') || '/mis-pedidos'
 
-  const [modo, setModo] = useState<'ingresar' | 'registrar'>('ingresar')
+  const [modo, setModo] = useState<'ingresar' | 'registrar' | 'recuperar'>('ingresar')
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
@@ -36,7 +36,13 @@ export default function AccountPage() {
     setAviso(null)
     setCargando(true)
     try {
-      if (modo === 'ingresar') {
+      if (modo === 'recuperar') {
+        const { error } = await recuperarPassword(email)
+        if (error) setError(error)
+        // Mismo aviso exista o no la cuenta: Supabase no distingue por error
+        // para no revelar qué emails están registrados.
+        else setAviso('Si ese email tiene una cuenta, te mandamos un link para restablecer la contraseña. Revisá también la carpeta de spam.')
+      } else if (modo === 'ingresar') {
         const { error } = await ingresar(email, password)
         if (error) setError(error)
         else navigate(next, { replace: true })
@@ -75,20 +81,26 @@ export default function AccountPage() {
       <Scallop />
 
       <main className="account">
+        {/* TODO(owner-copy): confirmar el texto final del título. */}
+        <h1 className="cart-title">Tu cuenta</h1>
         <div className="account-card">
-          <div className="account-tabs">
-            <button className={modo === 'ingresar' ? 'active' : ''} onClick={() => setModo('ingresar')}>
-              Ingresar
-            </button>
-            <button className={modo === 'registrar' ? 'active' : ''} onClick={() => setModo('registrar')}>
-              Crear cuenta
-            </button>
-          </div>
+          {modo !== 'recuperar' && (
+            <div className="account-tabs">
+              <button className={modo === 'ingresar' ? 'active' : ''} onClick={() => { setModo('ingresar'); setError(null); setAviso(null) }}>
+                Ingresar
+              </button>
+              <button className={modo === 'registrar' ? 'active' : ''} onClick={() => { setModo('registrar'); setError(null); setAviso(null) }}>
+                Crear cuenta
+              </button>
+            </div>
+          )}
 
           <p className="account-intro">
             {modo === 'ingresar'
               ? 'Ingresá para ver tus pedidos y finalizar tu compra.'
-              : 'Creá tu cuenta de Pecora para comprar y seguir tus pedidos.'}
+              : modo === 'registrar'
+                ? 'Creá tu cuenta de Pecora para comprar y seguir tus pedidos.'
+                : 'Ingresá tu email y te mandamos un link para elegir una contraseña nueva.'}
           </p>
 
           <form onSubmit={onSubmit} className="account-form">
@@ -108,29 +120,52 @@ export default function AccountPage() {
               <label>Email</label>
               <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" autoComplete="email" />
             </div>
-            <div className="field">
-              <label>Contraseña</label>
-              <PasswordInput
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                autoComplete={modo === 'ingresar' ? 'current-password' : 'new-password'}
-              />
-            </div>
+            {modo !== 'recuperar' && (
+              <div className="field">
+                <label>Contraseña</label>
+                <PasswordInput
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  autoComplete={modo === 'ingresar' ? 'current-password' : 'new-password'}
+                />
+              </div>
+            )}
+            {modo === 'ingresar' && (
+              <button
+                type="button"
+                className="account-link-btn"
+                onClick={() => { setModo('recuperar'); setError(null); setAviso(null) }}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            )}
 
             {aviso && <p className="account-aviso">{aviso}</p>}
             {error && <p className="form-error">{error}</p>}
 
             <button type="submit" className="btn btn-primary" disabled={cargando}>
-              {cargando ? 'Procesando…' : modo === 'ingresar' ? 'Ingresar' : 'Crear cuenta'}
+              {cargando
+                ? 'Procesando…'
+                : modo === 'ingresar'
+                  ? 'Ingresar'
+                  : modo === 'registrar'
+                    ? 'Crear cuenta'
+                    : 'Enviar link de recuperación'}
             </button>
           </form>
 
-          <Link className="pp-back" to="/">
-            ← Volver al muestrario
-          </Link>
+          {modo === 'recuperar' ? (
+            <button type="button" className="pp-back" onClick={() => { setModo('ingresar'); setError(null); setAviso(null) }}>
+              ← Volver a ingresar
+            </button>
+          ) : (
+            <Link className="pp-back" to="/">
+              ← Volver al muestrario
+            </Link>
+          )}
         </div>
       </main>
     </div>

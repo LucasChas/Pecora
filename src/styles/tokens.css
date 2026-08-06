@@ -17,5 +17,8 @@
   --danger-pale: #F3E4E1;   /* fondo de estados destructivos      */
   --unavailable: #A79A82;   /* texto "sin stock"                  */
   --unavailable-bg: #EFE6D2;/* fondo botón "sin stock"            */
+  --success: #7BA05B;       /* estados positivos (entregado, ok)  */
+  --success-pale: #E4EFDA;  /* fondo de estados positivos         */
   --radius: 14px;
+  --radius-lg: 20px;        /* modales (success/dialog)           */
 }

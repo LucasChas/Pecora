@@ -33,7 +33,25 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
         </button>
       </div>
       <button type="button" className="btn btn-primary add-cart-btn" onClick={onAgregar}>
-        {agregado ? '✓ Agregado' : 'Agregar al carrito'}
+        {agregado ? (
+          <span className="added-label">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="added-check-ic"
+              aria-hidden="true"
+            >
+              <path d="M5 13l4 4L19 7" />
+            </svg>
+            Agregado
+          </span>
+        ) : (
+          'Agregar al carrito'
+        )}
       </button>
     </div>
   )

@@ -166,9 +166,7 @@ export default function CheckoutPage() {
       <Scallop />
 
       <main className="checkout">
-        {confirmado ? (
-          <div className="no-results">¡Gracias por tu compra! ✓</div>
-        ) : items.length === 0 ? (
+        {confirmado ? null : items.length === 0 ? (
           <div className="no-results">
             Tu carrito está vacío.
             <br />

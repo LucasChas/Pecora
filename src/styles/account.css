@@ -2,8 +2,19 @@
    Cuenta de clientas: login/registro y "Mis pedidos".
    ============================================================ */
 
-.account {
+/* `.catalog-root main` (catalog.css) es más específico que `.account` sola
+   (clase+elemento vs. una sola clase) y le ganaba el max-width en desktop,
+   dejando el formulario estirado a 1100px en vez de la tarjeta angosta
+   pensada acá. Igualamos la especificidad calificando `main`. */
+.catalog-root main.account {
   max-width: 460px;
+}
+/* "Mis pedidos" reusa .account por la tipografía/spacing, pero es una lista
+   de cards (no un formulario de login) — 460px la dejaba perdida en el medio
+   de una pantalla grande. Le damos más aire sin llegar al ancho del catálogo. */
+.catalog-root main.account.mis-pedidos-page {
+  max-width: 860px;
+  width: 100%;
 }
 
 /* ---------- Card de login / registro ---------- */
@@ -50,9 +61,30 @@
   margin: 0 0 12px;
 }
 .account-card .pp-back {
+  display: table;
+  margin: 24px auto 0;
+}
+.account-link-btn {
+  display: block;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--sage-deep);
+  cursor: pointer;
+  margin: -4px 0 14px;
+  text-align: right;
+}
+.account-link-btn:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+.account-card a.btn-primary {
   display: block;
   text-align: center;
-  margin-top: 14px;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 
 /* Campos (esta hoja no carga admin.css/cart.css necesariamente) */
@@ -95,11 +127,32 @@
 .mp-card {
   background: #fff;
   border-radius: var(--radius);
-  padding: 16px;
+  border-left: 4px solid var(--line);
+  padding: 20px 22px;
   box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.mp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(51, 48, 42, 0.12);
+}
+/* Mismo color por estado que la pastilla `.mp-estado`, para que se lea de
+   un vistazo incluso sin leer el texto (igual criterio que .order-card del
+   panel admin). */
+.mp-card.e-nuevo {
+  border-left-color: var(--sage);
+}
+.mp-card.e-confirmado {
+  border-left-color: var(--clay);
+}
+.mp-card.e-entregado {
+  border-left-color: var(--success);
+}
+.mp-card.e-cancelado {
+  border-left-color: var(--danger);
 }
 .mp-top {
   display: flex;
@@ -109,8 +162,9 @@
   flex-wrap: wrap;
 }
 .mp-num {
-  font-weight: 700;
-  font-size: 1rem;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.1rem;
 }
 .mp-fecha {
   font-size: 0.75rem;
@@ -133,8 +187,8 @@
   color: var(--clay);
 }
 .mp-estado.e-entregado {
-  background: #E4EFDA;
-  color: #5f8043;
+  background: var(--success-pale);
+  color: var(--success);
 }
 .mp-estado.e-cancelado {
   background: var(--danger-pale);
@@ -143,25 +197,76 @@
 .mp-items {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 10px;
 }
 .mp-item {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  font-size: 0.88rem;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+.mp-item-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.mp-item-img-btn {
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: zoom-in;
+  border-radius: 10px;
+  flex-shrink: 0;
+  line-height: 0;
+}
+.mp-item-img-btn:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 2px;
+}
+.mp-item-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  object-fit: cover;
+  background: var(--cream-deep);
+  box-shadow: 0 1px 2px rgba(51, 48, 42, 0.08);
 }
 .mp-item.total {
   border-top: 1px solid var(--line);
   margin-top: 4px;
-  padding-top: 7px;
+  padding-top: 10px;
+  font-size: 0.95rem;
 }
 .mp-entrega {
-  font-size: 0.82rem;
-  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--ink);
   background: var(--cream);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.mp-entrega-ic {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--sage-deep);
+}
+
+/* Mobile: imagen un poco más chica y menos padding para que la card no
+   compita por espacio con el precio en pantallas angostas. */
+@media (max-width: 420px) {
+  .mp-card {
+    padding: 16px;
+  }
+  .mp-item-img {
+    width: 44px;
+    height: 44px;
+  }
 }
 /* Consulta por un pedido cancelado: presente pero sin gritar. */
 .mp-consultar {

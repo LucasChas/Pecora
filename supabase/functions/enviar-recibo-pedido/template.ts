@@ -155,6 +155,9 @@ export function renderRecibo(
                 <p style="font-size:12px;color:#999;margin:16px 0 0;">
                   ${brandName} · <a href="${escapeHtml(branding.storeUrl)}" style="color:#999;">${escapeHtml(branding.storeUrl)}</a>
                 </p>
+                <p style="font-size:11px;color:#bbb;margin:8px 0 0;">
+                  © ${new Date().getFullYear()} ${brandName}. Todos los derechos reservados.
+                </p>
               </td>
             </tr>
           </table>
