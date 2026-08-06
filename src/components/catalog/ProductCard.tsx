@@ -15,7 +15,11 @@ export default function ProductCard({ producto }: { producto: ProductoConCategor
 
   return (
     <div className={disponible ? 'card' : 'card unavailable'}>
-      <Link to={`/producto/${producto.id}`} className="card-open" aria-label={`Ver ${producto.nombre}`}>
+      <Link
+        to={`/producto/${producto.slug ?? producto.id}`}
+        className="card-open"
+        aria-label={`Ver ${producto.nombre}`}
+      >
         <div className="card-img">
           <img src={portadaDe(producto)} alt={producto.nombre} />
           {!disponible && <span className="badge">Sin stock</span>}
