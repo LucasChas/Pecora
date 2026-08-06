@@ -15,6 +15,8 @@ interface AuthContextValue {
     telefono: string
   }) => Promise<{ error: string | null; necesitaConfirmar: boolean; yaRegistrado: boolean }>
   ingresar: (email: string, password: string) => Promise<{ error: string | null }>
+  recuperarPassword: (email: string) => Promise<{ error: string | null }>
+  actualizarPassword: (password: string) => Promise<{ error: string | null }>
   salir: () => Promise<void>
 }
 
@@ -98,6 +100,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error ? 'Email o contraseña incorrectos.' : null }
   }, [])
 
+  // Manda el mail de recuperación. Igual que en signUp, Supabase no distingue
+  // por error si el email existe o no (para no revelar cuentas registradas),
+  // así que la pantalla siempre debe mostrar el mismo aviso de éxito.
+  const recuperarPassword: AuthContextValue['recuperarPassword'] = useCallback(async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/restablecer-contrasena`,
+    })
+    return { error: error ? error.message : null }
+  }, [])
+
+  // Se usa ya con la sesión temporal que crea Supabase al abrir el link del
+  // mail de recuperación (evento PASSWORD_RECOVERY), no con la sesión normal.
+  const actualizarPassword: AuthContextValue['actualizarPassword'] = useCallback(async (password) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    return { error: error ? error.message : null }
+  }, [])
+
   const salir = useCallback(async () => {
     await supabase.auth.signOut()
   }, [])
@@ -109,6 +128,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     esAdmin: perfil?.rol === 'admin',
     registrar,
     ingresar,
+    recuperarPassword,
+    actualizarPassword,
     salir,
   }
 

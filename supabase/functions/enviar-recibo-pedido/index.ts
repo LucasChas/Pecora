@@ -121,6 +121,17 @@ function encodeMimeSubject(subject: string): string {
 }
 
 /**
+ * Arma el header `From` con nombre para mostrar + dirección, ej.
+ * `"Pecora" <pecoraabril@gmail.com>`. Sin el nombre, los clientes de correo
+ * muestran la dirección cruda (el nombre de usuario de Gmail) en vez de la
+ * marca — es lo que hace que hoy el remitente se vea distinto al de los
+ * mails de Supabase Auth, que sí llevan nombre configurado.
+ */
+function formatFromHeader(displayName: string, email: string): string {
+  return `${encodeMimeSubject(displayName)} <${email}>`;
+}
+
+/**
  * String (ASCII-only, ya armado) → base64url SIN padding, apto para el campo
  * `raw` de la Gmail API: `+` → `-`, `/` → `_`, se recorta el `=` final.
  */
@@ -339,7 +350,7 @@ Deno.serve(async (req: Request) => {
 
   // Paso B: armar el mensaje RFC 2822 crudo.
   const mimeMessage = buildMimeMessage({
-    from: gmailSender,
+    from: formatFromHeader(brandName, gmailSender),
     to: recipient,
     subject,
     html,

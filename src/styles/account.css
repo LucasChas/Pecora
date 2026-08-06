@@ -80,11 +80,6 @@
   color: var(--ink);
   text-decoration: underline;
 }
-.account-back-btn {
-  width: 100%;
-  text-align: center;
-  margin-top: 24px;
-}
 .account-card a.btn-primary {
   display: block;
   text-align: center;

@@ -4,6 +4,7 @@ import ProductPage from './pages/ProductPage'
 import CartPage from './pages/CartPage'
 import CheckoutPage from './pages/CheckoutPage'
 import AccountPage from './pages/AccountPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import MyOrdersPage from './pages/MyOrdersPage'
 import AdminPage from './pages/AdminPage'
 import CartDrawer from './components/cart/CartDrawer'
@@ -39,6 +40,7 @@ function RutasCatalogo() {
       <Route path="/carrito" element={<CartPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/cuenta" element={<AccountPage />} />
+      <Route path="/restablecer-contrasena" element={<ResetPasswordPage />} />
       <Route path="/mis-pedidos" element={<MyOrdersPage />} />
     </Route>
   )
