@@ -28,7 +28,8 @@
 //
 // Secretos usados (ver supabase/functions/README.md para setearlos):
 //   GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_SENDER,
-//   BRAND_NAME, BRAND_LOGO_URL, STORE_URL, SUPABASE_URL,
+//   BRAND_NAME, BRAND_LOGO_URL, STORE_URL, WHATSAPP_NUMBER (opcional — sin
+//   este, el mail sale igual, solo sin el botón de WhatsApp), SUPABASE_URL,
 //   SUPABASE_SERVICE_ROLE_KEY (estas dos últimas las inyecta Supabase
 //   automáticamente en toda Edge Function).
 // ============================================================================
@@ -241,6 +242,12 @@ Deno.serve(async (req: Request) => {
   const brandName = Deno.env.get("BRAND_NAME") ?? "Pecora";
   const brandLogoUrl = Deno.env.get("BRAND_LOGO_URL") || null;
   const storeUrl = Deno.env.get("STORE_URL") ?? "";
+  // Mismo número que usa el front (VITE_WHATSAPP_NUMBER) — como esta función
+  // corre en otro runtime (Deno, no Vite), se repite como secreto propio en
+  // vez de compartir el .env del frontend. Formato: código de país + área +
+  // número, sin "+" ni espacios (ej: 5493511234567).
+  const whatsappNumber = Deno.env.get("WHATSAPP_NUMBER") || null;
+  const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : null;
 
   if (!supabaseUrl || !serviceRoleKey) {
     console.error(`${LOG_PREFIX} faltan SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY`);
@@ -320,6 +327,7 @@ Deno.serve(async (req: Request) => {
     brandName,
     brandLogoUrl,
     storeUrl,
+    whatsappUrl,
   });
 
   // Paso A: refrescar el access token de Gmail.

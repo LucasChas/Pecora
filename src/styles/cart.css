@@ -226,6 +226,15 @@
   font-size: 0.8rem;
   color: var(--ink-soft);
 }
+.success-email-note {
+  font-size: 0.82rem;
+  color: var(--sage-deep);
+  background: var(--sage-pale);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 4px 0 0;
+  text-align: center;
+}
 .success-link {
   color: var(--sage-deep);
   font-weight: 600;

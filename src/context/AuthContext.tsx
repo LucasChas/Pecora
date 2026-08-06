@@ -13,7 +13,7 @@ interface AuthContextValue {
     password: string
     nombre: string
     telefono: string
-  }) => Promise<{ error: string | null; necesitaConfirmar: boolean }>
+  }) => Promise<{ error: string | null; necesitaConfirmar: boolean; yaRegistrado: boolean }>
   ingresar: (email: string, password: string) => Promise<{ error: string | null }>
   salir: () => Promise<void>
 }
@@ -75,10 +75,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Estos datos los toma el trigger handle_new_user para armar el perfil.
       options: { data: { nombre: datos.nombre, telefono: datos.telefono } },
     })
-    if (error) return { error: error.message, necesitaConfirmar: false }
+    if (error) return { error: error.message, necesitaConfirmar: false, yaRegistrado: false }
+
+    // Supabase no avisa con un error si el email ya tiene una cuenta
+    // confirmada (para no revelar qué emails existen): responde "OK" pero
+    // sin mandar ningún mail. La única forma de distinguirlo de un alta
+    // real es que `identities` viene vacío en ese caso (en un alta nueva
+    // trae al menos una). Sin este chequeo, la pantalla prometía "revisá tu
+    // email" para un mail que nunca se mandaba.
+    const yaRegistrado = !data.session && data.user?.identities?.length === 0
+    if (yaRegistrado) {
+      return { error: null, necesitaConfirmar: false, yaRegistrado: true }
+    }
+
     // Si no hay sesión tras el signup, es porque falta confirmar el email.
     const necesitaConfirmar = !data.session
-    return { error: null, necesitaConfirmar }
+    return { error: null, necesitaConfirmar, yaRegistrado: false }
   }, [])
 
   const ingresar: AuthContextValue['ingresar'] = useCallback(async (email, password) => {

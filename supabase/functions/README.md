@@ -35,6 +35,7 @@ GMAIL_SENDER=pecoraabril@gmail.com
 BRAND_NAME=Pecora
 BRAND_LOGO_URL=https://tu-dominio.com/logo.png
 STORE_URL=https://tu-dominio.com
+WHATSAPP_NUMBER=5493511234567
 ```
 
 Notas:
@@ -45,6 +46,11 @@ Notas:
   Resend.
 - `GMAIL_SENDER` es la dirección `pecoraabril@gmail.com` — vive como secreto
   (y no hardcodeada en el código) para no fijarla en el código fuente.
+- `WHATSAPP_NUMBER` es opcional: el mismo número que usás en
+  `VITE_WHATSAPP_NUMBER` del frontend (código de país + área + número, sin
+  "+" ni espacios). Como esta función corre en otro runtime, no lee el `.env`
+  del front — hay que repetirlo acá. Si no lo cargás, el mail sale igual,
+  solo sin el botón de "Escribinos por WhatsApp".
 - Nunca uses el prefijo `VITE_*` para estos valores: esas variables se
   compilan al bundle público del front y quedarían expuestas en el navegador.
   Estos son secretos de función, viven solo del lado del servidor.

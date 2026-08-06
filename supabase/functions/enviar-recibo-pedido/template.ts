@@ -30,6 +30,7 @@ export interface ReciboBranding {
   brandName: string;
   brandLogoUrl: string | null;
   storeUrl: string;
+  whatsappUrl: string | null;
 }
 
 function escapeHtml(value: string): string {
@@ -72,15 +73,32 @@ export function renderRecibo(
   const brandName = escapeHtml(branding.brandName);
   const entregaLabel = ENTREGA_LABEL[data.entrega] ?? escapeHtml(data.entrega);
 
+  // El número de pedido es un dato interno del admin (lo usa para ubicarlo
+  // en el panel) — a la clienta no le aporta nada, así que ni el asunto ni
+  // el cuerpo del mail lo muestran; alcanza con la fecha para identificarlo.
   // TODO(owner-copy): revisar texto del email — asunto y cuerpo son
   // placeholders neutrales, el copy final lo define la dueña de la tienda.
-  const subject = `Confirmación de tu pedido #${data.numero} — ${brandName}`;
+  const subject = `Confirmación de tu pedido — ${brandName}`;
 
   const logoBlock = branding.brandLogoUrl
     ? `<img src="${escapeHtml(branding.brandLogoUrl)}" alt="${brandName}" style="max-height:48px;display:block;margin:0 auto 12px;" />`
     : "";
 
   const itemsRows = data.items.map(renderItemRow).join("");
+
+  // Opcional: si no hay WHATSAPP_NUMBER configurado del lado de la función,
+  // el mail sale igual, solo sin este bloque (nunca debe romper el envío).
+  const whatsappBlock = branding.whatsappUrl
+    ? `
+            <tr>
+              <td style="padding:0 32px 24px;text-align:center;">
+                <a href="${escapeHtml(branding.whatsappUrl)}"
+                   style="display:inline-block;background-color:#25D366;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:11px 22px;border-radius:100px;">
+                  Escribinos por WhatsApp
+                </a>
+              </td>
+            </tr>`
+    : "";
 
   const html = `<!doctype html>
 <html lang="es">
@@ -100,7 +118,7 @@ export function renderRecibo(
                 <h1 style="margin:0;font-size:20px;color:#222;">¡Gracias por tu compra, ${nombre}!</h1>
                 <p style="margin:8px 0 0;font-size:14px;color:#666;">
                   <!-- TODO(owner-copy): revisar texto del email -->
-                  Te confirmamos que recibimos tu pedido #${data.numero} del ${escapeHtml(data.fecha)}.
+                  Te confirmamos que recibimos tu pedido del ${escapeHtml(data.fecha)}.
                 </p>
               </td>
             </tr>
@@ -131,6 +149,7 @@ export function renderRecibo(
                 </p>
               </td>
             </tr>
+            ${whatsappBlock}
             <tr>
               <td style="padding:16px 32px 32px;text-align:center;border-top:1px solid #eee;">
                 <p style="font-size:12px;color:#999;margin:16px 0 0;">
