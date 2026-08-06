@@ -36,16 +36,6 @@ interface ItemPedido {
   cantidad: number
 }
 
-// Link de WhatsApp para cerrar un PEDIDO (carrito) con el detalle y el subtotal.
-// Cierre rápido sin checkout (la alternativa "express").
-export function waPedidoLink(items: ItemPedido[], subtotal: number): string {
-  const lineas = items
-    .map((i) => `• ${i.cantidad}x ${i.nombre} — ${money(i.precio * i.cantidad)}`)
-    .join('\n')
-  const msg = `Hola! Quiero hacer este pedido (Pecora):\n${lineas}\n\nSubtotal: ${money(subtotal)}`
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
-}
-
 // Datos del checkout que van en el mensaje del pedido confirmado.
 export interface DatosPedido {
   nombre: string
@@ -96,6 +86,11 @@ export const instagramHabilitado = INSTAGRAM_USER !== ''
 // Link de perfil de Instagram (para contacto general, ej. en el footer).
 export function instagramPerfilLink(): string {
   return `https://instagram.com/${INSTAGRAM_USER}`
+}
+
+// Link de WhatsApp genérico (sin producto), para contacto general en el footer.
+export function waPerfilLink(): string {
+  return `https://wa.me/${WHATSAPP_NUMBER}`
 }
 
 // Link de mensaje directo (DM) de Instagram. ig.me/m abre el chat con la marca,

@@ -4,7 +4,6 @@ import Scallop from '../components/Scallop'
 import HeaderActions from '../components/account/HeaderActions'
 import { useCart } from '../context/CartContext'
 import { money } from '../lib/format'
-import { waPedidoLink } from '../lib/config'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 
@@ -42,7 +41,7 @@ export default function CartPage() {
                 <div className="cart-item" key={i.id}>
                   <img src={i.imagen} alt={i.nombre} />
                   <div className="cart-item-main">
-                    <Link to={`/producto/${i.id}`} className="cart-item-name">
+                    <Link to={`/producto/${i.slug ?? i.id}`} className="cart-item-name">
                       {i.nombre}
                     </Link>
                     <p className="cart-item-price">{money(i.precio)}</p>
@@ -71,22 +70,14 @@ export default function CartPage() {
                 <span>Subtotal</span>
                 <strong>{money(subtotal)}</strong>
               </div>
+              {/* TODO(owner-copy): revisar este texto una vez definida la copy final del checkout. */}
               <p className="cart-note">
-                En el siguiente paso cargás tus datos y la entrega. El pago online
-                llega pronto; por ahora se coordina por WhatsApp.
+                En el siguiente paso cargás tus datos y la entrega. Coordinamos el envío por email.
               </p>
 
               <Link className="btn btn-primary" to="/checkout">
                 Finalizar pedido
               </Link>
-              <a
-                className="cart-wa-express"
-                href={waPedidoLink(items, subtotal)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                o cerralo rápido por WhatsApp (sin formulario)
-              </a>
               <div className="cart-actions">
                 <Link className="pp-back" to="/">
                   ← Seguir comprando

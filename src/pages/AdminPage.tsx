@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useDialog } from '../context/DialogContext'
@@ -10,6 +10,8 @@ import Logo from '../components/Logo'
 import LoginForm from '../components/admin/LoginForm'
 import StatsStrip from '../components/admin/StatsStrip'
 import ProductList from '../components/admin/ProductList'
+import SearchBar from '../components/common/SearchBar'
+import CategoryFilters from '../components/common/CategoryFilters'
 import ProductFormSheet from '../components/admin/ProductFormSheet'
 import CategoryManagerSheet from '../components/admin/CategoryManagerSheet'
 import OrdersList from '../components/admin/OrdersList'
@@ -39,6 +41,26 @@ export default function AdminPage() {
   // Filtro y búsqueda de la pestaña Pedidos (la consulta se hace en la base).
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos')
   const [busqueda, setBusqueda] = useState('')
+
+  // Búsqueda y filtros de la pestaña Productos (se filtra en memoria, ya
+  // tenemos todos los productos cargados por useProducts).
+  const [busquedaProducto, setBusquedaProducto] = useState('')
+  const [categoriaProductoActiva, setCategoriaProductoActiva] = useState('Todos')
+  const [soloSinStock, setSoloSinStock] = useState(false)
+
+  const productosFiltrados = useMemo(() => {
+    const term = busquedaProducto.trim().toLowerCase()
+    return productos.filter((p) => {
+      const coincideCat =
+        categoriaProductoActiva === 'Todos' || p.categoria_nombre === categoriaProductoActiva
+      const coincideTexto =
+        !term ||
+        p.nombre.toLowerCase().includes(term) ||
+        (p.categoria_nombre ?? '').toLowerCase().includes(term)
+      const coincideStock = !soloSinStock || p.stock === 0
+      return coincideCat && coincideTexto && coincideStock
+    })
+  }, [productos, busquedaProducto, categoriaProductoActiva, soloSinStock])
 
   const {
     pedidos,
@@ -152,7 +174,32 @@ export default function AdminPage() {
                 <p>Tocá un producto para editarlo.</p>
               </div>
             </div>
-            <ProductList productos={productos} onEditar={abrirEdicion} onChanged={refrescar} />
+
+            {/* Buscador + chips de categoría/stock */}
+            <div className="orders-tools">
+              <SearchBar
+                value={busquedaProducto}
+                onChange={setBusquedaProducto}
+                placeholder="Buscar por nombre o categoría"
+                className="orders-search"
+              />
+              <div className="orders-chips">
+                <CategoryFilters
+                  categorias={categorias.map((c) => c.nombre)}
+                  activa={categoriaProductoActiva}
+                  onSelect={setCategoriaProductoActiva}
+                  className="chip"
+                />
+                <button
+                  className={soloSinStock ? 'chip active' : 'chip'}
+                  onClick={() => setSoloSinStock((v) => !v)}
+                >
+                  Sin stock
+                </button>
+              </div>
+            </div>
+
+            <ProductList productos={productosFiltrados} onEditar={abrirEdicion} onChanged={refrescar} />
             <button className="fab" aria-label="Nuevo producto" onClick={abrirNuevo}>
               +
             </button>

@@ -14,6 +14,9 @@ export interface Producto {
   precio: number
   stock: number
   imagen_url: string | null
+  // Slug único generado por la base (ver migración 0011). Puede venir null
+  // hasta que esa migración corra en el ambiente.
+  slug: string | null
   // Galería de imágenes (columna "imagenes text[]", ver migración 0002).
   // Puede venir undefined si todavía no corriste esa migración.
   imagenes?: string[] | null

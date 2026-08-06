@@ -12,6 +12,10 @@ export interface CartItem {
   imagen: string
   stock: number
   cantidad: number
+  // Slug del producto al momento de agregarlo (ver migración 0011), para armar
+  // el link a /producto/:param. Puede venir null/undefined en carritos viejos
+  // guardados en localStorage antes de este cambio; el link cae al id.
+  slug?: string | null
 }
 
 interface CartContextValue {
@@ -71,6 +75,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           imagen: portadaDe(producto),
           stock: producto.stock,
           cantidad: Math.min(cantidad, tope),
+          slug: producto.slug,
         },
       ]
     })

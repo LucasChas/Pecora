@@ -875,6 +875,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  cursor: zoom-in;
 }
 .img-remove {
   position: absolute;
@@ -916,4 +917,98 @@
   margin: 8px 2px 0;
   font-size: 0.8rem;
   color: var(--ink-soft);
+}
+.img-tile-dragging {
+  opacity: 0.55;
+  box-shadow: 0 6px 18px rgba(51, 48, 42, 0.28);
+  z-index: 1;
+}
+.img-cover-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 1;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(51, 48, 42, 0.72);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.img-drag-handle {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  cursor: grab;
+  background: rgba(51, 48, 42, 0.72);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Sólo la manija bloquea el gesto de scroll táctil; el resto del tile
+     (y el resto de la .sheet) queda libre para scrollear normalmente. */
+  touch-action: none;
+}
+.img-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* ---------- Zoom de imagen (admin) ----------
+   Overlay fullscreen para inspeccionar una foto del producto en detalle
+   mientras se gestionan las imágenes en ImagePicker. El pinch-zoom nativo del
+   navegador funciona dentro de este contenedor scrolleable
+   (touch-action: pinch-zoom), sin librería. */
+.image-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(20, 18, 14, 0.94);
+}
+.image-zoom-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  touch-action: pinch-zoom;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.image-zoom-img {
+  /* Entra completa en pantalla al abrir; el pinch-zoom nativo del navegador
+     (touch-action: pinch-zoom en .image-zoom-scroll) la agranda más allá de
+     esto, y el overflow:auto del contenedor permite recorrerla ya ampliada. */
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  margin: auto;
+}
+.image-zoom-close {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 101;
+  width: 40px;
+  height: 40px;
+  border-radius: 100px;
+  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.image-zoom-close svg {
+  width: 20px;
+  height: 20px;
 }

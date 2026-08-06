@@ -7,6 +7,7 @@ import AccountPage from './pages/AccountPage'
 import MyOrdersPage from './pages/MyOrdersPage'
 import AdminPage from './pages/AdminPage'
 import CartDrawer from './components/cart/CartDrawer'
+import Footer from './components/catalog/Footer'
 
 // El "modo" define qué expone cada deploy (ver VITE_APP_MODE en .env):
 //   - 'admin'   -> deploy privado: SOLO el panel, servido en la raíz "/".
@@ -23,6 +24,7 @@ function CatalogLayout() {
   return (
     <>
       <Outlet />
+      <Footer />
       <CartDrawer />
     </>
   )
@@ -33,7 +35,7 @@ function RutasCatalogo() {
   return (
     <Route element={<CatalogLayout />}>
       <Route path="/" element={<CatalogPage />} />
-      <Route path="/producto/:id" element={<ProductPage />} />
+      <Route path="/producto/:param" element={<ProductPage />} />
       <Route path="/carrito" element={<CartPage />} />
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/cuenta" element={<AccountPage />} />
