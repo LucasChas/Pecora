@@ -186,13 +186,18 @@
 }
 .success-actions {
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 10px;
   width: 100%;
 }
 .success-actions .btn-primary,
 .success-actions .pp-back {
-  flex: 1;
+  flex: 0 0 auto;
+  width: auto;
+  white-space: nowrap;
+  padding: 11px 20px;
   justify-content: center;
   text-align: center;
   margin: 0;
