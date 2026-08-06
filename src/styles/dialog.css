@@ -17,7 +17,7 @@
 
 .dlg-card {
   background: var(--cream);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   padding: 24px 22px 18px;
   width: 100%;
   max-width: 380px;
