@@ -844,8 +844,8 @@
   margin: 0 0 12px;
 }
 .checkout-form .pp-back {
-  display: block;
-  text-align: center;
+  display: table;
+  margin: 24px auto 0;
 }
 
 /* Resumen compacto del pedido */
@@ -919,7 +919,7 @@
   max-width: 480px;
 }
 .checkout-ok .pp-back {
-  text-align: center;
+  align-self: center;
 }
 
 /* Mobile: el wordmark centrado y grande no convive con los botones absolutos

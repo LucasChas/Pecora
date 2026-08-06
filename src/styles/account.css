@@ -50,9 +50,8 @@
   margin: 0 0 12px;
 }
 .account-card .pp-back {
-  display: block;
-  text-align: center;
-  margin-top: 14px;
+  display: table;
+  margin: 14px auto 0;
 }
 
 /* Campos (esta hoja no carga admin.css/cart.css necesariamente) */

@@ -145,6 +145,10 @@ export default function MyOrdersPage() {
             })}
           </div>
         )}
+
+        <Link className="pp-back" to="/">
+          ← Volver al muestrario
+        </Link>
       </main>
     </div>
   )
