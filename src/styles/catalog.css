@@ -289,6 +289,11 @@
   flex-direction: column;
   gap: 8px;
 }
+/* Sin CTA (producto disponible): restaurar el padding inferior completo para
+   que la card no quede con el precio pegado al borde. */
+.card:not(:has(.card-cta)) .card-body {
+  padding-bottom: 18px;
+}
 /* Contador de fotos (esquina de la imagen, cuando hay más de una) */
 .photo-count {
   position: absolute;
