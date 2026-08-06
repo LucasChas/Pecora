@@ -75,6 +75,8 @@ export default function AccountPage() {
       <Scallop />
 
       <main className="account">
+        {/* TODO(owner-copy): confirmar el texto final del título. */}
+        <h1 className="cart-title">Tu cuenta</h1>
         <div className="account-card">
           <div className="account-tabs">
             <button className={modo === 'ingresar' ? 'active' : ''} onClick={() => setModo('ingresar')}>
