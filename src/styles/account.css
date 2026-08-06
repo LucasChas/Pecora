@@ -2,7 +2,11 @@
    Cuenta de clientas: login/registro y "Mis pedidos".
    ============================================================ */
 
-.account {
+/* `.catalog-root main` (catalog.css) es más específico que `.account` sola
+   (clase+elemento vs. una sola clase) y le ganaba el max-width en desktop,
+   dejando el formulario estirado a 1100px en vez de la tarjeta angosta
+   pensada acá. Igualamos la especificidad calificando `main`. */
+.catalog-root main.account {
   max-width: 460px;
 }
 
