@@ -44,7 +44,9 @@ export default function AccountPage() {
         const { error, necesitaConfirmar } = await registrar({ email, password, nombre, telefono })
         if (error) setError(error)
         else if (necesitaConfirmar)
-          setAviso('¡Cuenta creada! Revisá tu email para confirmarla y después ingresá.')
+          setAviso(
+            '¡Cuenta creada! Revisá tu email para confirmarla y después ingresá (si no lo ves, revisá también la carpeta de spam).',
+          )
         else navigate(next, { replace: true })
       }
     } finally {

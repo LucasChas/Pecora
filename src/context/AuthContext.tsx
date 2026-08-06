@@ -76,6 +76,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: { data: { nombre: datos.nombre, telefono: datos.telefono } },
     })
     if (error) return { error: error.message, necesitaConfirmar: false }
+
+    // Supabase no avisa con un error si el email ya tiene una cuenta
+    // confirmada (para no revelar qué emails existen): responde "OK" pero
+    // sin mandar ningún mail. La única forma de distinguirlo de un alta
+    // real es que `identities` viene vacío en ese caso (en un alta nueva
+    // trae al menos una). Sin este chequeo, la pantalla prometía "revisá tu
+    // email" para un mail que nunca se mandaba.
+    const yaExistia = !data.session && data.user?.identities?.length === 0
+    if (yaExistia) {
+      return {
+        error: 'Ya existe una cuenta con este email. Iniciá sesión o recuperá tu contraseña.',
+        necesitaConfirmar: false,
+      }
+    }
+
     // Si no hay sesión tras el signup, es porque falta confirmar el email.
     const necesitaConfirmar = !data.session
     return { error: null, necesitaConfirmar }
