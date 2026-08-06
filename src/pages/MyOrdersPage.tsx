@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
 import { waConsultaCancelacionLink } from '../lib/config'
+import { IMG_PLACEHOLDER, portadaDe } from '../lib/images'
 import type { EstadoPedido, Pedido } from '../types'
 import '../styles/catalog.css'
 import '../styles/account.css'
@@ -35,6 +36,12 @@ export default function MyOrdersPage() {
   const { session, loading: cargandoSesion } = useAuth()
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [cargando, setCargando] = useState(true)
+  // Miniatura por producto (id -> url). El pedido solo guarda nombre/precio,
+  // no imagen (foto "de época"), así que la traemos del producto actual —
+  // igual que "por categoría" en las estadísticas, es una aproximación: si
+  // el producto cambió de foto o se borró, se ve la portada actual o el
+  // placeholder, no la que tenía el día de la compra.
+  const [imagenes, setImagenes] = useState<Record<string, string>>({})
 
   const fetchPedidos = useCallback(async (uid: string) => {
     // Filtramos por user_id explícitamente. No alcanza con confiar en RLS: la
@@ -46,8 +53,19 @@ export default function MyOrdersPage() {
       .select('*')
       .eq('user_id', uid)
       .order('created_at', { ascending: false })
-    setPedidos((data ?? []) as Pedido[])
+    const lista = (data ?? []) as Pedido[]
+    setPedidos(lista)
     setCargando(false)
+
+    const ids = [...new Set(lista.flatMap((p) => p.items.map((i) => i.id)))]
+    if (ids.length === 0) return
+    const { data: productos } = await supabase
+      .from('productos')
+      .select('id, imagenes, imagen_url')
+      .in('id', ids)
+    const mapa: Record<string, string> = {}
+    for (const prod of productos ?? []) mapa[prod.id] = portadaDe(prod)
+    setImagenes(mapa)
   }, [])
 
   useEffect(() => {
@@ -79,7 +97,7 @@ export default function MyOrdersPage() {
       </header>
       <Scallop />
 
-      <main className="account">
+      <main className="account mis-pedidos-page">
         <h1 className="cart-title">Mis pedidos</h1>
 
         {cargando ? (
@@ -114,7 +132,12 @@ export default function MyOrdersPage() {
                   <div className="mp-items">
                     {p.items.map((i, idx) => (
                       <div className="mp-item" key={idx}>
-                        <span>
+                        <span className="mp-item-info">
+                          <img
+                            className="mp-item-img"
+                            src={imagenes[i.id] ?? IMG_PLACEHOLDER}
+                            alt=""
+                          />
                           {i.cantidad}x {i.nombre}
                         </span>
                         <span>{money(i.precio * i.cantidad)}</span>

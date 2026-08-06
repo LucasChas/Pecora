@@ -9,6 +9,12 @@
 .catalog-root main.account {
   max-width: 460px;
 }
+/* "Mis pedidos" reusa .account por la tipografía/spacing, pero es una lista
+   de cards (no un formulario de login) — 460px la dejaba perdida en el medio
+   de una pantalla grande. Le damos más aire sin llegar al ancho del catálogo. */
+.catalog-root main.account.mis-pedidos-page {
+  max-width: 640px;
+}
 
 /* ---------- Card de login / registro ---------- */
 .account-card {
@@ -151,8 +157,23 @@
 .mp-item {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 10px;
   font-size: 0.88rem;
+}
+.mp-item-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.mp-item-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--cream-deep);
 }
 .mp-item.total {
   border-top: 1px solid var(--line);

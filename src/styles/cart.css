@@ -278,10 +278,12 @@
   margin-top: 0;
 }
 .success-card .btn-primary {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
+  width: auto;
+  padding: 12px 26px;
   margin-top: 4px;
 }
 .success-wa-ic {
