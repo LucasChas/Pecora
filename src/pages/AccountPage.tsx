@@ -41,11 +41,22 @@ export default function AccountPage() {
         if (error) setError(error)
         else navigate(next, { replace: true })
       } else {
-        const { error, necesitaConfirmar } = await registrar({ email, password, nombre, telefono })
+        const { error, necesitaConfirmar, yaRegistrado } = await registrar({
+          email,
+          password,
+          nombre,
+          telefono,
+        })
         if (error) setError(error)
-        else if (necesitaConfirmar)
+        else if (yaRegistrado) {
+          // La saltamos directo a "Ingresar" con el email ya cargado: es un
+          // paso menos que un texto suelto, y no le promete una recuperación
+          // de contraseña que la app todavía no tiene.
+          setModo('ingresar')
+          setAviso('Ese email ya tiene una cuenta. Ingresá tu contraseña para entrar.')
+        } else if (necesitaConfirmar)
           setAviso(
-            '¡Cuenta creada! Revisá tu email para confirmarla y después ingresá (si no lo ves, revisá también la carpeta de spam).',
+            'Ya casi está: te mandamos un email para confirmar tu cuenta. Abrilo y tocá el enlace para poder ingresar. ¿No lo ves? Revisá también la carpeta de spam.',
           )
         else navigate(next, { replace: true })
       }
