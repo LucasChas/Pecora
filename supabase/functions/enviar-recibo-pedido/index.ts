@@ -131,6 +131,17 @@ function toBase64Url(str: string): string {
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+/**
+ * Formato básico de email + ausencia de CR/LF. `pedidos.email` no tiene
+ * validación de formato a nivel de base (crear_pedido() lo inserta tal cual
+ * viene), así que sin este chequeo un `email` malicioso con un salto de línea
+ * podría inyectar headers extra (ej. un Bcc oculto) en el mensaje RFC 2822.
+ */
+const EMAIL_RE = /^[^\s@\r\n]+@[^\s@\r\n]+\.[^\s@\r\n]+$/;
+function esEmailSeguro(value: string): boolean {
+  return EMAIL_RE.test(value) && !/[\r\n]/.test(value);
+}
+
 /** Arma el mensaje RFC 2822 completo (headers + línea en blanco + cuerpo). */
 function buildMimeMessage(params: {
   from: string;
@@ -283,6 +294,15 @@ Deno.serve(async (req: Request) => {
       `${LOG_PREFIX} pedido ${pedidoId}: sin email en pedidos ni en auth.users — no-op`,
     );
     return jsonResponse({ ok: true, skipped: "no_recipient" });
+  }
+
+  if (!esEmailSeguro(recipient)) {
+    // No es un error del pedido (el pedido ya se creó bien) — solo no se
+    // puede armar un mensaje seguro con este valor. Logueado, no lanzado.
+    console.error(
+      `${LOG_PREFIX} pedido ${pedidoId}: destinatario con formato inválido/inseguro, no se envía`,
+    );
+    return jsonResponse({ ok: true, skipped: "invalid_recipient" });
   }
 
   console.log(`${LOG_PREFIX} pedido ${pedidoId}: destinatario resuelto (${recipient})`);
