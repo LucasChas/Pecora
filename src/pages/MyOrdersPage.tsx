@@ -101,8 +101,10 @@ export default function MyOrdersPage() {
                 <div className="mp-card" key={p.id}>
                   <div className="mp-top">
                     <div>
-                      <span className="mp-num">Pedido #{p.numero}</span>
-                      <span className="mp-fecha">{fecha(p.created_at)}</span>
+                      {/* El número de pedido es un dato interno del admin
+                          (lo usa para ubicarlo en el panel); a la clienta le
+                          alcanza con la fecha para reconocer cuál es cuál. */}
+                      <span className="mp-num">Pedido del {fecha(p.created_at)}</span>
                     </div>
                     <span className={`mp-estado ${est.clase}`}>{est.texto}</span>
                   </div>
