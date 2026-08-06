@@ -28,18 +28,23 @@ Creá `supabase/functions/.env.local` (NO se sube al repo — ya está en
 `.gitignore`) con este contenido, reemplazando los valores:
 
 ```
-RESEND_API_KEY=re_xxxxxxxxxxxx
-EMAIL_FROM=Pecora <pedidos@tu-dominio-verificado.com>
-EMAIL_REPLY_TO=hola@tu-dominio-verificado.com
+GMAIL_CLIENT_ID=xxxxxxxxxxxx.apps.googleusercontent.com
+GMAIL_CLIENT_SECRET=xxxxxxxxxxxx
+GMAIL_REFRESH_TOKEN=1//xxxxxxxxxxxx
+GMAIL_SENDER=pecoraabril@gmail.com
 BRAND_NAME=Pecora
 BRAND_LOGO_URL=https://tu-dominio.com/logo.png
 STORE_URL=https://tu-dominio.com
 ```
 
 Notas:
-- `RESEND_API_KEY` sale de <https://resend.com> (ver "Setup completo" abajo).
-- `EMAIL_FROM` requiere un dominio verificado en Resend — no podés mandar
-  desde un email genérico (gmail.com, etc.).
+- `GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET`/`GMAIL_REFRESH_TOKEN` salen de un
+  proyecto de Google Cloud propio, autorizado UNA vez contra la cuenta
+  `pecoraabril@gmail.com` (ver "Setup completo" abajo) — no requieren un
+  dominio propio verificado, a diferencia de un proveedor transaccional como
+  Resend.
+- `GMAIL_SENDER` es la dirección `pecoraabril@gmail.com` — vive como secreto
+  (y no hardcodeada en el código) para no fijarla en el código fuente.
 - Nunca uses el prefijo `VITE_*` para estos valores: esas variables se
   compilan al bundle público del front y quedarían expuestas en el navegador.
   Estos son secretos de función, viven solo del lado del servidor.
@@ -99,28 +104,67 @@ select vault.create_secret(
 
 ### Setup completo desde cero (checklist para la dueña de la tienda)
 
-1. Crear cuenta en <https://resend.com>.
-2. Verificar un dominio propio en Resend (Domains → Add Domain) siguiendo las
-   instrucciones de DNS que da Resend (registros TXT/CNAME/MX en el proveedor
-   del dominio). Sin dominio verificado, Resend no deja mandar con un
-   `from:` de marca — solo permite mandarte mails a vos misma de prueba.
-3. Generar una API Key en Resend (API Keys → Create API Key).
-4. Instalar el CLI de Supabase si no lo tenés: no hace falta instalar nada
+Este mail se manda desde `pecoraabril@gmail.com` vía la API de Gmail, no
+desde un proveedor transaccional — porque no hay un dominio propio
+verificable (solo la cuenta de Gmail y un subdominio de Vercel, que no se
+puede verificar como dominio de envío). El único costo es un setup de Google
+Cloud que se hace UNA sola vez.
+
+**Parte 1 — Google Cloud (una sola vez):**
+
+1. Crear un proyecto en <https://console.cloud.google.com> (el nivel
+   gratuito alcanza sin problema).
+2. En el proyecto, ir a "APIs & Services" → "Library" y habilitar la
+   **Gmail API**.
+3. Ir a "APIs & Services" → "OAuth consent screen":
+   - Tipo de usuario: **External**.
+   - Estado de publicación: dejarlo en **Testing** (no hace falta pasar la
+     revisión de Google para uso personal/de prueba con pocos usuarios).
+   - En "Test users", agregar `pecoraabril@gmail.com`.
+4. Ir a "APIs & Services" → "Credentials" → "Create Credentials" →
+   "OAuth client ID":
+   - Tipo de aplicación: **Desktop app** (es la más simple para sacar un
+     token a mano una sola vez, no requiere hostear ninguna URL de
+     redirección).
+   - Guardar el **Client ID** y el **Client Secret** que te muestra — son
+     `GMAIL_CLIENT_ID` y `GMAIL_CLIENT_SECRET`.
+5. Conseguir el refresh token (una sola vez) usando el
+   [OAuth 2.0 Playground](https://developers.google.com/oauthplayground):
+   1. Click en el ícono de engranaje (⚙️) arriba a la derecha → tildar
+      "Use your own OAuth credentials" → pegar ahí el Client ID y el Client
+      Secret del paso 4.
+   2. En la lista de la izquierda (Step 1), buscar o escribir a mano el
+      scope `https://www.googleapis.com/auth/gmail.send` → click
+      "Authorize APIs".
+   3. Iniciar sesión con `pecoraabril@gmail.com` y aceptar el permiso
+      (puede avisar que la app no está verificada — es esperado en modo
+      Testing, continuar igual).
+   4. Ya en Step 2, click "Exchange authorization code for tokens".
+   5. Copiar el valor de **Refresh token** — es `GMAIL_REFRESH_TOKEN`. No
+      expira con el uso normal (solo si se revoca manualmente o si la app
+      queda sin usarse 6+ meses).
+
+**Parte 2 — Supabase (igual que antes, solo cambian los secretos):**
+
+6. Instalar el CLI de Supabase si no lo tenés: no hace falta instalar nada
    global, `pnpm dlx supabase@latest ...` lo descarga al vuelo cada vez.
-5. `pnpm dlx supabase@latest login` (abre el navegador para autenticarte).
-6. `pnpm dlx supabase@latest link --project-ref <tu-project-ref>`.
-7. Crear `supabase/functions/.env.local` con los 6 valores de la sección 2.
-8. `pnpm run deploy:fn` (o el comando manual de la sección 3, paso 1).
-9. `pnpm dlx supabase@latest secrets set --env-file supabase/functions/.env.local`.
-10. En el SQL Editor: correr los dos `vault.create_secret(...)` de la
+7. `pnpm dlx supabase@latest login` (abre el navegador para autenticarte).
+8. `pnpm dlx supabase@latest link --project-ref <tu-project-ref>`.
+9. Crear `supabase/functions/.env.local` con los 7 valores de la sección 2
+   (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` del
+   paso 5, `GMAIL_SENDER=pecoraabril@gmail.com`, `BRAND_NAME`,
+   `BRAND_LOGO_URL`, `STORE_URL`).
+10. `pnpm run deploy:fn` (o el comando manual de la sección 3, paso 1).
+11. `pnpm dlx supabase@latest secrets set --env-file supabase/functions/.env.local`.
+12. En el SQL Editor: correr los dos `vault.create_secret(...)` de la
     sección 4 con la URL real de tu función y tu service-role key.
-11. En el SQL Editor: pegar y correr TODO `supabase/migrations/0012_email_pedido.sql`.
-12. Probar: hacer un pedido de prueba de punta a punta y confirmar que llega
+13. En el SQL Editor: pegar y correr TODO `supabase/migrations/0012_email_pedido.sql`.
+14. Probar: hacer un pedido de prueba de punta a punta y confirmar que llega
     el mail. Revisar los logs de la función en el dashboard
     (Edge Functions → enviar-recibo-pedido → Logs) si algo no anduvo — todos
     los pasos (recibido, destinatario resuelto/omitido, enviado, error) están
     logueados con el prefijo `[enviar-recibo-pedido]`.
-13. Probar también el caso sin email: un pedido cuyo `pedidos.email` esté
+15. Probar también el caso sin email: un pedido cuyo `pedidos.email` esté
     vacío pero cuyo `user_id` tenga cuenta con email en `auth.users` (debe
     mandar igual, usando el fallback) y, si es posible, un caso sin ninguno de
     los dos (debe loguear `no_recipient` y no romper nada).

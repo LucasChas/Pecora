@@ -4,7 +4,7 @@
 -- Por qué: cuando se crea un pedido (crear_pedido()), nadie le manda a la
 -- clienta un comprobante por mail con el detalle de lo que compró. Este
 -- trigger dispara una llamada HTTP asíncrona (pg_net) a una Edge Function
--- que arma y envía ese mail vía Resend.
+-- que arma y envía ese mail (actualmente vía la API de Gmail).
 --
 -- "Fire-and-forget" real: la llamada usa net.http_post (asíncrono, no espera
 -- respuesta) y TODO el cuerpo del trigger está envuelto en
