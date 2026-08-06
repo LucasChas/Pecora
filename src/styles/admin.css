@@ -917,3 +917,43 @@
   font-size: 0.8rem;
   color: var(--ink-soft);
 }
+.img-tile-dragging {
+  opacity: 0.55;
+  box-shadow: 0 6px 18px rgba(51, 48, 42, 0.28);
+  z-index: 1;
+}
+.img-cover-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 1;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(51, 48, 42, 0.72);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.img-drag-handle {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  cursor: grab;
+  background: rgba(51, 48, 42, 0.72);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Sólo la manija bloquea el gesto de scroll táctil; el resto del tile
+     (y el resto de la .sheet) queda libre para scrollear normalmente. */
+  touch-action: none;
+}
+.img-drag-handle:active {
+  cursor: grabbing;
+}
