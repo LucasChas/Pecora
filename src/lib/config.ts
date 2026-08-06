@@ -36,16 +36,6 @@ interface ItemPedido {
   cantidad: number
 }
 
-// Link de WhatsApp para cerrar un PEDIDO (carrito) con el detalle y el subtotal.
-// Cierre rápido sin checkout (la alternativa "express").
-export function waPedidoLink(items: ItemPedido[], subtotal: number): string {
-  const lineas = items
-    .map((i) => `• ${i.cantidad}x ${i.nombre} — ${money(i.precio * i.cantidad)}`)
-    .join('\n')
-  const msg = `Hola! Quiero hacer este pedido (Pecora):\n${lineas}\n\nSubtotal: ${money(subtotal)}`
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
-}
-
 // Datos del checkout que van en el mensaje del pedido confirmado.
 export interface DatosPedido {
   nombre: string

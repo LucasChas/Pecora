@@ -596,18 +596,6 @@
   cursor: pointer;
 }
 
-/* Cierre express por WhatsApp (alternativa al checkout) */
-.cart-wa-express {
-  display: block;
-  text-align: center;
-  margin-top: 12px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--sage-deep);
-}
-.cart-wa-express:hover {
-  color: var(--ink);
-}
 
 /* ---------- Checkout (rediseño tipo pasarela) ---------- */
 .checkout {
