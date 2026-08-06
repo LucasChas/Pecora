@@ -51,7 +51,7 @@
 }
 .account-card .pp-back {
   display: table;
-  margin: 14px auto 0;
+  margin: 24px auto 0;
 }
 
 /* Campos (esta hoja no carga admin.css/cart.css necesariamente) */
@@ -132,8 +132,8 @@
   color: var(--clay);
 }
 .mp-estado.e-entregado {
-  background: #E4EFDA;
-  color: #5f8043;
+  background: var(--success-pale);
+  color: var(--success);
 }
 .mp-estado.e-cancelado {
   background: var(--danger-pale);
