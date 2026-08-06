@@ -14,6 +14,8 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useState } from 'react'
+import ImageZoom from './ImageZoom'
 
 // Imagen ya guardada en Storage (URL) o imagen nueva elegida del teléfono
 // (todavía sin subir). `key` es estable por ítem: lo usa dnd-kit para
@@ -70,13 +72,24 @@ export default function ImagePicker({ items, onChange, onAddFiles }: Props) {
 
   const hayImagenes = items.length > 0
 
+  // Zoom (imagen ampliada) al tocar/clickear el tile: el admin puede
+  // inspeccionar calidad/detalle de una foto mientras gestiona el producto.
+  // Guarda sólo el `src` de la imagen ampliada; no hace falta el item completo.
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null)
+
   return (
     <div className="img-multi">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <div className="img-grid">
           <SortableContext items={items.map((it) => it.key)} strategy={rectSortingStrategy}>
             {items.map((item, i) => (
-              <ImageTile key={item.key} item={item} esPortada={i === 0} onRemove={onRemove} />
+              <ImageTile
+                key={item.key}
+                item={item}
+                esPortada={i === 0}
+                onRemove={onRemove}
+                onZoom={setZoomSrc}
+              />
             ))}
           </SortableContext>
 
@@ -94,6 +107,10 @@ export default function ImagePicker({ items, onChange, onAddFiles }: Props) {
       {!hayImagenes && (
         <p className="img-hint">Elegí una o varias fotos de la galería del teléfono.</p>
       )}
+
+      {zoomSrc && (
+        <ImageZoom src={zoomSrc} alt="" onClose={() => setZoomSrc(null)} />
+      )}
     </div>
   )
 }
@@ -102,10 +119,12 @@ function ImageTile({
   item,
   esPortada,
   onRemove,
+  onZoom,
 }: {
   item: ImagenItem
   esPortada: boolean
   onRemove: (key: string) => void
+  onZoom: (src: string) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.key,
@@ -120,7 +139,15 @@ function ImageTile({
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
       {esPortada && <span className="img-cover-badge">Portada</span>}
-      <img src={src} alt="" />
+      {/* Tap/click en la imagen (distinto de la manija de arrastre y del
+          botón de quitar) abre el zoom fullscreen para esa foto. */}
+      <img
+        src={src}
+        alt=""
+        onClick={() => onZoom(src)}
+        role="button"
+        aria-label="Ver imagen ampliada"
+      />
       {/* Manija de arrastre: sólo esta zona bloquea el scroll táctil
           (touch-action: none), no el tile completo. */}
       <button
