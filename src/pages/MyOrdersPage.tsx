@@ -149,9 +149,13 @@ export default function MyOrdersPage() {
           </div>
         )}
 
-        <Link className="pp-back" to="/">
-          ← Volver al muestrario
-        </Link>
+        {/* El estado vacío ya trae su propio link de vuelta — evitamos
+            duplicarlo acá abajo. */}
+        {!cargando && pedidos.length > 0 && (
+          <Link className="pp-back" to="/">
+            ← Volver al muestrario
+          </Link>
+        )}
       </main>
     </div>
   )
