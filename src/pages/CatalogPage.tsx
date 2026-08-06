@@ -77,7 +77,10 @@ export default function CatalogPage() {
         />
 
         {loading ? (
-          <div className="no-results">Cargando muestrario…</div>
+          <div className="loading-state">
+            <span className="loading-spinner" aria-hidden="true" />
+            Cargando muestrario…
+          </div>
         ) : (
           <ProductGrid productos={visibles} />
         )}

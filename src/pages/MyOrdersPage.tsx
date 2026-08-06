@@ -83,7 +83,10 @@ export default function MyOrdersPage() {
         <h1 className="cart-title">Mis pedidos</h1>
 
         {cargando ? (
-          <p className="no-results">Cargando tus pedidos…</p>
+          <div className="loading-state">
+            <span className="loading-spinner" aria-hidden="true" />
+            Cargando tus pedidos…
+          </div>
         ) : pedidos.length === 0 ? (
           <div className="no-results">
             Todavía no hiciste pedidos.
