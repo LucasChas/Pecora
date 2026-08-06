@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Categoria, ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { comprimirImagen } from '../../lib/imageCompress'
 import { useDialog } from '../../context/DialogContext'
-import ImagePicker from './ImagePicker'
+import ImagePicker, { type ImagenItem } from './ImagePicker'
 
 interface Props {
   open: boolean
@@ -28,12 +28,14 @@ async function subirImagen(file: File): Promise<string> {
   return data.publicUrl
 }
 
-// Imágenes ya guardadas de un producto (galería nueva, o la portada vieja).
-function imagenesGuardadas(p: ProductoConCategoria | null): string[] {
+// Imágenes ya guardadas de un producto (galería nueva, o la portada vieja),
+// convertidas al ítem unificado que usa ImagePicker. El key es la propia URL:
+// es estable entre renders y único dentro de la galería de un producto.
+function imagenesGuardadas(p: ProductoConCategoria | null): ImagenItem[] {
   if (!p) return []
   const arr = (p.imagenes ?? []).filter(Boolean)
-  if (arr.length) return arr
-  return p.imagen_url ? [p.imagen_url] : []
+  const urls = arr.length ? arr : p.imagen_url ? [p.imagen_url] : []
+  return urls.map((url) => ({ key: url, kind: 'url', url }))
 }
 
 // Hoja (bottom sheet) para crear o editar un producto.
@@ -52,9 +54,11 @@ export default function ProductFormSheet({
   const [descripcion, setDescripcion] = useState('')
   const [precio, setPrecio] = useState('')
   const [stock, setStock] = useState('')
-  // Galería: URLs ya guardadas que se conservan + archivos nuevos a subir.
-  const [keepUrls, setKeepUrls] = useState<string[]>([])
-  const [newFiles, setNewFiles] = useState<File[]>([])
+  // Galería: lista única y ordenada (URLs existentes + archivos nuevos
+  // intercalados, en el orden en que se van a mostrar/guardar). El índice 0
+  // es la portada. Reemplaza los antiguos keepUrls/newFiles disjuntos, que
+  // no permitían intercalar una foto nueva antes de una existente.
+  const [imagenes, setImagenes] = useState<ImagenItem[]>([])
 
   const [mostrarNuevaCat, setMostrarNuevaCat] = useState(false)
   const [nuevaCat, setNuevaCat] = useState('')
@@ -63,26 +67,67 @@ export default function ProductFormSheet({
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Referencia siempre actualizada al estado de imágenes, sólo para poder
+  // revocar los object URLs de archivos nuevos al desmontar o al cambiar de
+  // producto (no dispara re-render, no participa en el flujo de reorder).
+  const imagenesRef = useRef<ImagenItem[]>([])
+  useEffect(() => {
+    imagenesRef.current = imagenes
+  }, [imagenes])
+
   // Al abrir la hoja, cargamos los datos del producto (o valores vacíos si es alta).
   useEffect(() => {
     if (!open) return
+    // Si veníamos de otro producto con fotos nuevas sin guardar, liberamos
+    // sus previews antes de reemplazar la galería.
+    imagenesRef.current.forEach((it) => {
+      if (it.kind === 'file') URL.revokeObjectURL(it.preview)
+    })
     setNombre(producto?.nombre ?? '')
     setCategoriaId(producto?.categoria_id ?? categorias[0]?.id ?? '')
     setDescripcion(producto?.descripcion ?? '')
     setPrecio(producto ? String(producto.precio) : '')
     setStock(producto ? String(producto.stock) : '')
-    setKeepUrls(imagenesGuardadas(producto))
-    setNewFiles([])
+    setImagenes(imagenesGuardadas(producto))
     setMostrarNuevaCat(false)
     setNuevaCat('')
     setError(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, producto])
 
-  // Manejo de la galería de imágenes.
-  const agregarFiles = (files: File[]) => setNewFiles((prev) => [...prev, ...files])
-  const quitarUrl = (i: number) => setKeepUrls((prev) => prev.filter((_, idx) => idx !== i))
-  const quitarFile = (i: number) => setNewFiles((prev) => prev.filter((_, idx) => idx !== i))
+  // Al desmontar el componente, liberamos cualquier preview de archivo nuevo
+  // que haya quedado viva.
+  useEffect(() => {
+    return () => {
+      imagenesRef.current.forEach((it) => {
+        if (it.kind === 'file') URL.revokeObjectURL(it.preview)
+      })
+    }
+  }, [])
+
+  // Manejo de la galería de imágenes: cada archivo nuevo crea su object URL
+  // UNA sola vez, al agregarse (no en cada render/reorder, que es lo que
+  // causaba flicker/imágenes rotas al arrastrar con el efecto anterior).
+  function agregarFiles(files: File[]) {
+    const nuevos: ImagenItem[] = files.map((file) => ({
+      key: crypto.randomUUID(),
+      kind: 'file',
+      file,
+      preview: URL.createObjectURL(file),
+    }))
+    setImagenes((prev) => [...prev, ...nuevos])
+  }
+
+  // Reordenar y quitar imágenes llegan por el mismo callback desde
+  // ImagePicker; acá detectamos qué archivos nuevos salieron para revocar
+  // su preview (las URLs existentes no tienen nada que liberar).
+  function onImagenesChange(next: ImagenItem[]) {
+    const nextKeys = new Set(next.map((it) => it.key))
+    for (const it of imagenes) {
+      if (it.kind === 'file' && !nextKeys.has(it.key)) URL.revokeObjectURL(it.preview)
+    }
+    setImagenes(next)
+  }
 
   function onCategoriaChange(valor: string) {
     if (valor === '__new__') {
@@ -121,11 +166,13 @@ export default function ProductFormSheet({
     setGuardando(true)
     setError(null)
     try {
-      // Subimos las imágenes nuevas y armamos la galería final
-      // (las que se conservan + las nuevas, en ese orden).
-      const subidas: string[] = []
-      for (const f of newFiles) subidas.push(await subirImagen(f))
-      const imagenes = [...keepUrls, ...subidas]
+      // Recorremos la galería en el orden que dejó el drag-and-drop, subiendo
+      // a Storage sólo las imágenes nuevas, en el lugar exacto donde quedaron
+      // (ya no van todas al final como con keepUrls/newFiles separados).
+      const imagenesFinal: string[] = []
+      for (const item of imagenes) {
+        imagenesFinal.push(item.kind === 'url' ? item.url : await subirImagen(item.file))
+      }
 
       const payload = {
         nombre,
@@ -133,8 +180,8 @@ export default function ProductFormSheet({
         descripcion,
         precio: Number(precio) || 0,
         stock: Number(stock) || 0,
-        imagenes,
-        imagen_url: imagenes[0] ?? null, // portada para la grilla / compatibilidad
+        imagenes: imagenesFinal,
+        imagen_url: imagenesFinal[0] ?? null, // portada para la grilla / compatibilidad (índice 0)
       }
 
       if (producto) {
@@ -183,13 +230,7 @@ export default function ProductFormSheet({
         <h2>{producto ? 'Editar producto' : 'Nuevo producto'}</h2>
 
         <form onSubmit={onSubmit}>
-          <ImagePicker
-            keepUrls={keepUrls}
-            newFiles={newFiles}
-            onAddFiles={agregarFiles}
-            onRemoveUrl={quitarUrl}
-            onRemoveFile={quitarFile}
-          />
+          <ImagePicker items={imagenes} onChange={onImagenesChange} onAddFiles={agregarFiles} />
 
           <div className="field">
             <label>Nombre</label>
