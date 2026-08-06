@@ -88,6 +88,11 @@ export function instagramPerfilLink(): string {
   return `https://instagram.com/${INSTAGRAM_USER}`
 }
 
+// Link de WhatsApp genérico (sin producto), para contacto general en el footer.
+export function waPerfilLink(): string {
+  return `https://wa.me/${WHATSAPP_NUMBER}`
+}
+
 // Link de mensaje directo (DM) de Instagram. ig.me/m abre el chat con la marca,
 // análogo a wa.me. Instagram no permite prellenar el texto, así que el mensaje
 // lo escribe la clienta (a diferencia de WhatsApp).
