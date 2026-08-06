@@ -143,7 +143,7 @@
 }
 .success-card {
   background: var(--cream);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   padding: 34px 26px 26px;
   width: 100%;
   max-width: 420px;
@@ -169,14 +169,14 @@
   height: 84px;
 }
 .success-check-circle {
-  stroke: #7ba05b;
+  stroke: var(--success);
   stroke-width: 3;
   stroke-dasharray: 151;
   stroke-dashoffset: 151;
   animation: success-draw 0.5s ease forwards 0.1s;
 }
 .success-check-mark {
-  stroke: #7ba05b;
+  stroke: var(--success);
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -225,6 +225,15 @@
 .success-entrega {
   font-size: 0.8rem;
   color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.success-entrega-ic {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 .success-email-note {
   font-size: 0.82rem;
@@ -234,16 +243,39 @@
   padding: 8px 12px;
   margin: 4px 0 0;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
+.success-email-ic {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+/* "Ver el estado de mi pedido": CTA secundaria (consulta, no navegación
+   principal) — pill sutil en tono apagado, para no competir con el botón
+   de WhatsApp ni con "Volver al muestrario" (.pp-back, tono marca). */
 .success-link {
-  color: var(--sage-deep);
+  display: inline-block;
+  padding: 8px 18px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: #fff;
+  color: var(--ink-soft);
   font-weight: 600;
   font-size: 0.85rem;
   text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 .success-link:hover {
-  color: var(--ink);
-  text-decoration: underline;
+  border-color: var(--sage);
+  color: var(--sage-deep);
+}
+/* "Volver al muestrario" reutiliza .pp-back (misma pill que en el resto del
+   muestrario); acá solo ajustamos el espaciado al gap del modal. */
+.success-card .pp-back {
+  margin-top: 0;
 }
 .success-card .btn-primary {
   display: flex;
@@ -256,18 +288,6 @@
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-}
-.success-volver {
-  border: none;
-  background: none;
-  color: var(--sage-deep);
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  padding: 2px;
-}
-.success-volver:hover {
-  color: var(--ink);
 }
 @keyframes success-fade {
   from {
@@ -336,10 +356,16 @@
 .drawer-close {
   border: none;
   background: none;
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   color: var(--ink-soft);
   padding: 4px 8px;
+}
+.drawer-close svg {
+  width: 18px;
+  height: 18px;
 }
 .drawer-empty {
   flex: 1;
@@ -481,6 +507,20 @@
   text-align: center;
   font-weight: 600;
   font-size: 0.95rem;
+}
+
+/* Estado "Agregado" del botón: mismo glyph de check que el resto de la app,
+   como SVG en vez de texto plano (ver .success-check-mark). */
+.added-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.added-check-ic {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 /* CTA "Agregar al carrito" en la ficha */

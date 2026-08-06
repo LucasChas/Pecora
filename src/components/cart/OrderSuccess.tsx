@@ -28,8 +28,8 @@ export default function OrderSuccess({ waHref, entrega, items, subtotal }: Props
 
         <h2 className="success-title">¡Gracias por tu compra!</h2>
         <p className="success-text">
-          Gracias por confiar en Pecora 🐑 Ya tenemos tu pedido y lo estamos preparando con
-          mucho cariño.
+          Gracias por confiar en Pecora. Ya tenemos tu pedido y lo estamos preparando con mucho
+          cariño.
         </p>
 
         {/* Desglose de lo comprado, para que la clienta se lleve el detalle a la vista. */}
@@ -47,7 +47,42 @@ export default function OrderSuccess({ waHref, entrega, items, subtotal }: Props
             <strong>{money(subtotal)}</strong>
           </div>
           <div className="success-entrega">
-            {entrega === 'envio' ? '📦 Envío a domicilio' : '🛍️ Retiro / a coordinar'}
+            {entrega === 'envio' ? (
+              <>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="success-entrega-ic"
+                  aria-hidden="true"
+                >
+                  <path d="M21 8L12 3 3 8v8l9 5 9-5V8z" />
+                  <path d="M3 8l9 5 9-5" />
+                  <path d="M12 13v8" />
+                </svg>
+                Envío a domicilio
+              </>
+            ) : (
+              <>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="success-entrega-ic"
+                  aria-hidden="true"
+                >
+                  <path d="M6 8h12l-1 12H7L6 8z" />
+                  <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+                </svg>
+                Retiro / a coordinar
+              </>
+            )}
           </div>
         </div>
 
@@ -56,7 +91,20 @@ export default function OrderSuccess({ waHref, entrega, items, subtotal }: Props
             pero tampoco hay garantía sincrónica de que ya haya llegado — por
             eso "te mandamos" en pasado, no "revisá ahora". */}
         <p className="success-email-note">
-          📧 También te mandamos un email con el detalle de tu pedido.
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="success-email-ic"
+            aria-hidden="true"
+          >
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="M3 7l9 6 9-6" />
+          </svg>
+          También te mandamos un email con el detalle de tu pedido.
         </p>
 
         <p className="success-text">
@@ -75,7 +123,7 @@ export default function OrderSuccess({ waHref, entrega, items, subtotal }: Props
         <Link className="success-link" to="/mis-pedidos">
           Ver el estado de mi pedido
         </Link>
-        <button className="success-volver" onClick={volver}>
+        <button className="pp-back" onClick={volver}>
           Volver al muestrario
         </button>
       </div>

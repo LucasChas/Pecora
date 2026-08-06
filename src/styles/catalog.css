@@ -208,7 +208,7 @@
 }
 .card-body .desc {
   font-size: 0.85rem;
-  color: #6E6350;
+  color: var(--ink-soft);
   line-height: 1.4;
   margin: 0;
   flex: 1;
@@ -262,8 +262,35 @@
   grid-column: 1 / -1;
   text-align: center;
   padding: 50px 20px;
-  color: #8A7A5E;
+  color: var(--ink-soft);
   font-size: 0.92rem;
+}
+
+/* Estado "cargando": distinto de "vacío"/"no encontrado" (.no-results) —
+   spinner liviano en CSS, sin dependencias nuevas. */
+.loading-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 50px 20px;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+.loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--line);
+  border-top-color: var(--sage);
+  border-radius: 50%;
+  animation: loading-spin 0.7s linear infinite;
+}
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ---------- Footer institucional (D12) ----------
@@ -275,7 +302,7 @@
   text-align: center;
   padding: 28px 24px;
   font-size: 0.78rem;
-  color: #8A7A5E;
+  color: var(--ink-soft);
 }
 .site-footer-inner {
   max-width: 1100px;
@@ -390,10 +417,12 @@
   border: 1px solid var(--sage);
   border-radius: 100px;
   font-weight: 600;
+  font-family: inherit;
   font-size: 0.88rem;
   color: var(--sage-deep);
   background: #fff;
   text-decoration: none;
+  cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
 }
 .pp-back:hover {
@@ -528,7 +557,7 @@
   margin: 0;
   font-size: 0.92rem;
   line-height: 1.55;
-  color: #6E6350;
+  color: var(--ink-soft);
   white-space: pre-line;
 }
 /* Botones de consulta (WhatsApp + Instagram) */
