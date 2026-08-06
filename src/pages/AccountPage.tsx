@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
+import PasswordInput from '../components/common/PasswordInput'
 import { useAuth } from '../context/AuthContext'
 import '../styles/catalog.css'
 import '../styles/account.css'
@@ -96,8 +97,7 @@ export default function AccountPage() {
             </div>
             <div className="field">
               <label>Contraseña</label>
-              <input
-                type="password"
+              <PasswordInput
                 required
                 minLength={6}
                 value={password}
