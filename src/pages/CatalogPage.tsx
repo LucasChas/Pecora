@@ -8,7 +8,6 @@ import ProductGrid from '../components/catalog/ProductGrid'
 import HeaderActions from '../components/account/HeaderActions'
 import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
-import { instagramHabilitado, instagramPerfilLink } from '../lib/config'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 
@@ -83,28 +82,6 @@ export default function CatalogPage() {
           <ProductGrid productos={visibles} />
         )}
       </main>
-
-      <footer>
-        <p>
-          Pecora — para consultar y coordinar la compra de cualquier prenda,
-          escribinos por WhatsApp{instagramHabilitado ? ' o Instagram' : ''}.
-        </p>
-        {instagramHabilitado && (
-          <a
-            className="footer-ig"
-            href={instagramPerfilLink()}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <rect x="2" y="2" width="20" height="20" rx="5.5" />
-              <circle cx="12" cy="12" r="4.2" />
-              <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none" />
-            </svg>
-            Seguinos en Instagram
-          </a>
-        )}
-      </footer>
     </div>
   )
 }

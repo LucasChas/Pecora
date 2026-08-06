@@ -266,28 +266,67 @@
   font-size: 0.92rem;
 }
 
-.catalog-root footer {
+/* ---------- Footer institucional (D12) ----------
+   Se monta una sola vez en CatalogLayout (App.tsx), fuera de .catalog-root,
+   así aparece en todas las vistas públicas (muestrario, producto, carrito,
+   checkout, cuenta, mis pedidos), no solo en el muestrario. */
+.site-footer {
+  background: var(--cream-deep);
   text-align: center;
-  padding: 26px;
+  padding: 28px 24px;
   font-size: 0.78rem;
   color: #8A7A5E;
 }
-.catalog-root footer p {
-  margin: 0 0 10px;
+.site-footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
 }
-.footer-ig {
+.site-footer-social {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.site-footer-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-weight: 600;
   color: var(--sage-deep);
 }
-.footer-ig svg {
+.site-footer-link svg {
   width: 15px;
   height: 15px;
 }
-.footer-ig:hover {
+.site-footer-link:hover {
   color: var(--ink);
+}
+/* Badges de medios de pago: placeholder de texto hasta contar con los
+   logos reales de Abril y Mercado Pago (ver TODO(owner-assets) en Footer.tsx). */
+.site-footer-payments {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.payment-badge {
+  padding: 5px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--cream-deep, #E5DFCF);
+  background: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+.site-footer-copy {
+  margin: 0;
 }
 
 /* ---------- Card clickeable + CTA ---------- */
