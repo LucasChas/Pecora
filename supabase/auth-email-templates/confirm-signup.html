@@ -1,0 +1,64 @@
+<!--
+  Pecora — plantilla de email "Confirm signup" de Supabase Auth.
+
+  Esto NO se despliega por código: se pega tal cual en el dashboard de
+  Supabase → Authentication → Emails → Templates → "Confirm signup", en el
+  campo del cuerpo HTML. Usa el mismo estilo (tabla + estilos inline) que
+  supabase/functions/enviar-recibo-pedido/template.ts, para que los dos
+  mails de Pecora se vean iguales.
+
+  Variables de Supabase (sintaxis Go template, las reemplaza Supabase al
+  enviar — no tocar el nombre):
+    {{ .ConfirmationURL }} → link de confirmación de la cuenta
+    {{ .Email }}           → email de la persona que se registró
+
+  El logo apunta a la URL pública fija (no cambia con cada build):
+    https://pecora-muestrario.vercel.app/logo.png
+-->
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Confirmá tu cuenta — Pecora</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#f6f6f4;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f6f6f4;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:8px;overflow:hidden;">
+            <tr>
+              <td style="padding:32px 32px 16px;text-align:center;">
+                <img src="https://pecora-muestrario.vercel.app/logo.png" alt="Pecora" style="max-height:48px;display:block;margin:0 auto 12px;" />
+                <h1 style="margin:0;font-size:20px;color:#222;">¡Bienvenida a Pecora!</h1>
+                <p style="margin:8px 0 0;font-size:14px;color:#666;">
+                  <!-- TODO(owner-copy): revisar texto del email -->
+                  Confirmá tu cuenta para poder ver tus pedidos y comprar más rápido la próxima vez.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 32px 32px;text-align:center;">
+                <a href="{{ .ConfirmationURL }}"
+                   style="display:inline-block;background-color:#222;color:#ffffff;text-decoration:none;font-size:15px;font-weight:bold;padding:12px 28px;border-radius:100px;">
+                  Confirmar mi cuenta
+                </a>
+                <p style="font-size:12px;color:#999;margin:20px 0 0;">
+                  Si el botón no funciona, copiá y pegá este link en el navegador:<br />
+                  <a href="{{ .ConfirmationURL }}" style="color:#999;word-break:break-all;">{{ .ConfirmationURL }}</a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px 32px;text-align:center;border-top:1px solid #eee;">
+                <p style="font-size:12px;color:#999;margin:16px 0 0;">
+                  Pecora · <a href="https://pecora-muestrario.vercel.app" style="color:#999;">https://pecora-muestrario.vercel.app</a>
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
