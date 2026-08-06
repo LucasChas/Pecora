@@ -4,7 +4,9 @@
 // Disparada por el trigger AFTER INSERT de la migración 0012 (pg_net,
 // fire-and-forget). Recibe solo { pedido_id }, vuelve a leer el pedido del
 // lado del servidor con un cliente service-role, resuelve el destinatario y
-// manda el mail de confirmación vía Resend.
+// manda el mail de confirmación vía la API de Gmail (enviando como
+// pecoraabril@gmail.com por OAuth2), no SMTP crudo: Deno Edge Functions no
+// tienen un path confiable de TCP/SMTP de larga duración.
 //
 // Por qué no confiar en un payload completo: un body forjado o repetido en
 // el peor caso re-envía un comprobante legítimo a su dueña legítima, nunca
@@ -15,10 +17,20 @@
 // trigger manda la service-role key como Bearer; Supabase la valida antes de
 // que este código corra.
 //
+// Envío vía Gmail API: no hay API key estática de "envío" como con un
+// proveedor transaccional — se usa un flujo OAuth2 de dos pasos por request:
+//   1) POST a oauth2.googleapis.com/token con el refresh token (obtenido una
+//      sola vez a mano, ver supabase/functions/README.md) para conseguir un
+//      access token de corta duración.
+//   2) POST a gmail.googleapis.com/.../messages/send con ese access token,
+//      mandando el mensaje crudo en formato RFC 2822 codificado en
+//      base64url.
+//
 // Secretos usados (ver supabase/functions/README.md para setearlos):
-//   RESEND_API_KEY, EMAIL_FROM, EMAIL_REPLY_TO, BRAND_NAME, BRAND_LOGO_URL,
-//   STORE_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (estas dos últimas las
-//   inyecta Supabase automáticamente en toda Edge Function).
+//   GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_SENDER,
+//   BRAND_NAME, BRAND_LOGO_URL, STORE_URL, SUPABASE_URL,
+//   SUPABASE_SERVICE_ROLE_KEY (estas dos últimas las inyecta Supabase
+//   automáticamente en toda Edge Function).
 // ============================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -76,6 +88,118 @@ function formatFecha(iso: string): string {
   }
 }
 
+// ----------------------------------------------------------------------------
+// Helpers de codificación para armar el mensaje MIME crudo que espera la
+// Gmail API en `messages.send` (campo `raw`, base64url del RFC 2822 completo).
+// ----------------------------------------------------------------------------
+
+/** UTF-8 string → base64 estándar (con padding, sin las sustituciones url-safe). */
+function utf8ToBase64(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+/** Envuelve una string base64 en líneas de 76 caracteres (recomendado por MIME). */
+function wrapBase64(b64: string, lineLength = 76): string {
+  const lines: string[] = [];
+  for (let i = 0; i < b64.length; i += lineLength) {
+    lines.push(b64.slice(i, i + lineLength));
+  }
+  return lines.join("\r\n");
+}
+
+/**
+ * Codifica un Subject con caracteres no-ASCII (tildes, ñ) como "encoded-word"
+ * RFC 2047: =?UTF-8?B?<base64>?=. Sin esto, headers con acentos quedan mal
+ * interpretados por la mayoría de los clientes de correo.
+ */
+function encodeMimeSubject(subject: string): string {
+  return `=?UTF-8?B?${utf8ToBase64(subject)}?=`;
+}
+
+/**
+ * String (ASCII-only, ya armado) → base64url SIN padding, apto para el campo
+ * `raw` de la Gmail API: `+` → `-`, `/` → `_`, se recorta el `=` final.
+ */
+function toBase64Url(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  const b64 = btoa(binary);
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** Arma el mensaje RFC 2822 completo (headers + línea en blanco + cuerpo). */
+function buildMimeMessage(params: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+}): string {
+  const encodedSubject = encodeMimeSubject(params.subject);
+  const encodedBody = wrapBase64(utf8ToBase64(params.html));
+
+  return [
+    `From: ${params.from}`,
+    `To: ${params.to}`,
+    `Subject: ${encodedSubject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/html; charset="UTF-8"`,
+    `Content-Transfer-Encoding: base64`,
+    ``,
+    encodedBody,
+  ].join("\r\n");
+}
+
+/**
+ * Paso A: refresca el access token de corta duración a partir del refresh
+ * token de larga duración (obtenido una sola vez a mano, ver README).
+ * Nunca lanza: cualquier falla vuelve `null` para que el caller responda
+ * limpio, respetando el contrato fire-and-forget del trigger.
+ */
+async function refreshAccessToken(
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string,
+): Promise<string | null> {
+  try {
+    const params = new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    });
+
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(
+        `${LOG_PREFIX} refresh de token OAuth falló (${res.status}):`,
+        errorText,
+      );
+      return null;
+    }
+
+    const data = await res.json();
+    if (!data || typeof data.access_token !== "string" || !data.access_token) {
+      console.error(`${LOG_PREFIX} respuesta de refresh sin access_token:`, data);
+      return null;
+    }
+
+    return data.access_token;
+  } catch (err) {
+    console.error(`${LOG_PREFIX} excepción refrescando token OAuth:`, err);
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return jsonResponse({ ok: false, error: "method_not_allowed" }, 405);
@@ -99,9 +223,10 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const resendApiKey = Deno.env.get("RESEND_API_KEY");
-  const emailFrom = Deno.env.get("EMAIL_FROM");
-  const emailReplyTo = Deno.env.get("EMAIL_REPLY_TO") ?? undefined;
+  const gmailClientId = Deno.env.get("GMAIL_CLIENT_ID");
+  const gmailClientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
+  const gmailRefreshToken = Deno.env.get("GMAIL_REFRESH_TOKEN");
+  const gmailSender = Deno.env.get("GMAIL_SENDER");
   const brandName = Deno.env.get("BRAND_NAME") ?? "Pecora";
   const brandLogoUrl = Deno.env.get("BRAND_LOGO_URL") || null;
   const storeUrl = Deno.env.get("STORE_URL") ?? "";
@@ -110,8 +235,10 @@ Deno.serve(async (req: Request) => {
     console.error(`${LOG_PREFIX} faltan SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY`);
     return jsonResponse({ ok: false, error: "missing_supabase_env" }, 500);
   }
-  if (!resendApiKey || !emailFrom) {
-    console.error(`${LOG_PREFIX} faltan RESEND_API_KEY/EMAIL_FROM — no se puede enviar`);
+  if (!gmailClientId || !gmailClientSecret || !gmailRefreshToken || !gmailSender) {
+    console.error(
+      `${LOG_PREFIX} faltan GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET/GMAIL_REFRESH_TOKEN/GMAIL_SENDER — no se puede enviar`,
+    );
     // No es un error del pedido: respondemos ok igual, el trigger ya ignora
     // cualquier resultado. Solo logueamos para que la dueña lo detecte.
     return jsonResponse({ ok: true, skipped: "missing_email_secrets" });
@@ -175,35 +302,50 @@ Deno.serve(async (req: Request) => {
     storeUrl,
   });
 
-  try {
-    const resendResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: emailFrom,
-        to: [recipient],
-        reply_to: emailReplyTo,
-        subject,
-        html,
-      }),
-    });
+  // Paso A: refrescar el access token de Gmail.
+  const accessToken = await refreshAccessToken(gmailClientId, gmailClientSecret, gmailRefreshToken);
+  if (!accessToken) {
+    console.error(`${LOG_PREFIX} no se pudo obtener access token de Gmail para pedido ${pedidoId}`);
+    return jsonResponse({ ok: false, error: "gmail_oauth_refresh_failed" }, 502);
+  }
 
-    if (!resendResponse.ok) {
-      const errorText = await resendResponse.text();
+  // Paso B: armar el mensaje RFC 2822 crudo.
+  const mimeMessage = buildMimeMessage({
+    from: gmailSender,
+    to: recipient,
+    subject,
+    html,
+  });
+
+  // Paso C: base64url-encodear el mensaje y mandarlo vía Gmail API.
+  const raw = toBase64Url(mimeMessage);
+
+  try {
+    const gmailResponse = await fetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ raw }),
+      },
+    );
+
+    if (!gmailResponse.ok) {
+      const errorText = await gmailResponse.text();
       console.error(
-        `${LOG_PREFIX} Resend respondió ${resendResponse.status} para pedido ${pedidoId}:`,
+        `${LOG_PREFIX} Gmail API respondió ${gmailResponse.status} para pedido ${pedidoId}:`,
         errorText,
       );
-      return jsonResponse({ ok: false, error: "resend_failed" }, 502);
+      return jsonResponse({ ok: false, error: "gmail_send_failed" }, 502);
     }
 
     console.log(`${LOG_PREFIX} enviado OK — pedido ${pedidoId} → ${recipient}`);
     return jsonResponse({ ok: true, sent: true });
   } catch (err) {
-    console.error(`${LOG_PREFIX} excepción llamando a Resend para pedido ${pedidoId}:`, err);
-    return jsonResponse({ ok: false, error: "resend_exception" }, 502);
+    console.error(`${LOG_PREFIX} excepción llamando a Gmail API para pedido ${pedidoId}:`, err);
+    return jsonResponse({ ok: false, error: "gmail_exception" }, 502);
   }
 });
