@@ -13,7 +13,7 @@ export default function AccountPage() {
   const { session, ingresar, registrar, recuperarPassword } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const next = params.get('next') || '/mis-pedidos'
+  const next = params.get('next') || '/'
 
   const [modo, setModo] = useState<'ingresar' | 'registrar' | 'recuperar'>('ingresar')
   const [nombre, setNombre] = useState('')
