@@ -45,13 +45,9 @@ export default function Footer() {
         {/* TODO(owner-assets): reemplazar por los logos reales de Abril y
             Mercado Pago (SVG/PNG provistos por el dueño). Placeholder de texto
             hasta entonces. */}
-        <div className="site-footer-payments">
-          <span className="payment-badge">Abril</span>
-          <span className="payment-badge">Mercado Pago</span>
-        </div>
 
         {/* TODO(owner-copy): reemplazar por la copy institucional definitiva. */}
-        <p className="site-footer-copy">© {anio} Pecora — Ropa de bebé</p>
+        <p className="site-footer-copy">© {anio} Pecora — Accesorios de bebé</p>
       </div>
     </footer>
   )
