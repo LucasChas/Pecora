@@ -9,7 +9,8 @@ import MyOrdersPage from './pages/MyOrdersPage'
 import AdminPage from './pages/AdminPage'
 import CartDrawer from './components/cart/CartDrawer'
 import Footer from './components/catalog/Footer'
-
+import { PrivacyPage } from './pages/PrivacyPage'
+import { TermsPage } from './pages/TermsPage'
 // El "modo" define qué expone cada deploy (ver VITE_APP_MODE en .env):
 //   - 'admin'   -> deploy privado: SOLO el panel, servido en la raíz "/".
 //   - 'catalog' -> deploy público: muestrario + páginas de producto. /admin no existe.
@@ -42,6 +43,8 @@ function RutasCatalogo() {
       <Route path="/cuenta" element={<AccountPage />} />
       <Route path="/restablecer-contrasena" element={<ResetPasswordPage />} />
       <Route path="/mis-pedidos" element={<MyOrdersPage />} />
+      <Route path="/privacidad" element={<PrivacyPage />} />
+      <Route path="/terminos" element={<TermsPage />} />
     </Route>
   )
 }
