@@ -1,10 +1,9 @@
+import { Link } from 'react-router-dom'
 import { instagramHabilitado, instagramPerfilLink, waPerfilLink } from '../../lib/config'
 
 // Footer institucional del catálogo público: se monta una sola vez en
 // CatalogLayout (App.tsx), así aparece en todas las vistas públicas
 // (muestrario, producto, carrito, checkout, cuenta, mis pedidos).
-// Alcance (D12): redes sociales, logos de medios de pago, copyright.
-// Explícitamente fuera de alcance: envíos, devoluciones, contacto extendido.
 export default function Footer() {
   const anio = new Date().getFullYear()
 
@@ -42,11 +41,16 @@ export default function Footer() {
           )}
         </div>
 
-        {/* TODO(owner-assets): reemplazar por los logos reales de Abril y
-            Mercado Pago (SVG/PNG provistos por el dueño). Placeholder de texto
-            hasta entonces. */}
+        <div className="site-footer-legal" style={{ display: 'flex', gap: '12px', justifyContent: 'center', fontSize: '0.8125rem', margin: '8px 0' }}>
+          <Link to="/privacidad" className="site-footer-link">
+            Política de Privacidad
+          </Link>
+          <span>•</span>
+          <Link to="/terminos" className="site-footer-link">
+            Condiciones del Servicio
+          </Link>
+        </div>
 
-        {/* TODO(owner-copy): reemplazar por la copy institucional definitiva. */}
         <p className="site-footer-copy">© {anio} Pecora — Accesorios de bebé</p>
       </div>
     </footer>
