@@ -66,7 +66,11 @@
       "WebFetch(domain:doc-0o-08-docstext.googleusercontent.com)",
       "WebFetch(domain:doc-04-08-docstext.googleusercontent.com)",
       "mcp__95172b15-02c9-4232-bbd6-3ad4a5bbb2b8__create_file",
-      "mcp__95172b15-02c9-4232-bbd6-3ad4a5bbb2b8__read_file_content"
+      "mcp__95172b15-02c9-4232-bbd6-3ad4a5bbb2b8__read_file_content",
+      "Bash(gentle-ai codegraph *)",
+      "Bash(npm run *)",
+      "Bash(supabase db *)",
+      "Bash(supabase link *)"
     ]
   }
 }

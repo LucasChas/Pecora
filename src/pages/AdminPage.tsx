@@ -14,6 +14,7 @@ import SearchBar from '../components/common/SearchBar'
 import CategoryFilters from '../components/common/CategoryFilters'
 import ProductFormSheet from '../components/admin/ProductFormSheet'
 import CategoryManagerSheet from '../components/admin/CategoryManagerSheet'
+import ManualOrderSheet from '../components/admin/ManualOrderSheet'
 import OrdersList from '../components/admin/OrdersList'
 import '../styles/admin.css'
 
@@ -76,6 +77,7 @@ export default function AdminPage() {
   const [sheetAbierta, setSheetAbierta] = useState(false)
   const [editando, setEditando] = useState<ProductoConCategoria | null>(null)
   const [catSheetAbierta, setCatSheetAbierta] = useState(false)
+  const [pedidoSheetAbierta, setPedidoSheetAbierta] = useState(false)
 
   // Refresca datos de productos/categorías después de cualquier edición.
   const refrescar = useCallback(() => {
@@ -250,6 +252,13 @@ export default function AdminPage() {
               filtrando={filtroEstado !== 'todos' || busqueda.trim() !== ''}
               papelera={filtroEstado === 'eliminados'}
             />
+            <button
+              className="fab"
+              aria-label="Nuevo pedido manual"
+              onClick={() => setPedidoSheetAbierta(true)}
+            >
+              +
+            </button>
           </>
         )}
       </div>
@@ -271,6 +280,13 @@ export default function AdminPage() {
         productos={productos}
         onClose={() => setCatSheetAbierta(false)}
         onChanged={refrescar}
+      />
+
+      {/* Hoja de alta manual de pedido */}
+      <ManualOrderSheet
+        open={pedidoSheetAbierta}
+        onClose={() => setPedidoSheetAbierta(false)}
+        onChanged={refetchPedidos}
       />
     </div>
   )

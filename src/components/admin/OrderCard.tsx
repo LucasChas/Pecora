@@ -130,6 +130,9 @@ export default function OrderCard({ pedido, onChanged }: Props) {
       <div className="order-top">
         <div>
           <span className="order-num">Pedido #{pedido.numero}</span>
+          <span className={`origin-badge origin-badge--${pedido.origen}`}>
+            {pedido.origen === 'admin' ? 'Manual' : 'Web'}
+          </span>
           <span className="order-fecha">{fecha(pedido.created_at)}</span>
         </div>
         {/* En la papelera no se cambia el estado: primero hay que restaurarlo. */}

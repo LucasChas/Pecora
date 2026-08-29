@@ -277,24 +277,6 @@
   height: 15px;
   flex-shrink: 0;
 }
-.success-email-note {
-  font-size: 0.82rem;
-  color: var(--sage-deep);
-  background: var(--sage-pale);
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin: 4px 0 0;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-.success-email-ic {
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-}
 /* "Ver el estado de mi pedido": CTA secundaria (consulta, no navegación
    principal) — pill sutil en tono apagado, para no competir con el botón
    de WhatsApp ni con "Volver al muestrario" (.pp-back, tono marca). */
