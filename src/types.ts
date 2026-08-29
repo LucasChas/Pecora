@@ -42,6 +42,8 @@ export interface Perfil {
 // ---- Pedidos (ver migraciones 0003 / 0005) ----
 export type EstadoPedido = 'nuevo' | 'confirmado' | 'entregado' | 'cancelado'
 
+export type OrigenPedido = 'checkout' | 'admin'
+
 export interface PedidoItem {
   id: string
   nombre: string
@@ -63,6 +65,7 @@ export interface Pedido {
   items: PedidoItem[]
   subtotal: number
   estado: EstadoPedido
+  origen: OrigenPedido
   created_at: string
   // Papelera: si tiene fecha, la admin lo mandó a la papelera (ver migración 0009).
   eliminado_at: string | null

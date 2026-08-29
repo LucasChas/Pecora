@@ -98,27 +98,6 @@ export default function OrderSuccess({ waHref, entrega, items, subtotal }: Props
           </div>
         </div>
 
-        {/* El mail lo manda una Edge Function disparada por un trigger en la
-            base (fire-and-forget): nunca puede fallar la creación del pedido,
-            pero tampoco hay garantía sincrónica de que ya haya llegado — por
-            eso "te mandamos" en pasado, no "revisá ahora". */}
-        <p className="success-email-note">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="success-email-ic"
-            aria-hidden="true"
-          >
-            <rect x="3" y="5" width="18" height="14" rx="2" />
-            <path d="M3 7l9 6 9-6" />
-          </svg>
-          También te mandamos un email con el detalle de tu pedido.
-        </p>
-
         <p className="success-text">
           Escribinos por WhatsApp y coordinamos
           {entrega === 'envio' ? ' el pago y el envío' : ' el pago y la entrega'}:

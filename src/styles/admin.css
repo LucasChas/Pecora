@@ -143,6 +143,25 @@
   color: var(--ink-soft);
   margin-left: 8px;
 }
+.origin-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+.origin-badge--admin {
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+}
+.origin-badge--checkout {
+  background: #e4ecf2;
+  color: var(--clay);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
 .order-estado {
   font-family: 'Inter', sans-serif;
   font-size: 0.78rem;
@@ -819,6 +838,120 @@
   color: var(--danger);
   font-size: 0.82rem;
   margin: 0 0 12px;
+}
+
+/* ---------- Alta manual de pedido ---------- */
+.order-product-picker {
+  position: relative;
+}
+.order-product-results {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.order-product-result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.order-product-result:last-child {
+  border-bottom: none;
+}
+.order-product-result:hover {
+  background: var(--sage-pale);
+}
+.order-product-result .name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.order-product-result .meta {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.order-product-empty {
+  padding: 12px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.order-item-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.order-item-selected .name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+.order-item-selected .line-subtotal {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.qty-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qty-stepper button {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--cream);
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.qty-stepper button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.qty-stepper span {
+  min-width: 18px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.order-item-remove {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.order-manual-subtotal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin: 4px 0 14px;
 }
 
 /* ---------- Login ---------- */
