@@ -3,39 +3,71 @@
 //
 // Disparada por el trigger AFTER INSERT de la migración 0012 (pg_net,
 // fire-and-forget). Recibe solo { pedido_id }, vuelve a leer el pedido del
-// lado del servidor con un cliente service-role, resuelve el destinatario y
-// manda el mail de confirmación vía la API de Gmail (enviando como
-// pecoraabril@gmail.com por OAuth2), no SMTP crudo: Deno Edge Functions no
-// tienen un path confiable de TCP/SMTP de larga duración.
+// lado del servidor con un cliente service-role y manda, vía la API de Gmail
+// (enviando como pecoraabril@gmail.com por OAuth2), dos mails independientes:
+//   1) El recibo a la clienta.
+//   2) El aviso de "nuevo pedido" a la dueña (secreto OWNER_EMAIL).
+// Si uno falla, el otro se intenta igual. Cada uno se marca en la base
+// (pedidos.email_enviado_at / pedidos.aviso_duena_enviado_at) después de
+// salir bien; si la función se vuelve a invocar para el mismo pedido, lo ya
+// enviado no se reenvía. Desde el panel, la admin la vuelve a invocar con el
+// RPC reenviar_emails_pedido (misma llamada que el trigger).
 //
-// Por qué no confiar en un payload completo: un body forjado o repetido en
-// el peor caso re-envía un comprobante legítimo a su dueña legítima, nunca
-// puede redirigir uno a otra persona, porque el destinatario se calcula acá
-// adentro a partir de la fila real en la base — nunca del body de la request.
+// La lógica pura (qué mandar, auth, destinatarios, MIME) está en logica.ts,
+// con tests en logica.test.ts; los templates, en template.ts.
 //
-// Auth: se despliega con verificación JWT default (sin --no-verify-jwt). El
-// trigger manda la service-role key como Bearer; Supabase la valida antes de
-// que este código corra.
+// Los pedidos cargados a mano por la admin (origen = 'admin') no generan
+// ningún mail: la clienta no hizo el pedido por la web y la dueña ya lo sabe.
 //
-// Envío vía Gmail API: no hay API key estática de "envío" como con un
-// proveedor transaccional — se usa un flujo OAuth2 de dos pasos por request:
-//   1) POST a oauth2.googleapis.com/token con el refresh token (obtenido una
-//      sola vez a mano, ver supabase/functions/README.md) para conseguir un
-//      access token de corta duración.
+// Por qué no confiar en un payload completo: el destinatario y el contenido se
+// calculan acá adentro a partir de la fila real en la base, nunca del body de
+// la request.
+//
+// Auth (dos capas):
+//   * Supabase valida el JWT antes de que este código corra (se despliega con
+//     verificación JWT default, sin --no-verify-jwt).
+//   * Además, acá se exige que el Bearer sea EXACTAMENTE la service-role key.
+//     La verificación de Supabase sola también deja pasar la anon key, que es
+//     pública (está en el bundle del front): con ella cualquiera podía invocar
+//     la función. El trigger 0012 manda el secreto de Vault
+//     'pecora_email_function_token', que tiene que ser la service-role key.
+//
+// Envío vía Gmail API: flujo OAuth2 de dos pasos por request:
+//   1) POST a oauth2.googleapis.com/token con el refresh token para conseguir
+//      un access token de corta duración (uno solo, para los dos mails).
 //   2) POST a gmail.googleapis.com/.../messages/send con ese access token,
-//      mandando el mensaje crudo en formato RFC 2822 codificado en
-//      base64url.
+//      mandando el mensaje crudo en formato RFC 2822 codificado en base64url.
 //
 // Secretos usados (ver supabase/functions/README.md para setearlos):
 //   GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_SENDER,
-//   BRAND_NAME, BRAND_LOGO_URL, STORE_URL, WHATSAPP_NUMBER (opcional — sin
-//   este, el mail sale igual, solo sin el botón de WhatsApp), SUPABASE_URL,
-//   SUPABASE_SERVICE_ROLE_KEY (estas dos últimas las inyecta Supabase
-//   automáticamente en toda Edge Function).
+//   OWNER_EMAIL (uno o varios, separados por coma — sin este no sale el aviso
+//   a la dueña), BRAND_NAME, BRAND_LOGO_URL, STORE_URL, WHATSAPP_NUMBER
+//   (opcional), SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY (estas dos las
+//   inyecta Supabase automáticamente en toda Edge Function).
 // ============================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import { renderRecibo, type ReciboData, type ReciboItem } from "./template.ts";
+import {
+  bearerToken,
+  buildMimeMessage,
+  decidirEnvios,
+  esCargaManual,
+  type EstadoEnvio,
+  formatFecha,
+  formatFromHeader,
+  parseItems,
+  parseOwnerEmails,
+  toBase64Url,
+  tokensIguales,
+  toNumber,
+  waClienteUrl,
+} from "./logica.ts";
+import {
+  renderAvisoDuena,
+  renderRecibo,
+  type Entrega,
+  type TotalesPedido,
+} from "./template.ts";
 
 const LOG_PREFIX = "[enviar-recibo-pedido]";
 
@@ -47,13 +79,36 @@ interface PedidoRow {
   id: string;
   numero: number;
   nombre: string;
+  telefono: string;
   email: string | null;
-  entrega: "envio" | "coordinar";
+  entrega: string;
+  direccion: string | null;
+  localidad: string | null;
+  cp: string | null;
+  provincia: string | null;
+  notas: string | null;
   items: unknown;
-  subtotal: number;
+  subtotal: number | string;
+  descuento: number | string;
+  costo_envio: number | string;
+  total: number | string;
+  origen: string;
   user_id: string | null;
   created_at: string;
+  email_enviado_at: string | null;
+  aviso_duena_enviado_at: string | null;
 }
+
+const PEDIDO_COLUMNS =
+  "id, numero, nombre, telefono, email, entrega, direccion, localidad, cp, provincia, " +
+  "notas, items, subtotal, descuento, costo_envio, total, origen, user_id, created_at, " +
+  "email_enviado_at, aviso_duena_enviado_at";
+
+/** Cliente service-role (saltea RLS). Wrapper no genérico para poder tiparlo. */
+function crearClienteAdmin(url: string, serviceRoleKey: string) {
+  return createClient(url, serviceRoleKey);
+}
+type SupabaseAdmin = ReturnType<typeof crearClienteAdmin>;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -62,131 +117,41 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function parseItems(raw: unknown): ReciboItem[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((item): ReciboItem | null => {
-      if (!item || typeof item !== "object") return null;
-      const obj = item as Record<string, unknown>;
-      const nombre = typeof obj.nombre === "string" ? obj.nombre : "";
-      const precio = typeof obj.precio === "number" ? obj.precio : Number(obj.precio) || 0;
-      const cantidad = typeof obj.cantidad === "number" ? obj.cantidad : Number(obj.cantidad) || 0;
-      if (!nombre) return null;
-      return { nombre, precio, cantidad };
-    })
-    .filter((item): item is ReciboItem => item !== null);
-}
-
-function formatFecha(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
-}
-
 // ----------------------------------------------------------------------------
-// Helpers de codificación para armar el mensaje MIME crudo que espera la
-// Gmail API en `messages.send` (campo `raw`, base64url del RFC 2822 completo).
+// Gmail.
 // ----------------------------------------------------------------------------
 
-/** UTF-8 string → base64 estándar (con padding, sin las sustituciones url-safe). */
-function utf8ToBase64(str: string): string {
-  const bytes = new TextEncoder().encode(str);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
-
-/** Envuelve una string base64 en líneas de 76 caracteres (recomendado por MIME). */
-function wrapBase64(b64: string, lineLength = 76): string {
-  const lines: string[] = [];
-  for (let i = 0; i < b64.length; i += lineLength) {
-    lines.push(b64.slice(i, i + lineLength));
-  }
-  return lines.join("\r\n");
-}
-
 /**
- * Codifica un Subject con caracteres no-ASCII (tildes, ñ) como "encoded-word"
- * RFC 2047: =?UTF-8?B?<base64>?=. Sin esto, headers con acentos quedan mal
- * interpretados por la mayoría de los clientes de correo.
+ * Explica qué hacer cuando Google no renueva el acceso. Se loguea tal cual en
+ * los logs de la función para que la dueña (o quien mire) sepa cómo arreglarlo.
  */
-function encodeMimeSubject(subject: string): string {
-  return `=?UTF-8?B?${utf8ToBase64(subject)}?=`;
-}
-
-/**
- * Arma el header `From` con nombre para mostrar + dirección, ej.
- * `"Pecora" <pecoraabril@gmail.com>`. Sin el nombre, los clientes de correo
- * muestran la dirección cruda (el nombre de usuario de Gmail) en vez de la
- * marca — es lo que hace que hoy el remitente se vea distinto al de los
- * mails de Supabase Auth, que sí llevan nombre configurado.
- */
-function formatFromHeader(displayName: string, email: string): string {
-  return `${encodeMimeSubject(displayName)} <${email}>`;
-}
-
-/**
- * String (ASCII-only, ya armado) → base64url SIN padding, apto para el campo
- * `raw` de la Gmail API: `+` → `-`, `/` → `_`, se recorta el `=` final.
- */
-function toBase64Url(str: string): string {
-  const bytes = new TextEncoder().encode(str);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  const b64 = btoa(binary);
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-/**
- * Formato básico de email + ausencia de CR/LF. `pedidos.email` no tiene
- * validación de formato a nivel de base (crear_pedido() lo inserta tal cual
- * viene), así que sin este chequeo un `email` malicioso con un salto de línea
- * podría inyectar headers extra (ej. un Bcc oculto) en el mensaje RFC 2822.
- */
-const EMAIL_RE = /^[^\s@\r\n]+@[^\s@\r\n]+\.[^\s@\r\n]+$/;
-function esEmailSeguro(value: string): boolean {
-  return EMAIL_RE.test(value) && !/[\r\n]/.test(value);
-}
-
-/** Arma el mensaje RFC 2822 completo (headers + línea en blanco + cuerpo). */
-function buildMimeMessage(params: {
-  from: string;
-  to: string;
-  subject: string;
-  html: string;
-}): string {
-  const encodedSubject = encodeMimeSubject(params.subject);
-  const encodedBody = wrapBase64(utf8ToBase64(params.html));
-
-  return [
-    `From: ${params.from}`,
-    `To: ${params.to}`,
-    `Subject: ${encodedSubject}`,
-    `MIME-Version: 1.0`,
-    `Content-Type: text/html; charset="UTF-8"`,
-    `Content-Transfer-Encoding: base64`,
-    ``,
-    encodedBody,
-  ].join("\r\n");
+function logOauthRefreshFailed(pedidoId: string, detalle: string): void {
+  console.error(
+    `${LOG_PREFIX} gmail_oauth_refresh_failed (pedido ${pedidoId}): ${detalle}`,
+  );
+  console.error(
+    `${LOG_PREFIX} ACCIÓN REQUERIDA: no se pudo renovar el acceso a Gmail, así que ` +
+      `NO sale ningún mail (ni el recibo a la clienta ni el aviso a la dueña). ` +
+      `Si Google respondió "invalid_grant", el refresh token venció o fue revocado. ` +
+      `Causa más común: la app OAuth de Google Cloud está en modo "Testing", y en ` +
+      `ese modo Google hace vencer los refresh tokens a los 7 días. Solución: ` +
+      `publicar la app (Google Cloud → APIs & Services → OAuth consent screen → ` +
+      `"Publish app") y generar un refresh token nuevo (OAuth Playground), o pasar ` +
+      `a un proveedor transaccional. Después: ` +
+      `supabase secrets set GMAIL_REFRESH_TOKEN=<nuevo>. ` +
+      `Detalle en supabase/functions/README.md.`,
+  );
 }
 
 /**
  * Paso A: refresca el access token de corta duración a partir del refresh
- * token de larga duración (obtenido una sola vez a mano, ver README).
- * Nunca lanza: cualquier falla vuelve `null` para que el caller responda
- * limpio, respetando el contrato fire-and-forget del trigger.
+ * token. Nunca lanza: devuelve el token o una descripción del error.
  */
 async function refreshAccessToken(
   clientId: string,
   clientSecret: string,
   refreshToken: string,
-): Promise<string | null> {
+): Promise<{ token: string } | { error: string }> {
   try {
     const params = new URLSearchParams({
       grant_type: "refresh_token",
@@ -203,29 +168,116 @@ async function refreshAccessToken(
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error(
-        `${LOG_PREFIX} refresh de token OAuth falló (${res.status}):`,
-        errorText,
-      );
-      return null;
+      return { error: `Google respondió ${res.status}: ${errorText}` };
     }
 
     const data = await res.json();
     if (!data || typeof data.access_token !== "string" || !data.access_token) {
-      console.error(`${LOG_PREFIX} respuesta de refresh sin access_token:`, data);
-      return null;
+      return { error: `respuesta de refresh sin access_token: ${JSON.stringify(data)}` };
     }
 
-    return data.access_token;
+    return { token: data.access_token };
   } catch (err) {
-    console.error(`${LOG_PREFIX} excepción refrescando token OAuth:`, err);
-    return null;
+    return { error: `excepción llamando a oauth2.googleapis.com: ${String(err)}` };
+  }
+}
+
+/** Paso B: manda un mensaje. Nunca lanza: devuelve true/false y loguea. */
+async function enviarGmail(
+  accessToken: string,
+  mensaje: { from: string; to: string; subject: string; html: string },
+  contexto: string,
+): Promise<boolean> {
+  const raw = toBase64Url(buildMimeMessage(mensaje));
+  try {
+    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ raw }),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`${LOG_PREFIX} ${contexto}: Gmail API respondió ${res.status}:`, errorText);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error(`${LOG_PREFIX} ${contexto}: excepción llamando a Gmail API:`, err);
+    return false;
+  }
+}
+
+/**
+ * Marca el mail como enviado. Solo si seguía sin marcar, para no pisar la hora
+ * de un envío anterior. Si falla, el mail ya salió: se loguea y listo.
+ */
+async function marcarEnviado(
+  supabase: SupabaseAdmin,
+  pedidoId: string,
+  columna: "email_enviado_at" | "aviso_duena_enviado_at",
+): Promise<void> {
+  const { error } = await supabase
+    .from("pedidos")
+    .update({ [columna]: new Date().toISOString() })
+    .eq("id", pedidoId)
+    .is(columna, null);
+  if (error) {
+    console.error(
+      `${LOG_PREFIX} pedido ${pedidoId}: el mail salió pero no se pudo guardar ${columna} ` +
+        `(una re-invocación lo reenviaría):`,
+      error.message,
+    );
+  }
+}
+
+/** Email de la clienta: pedidos.email → fallback a auth.users.email. */
+async function resolverEmailCliente(
+  supabase: SupabaseAdmin,
+  pedido: PedidoRow,
+): Promise<string> {
+  const email = pedido.email?.trim() || "";
+  if (email || !pedido.user_id) return email;
+
+  // try/catch: si esto falla, el aviso a la dueña tiene que salir igual.
+  try {
+    const { data, error } = await supabase.auth.admin.getUserById(pedido.user_id);
+    if (error) {
+      console.error(
+        `${LOG_PREFIX} error leyendo auth.users para user_id=${pedido.user_id}:`,
+        error.message,
+      );
+      return "";
+    }
+    return data.user?.email?.trim() || "";
+  } catch (err) {
+    console.error(`${LOG_PREFIX} excepción leyendo auth.users para user_id=${pedido.user_id}:`, err);
+    return "";
   }
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return jsonResponse({ ok: false, error: "method_not_allowed" }, 405);
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error(`${LOG_PREFIX} faltan SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY`);
+    return jsonResponse({ ok: false, error: "missing_supabase_env" }, 500);
+  }
+
+  const token = bearerToken(req);
+  if (!token || !(await tokensIguales(token, serviceRoleKey))) {
+    console.error(
+      `${LOG_PREFIX} request rechazada (401): el Bearer no es la service-role key. ` +
+        `Si viene del trigger 0012, revisar el secreto de Vault 'pecora_email_function_token'.`,
+    );
+    return jsonResponse({ ok: false, error: "unauthorized" }, 401);
   }
 
   let body: RequestBody;
@@ -236,7 +288,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: false, error: "invalid_body" }, 400);
   }
 
-  const pedidoId = body.pedido_id;
+  const pedidoId = body?.pedido_id;
   if (!pedidoId || typeof pedidoId !== "string") {
     console.error(`${LOG_PREFIX} falta pedido_id en el body`);
     return jsonResponse({ ok: false, error: "missing_pedido_id" }, 400);
@@ -244,8 +296,6 @@ Deno.serve(async (req: Request) => {
 
   console.log(`${LOG_PREFIX} recibido pedido_id=${pedidoId}`);
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const gmailClientId = Deno.env.get("GMAIL_CLIENT_ID");
   const gmailClientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
   const gmailRefreshToken = Deno.env.get("GMAIL_REFRESH_TOKEN");
@@ -259,11 +309,8 @@ Deno.serve(async (req: Request) => {
   // número, sin "+" ni espacios (ej: 5493511234567).
   const whatsappNumber = Deno.env.get("WHATSAPP_NUMBER") || null;
   const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : null;
+  const branding = { brandName, brandLogoUrl, storeUrl, whatsappUrl };
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.error(`${LOG_PREFIX} faltan SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY`);
-    return jsonResponse({ ok: false, error: "missing_supabase_env" }, 500);
-  }
   if (!gmailClientId || !gmailClientSecret || !gmailRefreshToken || !gmailSender) {
     console.error(
       `${LOG_PREFIX} faltan GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET/GMAIL_REFRESH_TOKEN/GMAIL_SENDER — no se puede enviar`,
@@ -273,11 +320,11 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: true, skipped: "missing_email_secrets" });
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const supabase = crearClienteAdmin(supabaseUrl, serviceRoleKey);
 
   const { data: pedido, error: pedidoError } = await supabase
     .from("pedidos")
-    .select("id, numero, nombre, email, entrega, items, subtotal, user_id, created_at")
+    .select(PEDIDO_COLUMNS)
     .eq("id", pedidoId)
     .maybeSingle<PedidoRow>();
 
@@ -290,101 +337,142 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: false, error: "pedido_not_found" }, 404);
   }
 
-  // Resolución de destinatario: pedidos.email (capturado en checkout) →
-  // fallback a auth.users.email del user_id → si ninguno existe, no-op.
-  let recipient = pedido.email?.trim() || "";
-  if (!recipient && pedido.user_id) {
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(
-      pedido.user_id,
-    );
-    if (userError) {
-      console.error(
-        `${LOG_PREFIX} error leyendo auth.users para user_id=${pedido.user_id}:`,
-        userError.message,
-      );
-    } else {
-      recipient = userData.user?.email?.trim() || "";
-    }
+  // Carga manual de la admin (pedido por WhatsApp): no se manda nada. Se
+  // corta antes de buscar el email de la clienta en auth.users.
+  if (esCargaManual(pedido.origen)) {
+    console.log(`${LOG_PREFIX} pedido ${pedidoId}: carga manual (origen admin) — no se envían mails`);
+    return jsonResponse({ ok: true, skipped: "manual" });
   }
 
-  if (!recipient) {
-    console.log(
-      `${LOG_PREFIX} pedido ${pedidoId}: sin email en pedidos ni en auth.users — no-op`,
-    );
-    return jsonResponse({ ok: true, skipped: "no_recipient" });
-  }
-
-  if (!esEmailSeguro(recipient)) {
-    // No es un error del pedido (el pedido ya se creó bien) — solo no se
-    // puede armar un mensaje seguro con este valor. Logueado, no lanzado.
-    console.error(
-      `${LOG_PREFIX} pedido ${pedidoId}: destinatario con formato inválido/inseguro, no se envía`,
-    );
-    return jsonResponse({ ok: true, skipped: "invalid_recipient" });
-  }
-
-  console.log(`${LOG_PREFIX} pedido ${pedidoId}: destinatario resuelto (${recipient})`);
-
-  const reciboData: ReciboData = {
-    numero: pedido.numero,
-    fecha: formatFecha(pedido.created_at),
-    nombre: pedido.nombre,
-    items: parseItems(pedido.items),
-    subtotal: Number(pedido.subtotal) || 0,
-    entrega: pedido.entrega === "envio" ? "envio" : "coordinar",
+  const entrega: Entrega = pedido.entrega === "envio" ? "envio" : "coordinar";
+  const items = parseItems(pedido.items);
+  const totales: TotalesPedido = {
+    subtotal: toNumber(pedido.subtotal),
+    descuento: toNumber(pedido.descuento),
+    costoEnvio: toNumber(pedido.costo_envio),
+    total: toNumber(pedido.total),
   };
+  const emailCliente = await resolverEmailCliente(supabase, pedido);
+  const owner = parseOwnerEmails(Deno.env.get("OWNER_EMAIL"));
 
-  const { subject, html } = renderRecibo(reciboData, {
-    brandName,
-    brandLogoUrl,
-    storeUrl,
-    whatsappUrl,
+  // --------------------------------------------------------------------------
+  // Qué hay que mandar (logica.ts). Se decide antes de pedir el token a
+  // Google, así una re-invocación sin nada pendiente no consume una llamada
+  // OAuth.
+  // --------------------------------------------------------------------------
+  const decision = decidirEnvios({
+    origen: pedido.origen,
+    emailEnviadoAt: pedido.email_enviado_at,
+    avisoDuenaEnviadoAt: pedido.aviso_duena_enviado_at,
+    emailCliente,
+    ownerEmails: owner.validos,
   });
+  if (decision.tipo === "manual") {
+    // Ya se cortó arriba; queda por si cambia el criterio de esCargaManual.
+    return jsonResponse({ ok: true, skipped: "manual" });
+  }
 
-  // Paso A: refrescar el access token de Gmail.
-  const accessToken = await refreshAccessToken(gmailClientId, gmailClientSecret, gmailRefreshToken);
-  if (!accessToken) {
-    console.error(`${LOG_PREFIX} no se pudo obtener access token de Gmail para pedido ${pedidoId}`);
+  let estadoRecibo: EstadoEnvio | "pending" = decision.recibo;
+  if (estadoRecibo === "no_recipient") {
+    console.log(`${LOG_PREFIX} pedido ${pedidoId}: sin email en pedidos ni en auth.users — recibo omitido`);
+  } else if (estadoRecibo === "invalid_recipient") {
+    // No es un error del pedido: solo no se puede armar un mensaje seguro con
+    // este valor. Logueado, no lanzado.
+    console.error(`${LOG_PREFIX} pedido ${pedidoId}: email de la clienta con formato inválido/inseguro, recibo omitido`);
+  }
+
+  if (owner.invalidos > 0) {
+    console.warn(`${LOG_PREFIX} OWNER_EMAIL tiene ${owner.invalidos} dirección(es) inválida(s) — se ignoran`);
+  }
+  let estadoAviso: EstadoEnvio | "pending" = decision.aviso;
+  if (estadoAviso === "owner_email_unset") {
+    console.warn(
+      `${LOG_PREFIX} OWNER_EMAIL no está configurado (o no tiene direcciones válidas) — ` +
+        `no se manda el aviso de pedido nuevo a la dueña. ` +
+        `Configurarlo con: supabase secrets set OWNER_EMAIL=dueña@ejemplo.com`,
+    );
+  }
+
+  if (estadoRecibo !== "pending" && estadoAviso !== "pending") {
+    return jsonResponse({ ok: true, recibo: estadoRecibo, aviso: estadoAviso });
+  }
+
+  const oauth = await refreshAccessToken(gmailClientId, gmailClientSecret, gmailRefreshToken);
+  if ("error" in oauth) {
+    logOauthRefreshFailed(pedidoId, oauth.error);
     return jsonResponse({ ok: false, error: "gmail_oauth_refresh_failed" }, 502);
   }
 
-  // Paso B: armar el mensaje RFC 2822 crudo.
-  const mimeMessage = buildMimeMessage({
-    from: formatFromHeader(brandName, gmailSender),
-    to: recipient,
-    subject,
-    html,
-  });
+  const from = formatFromHeader(brandName, gmailSender);
 
-  // Paso C: base64url-encodear el mensaje y mandarlo vía Gmail API.
-  const raw = toBase64Url(mimeMessage);
-
-  try {
-    const gmailResponse = await fetch(
-      "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+  // 1) Recibo a la clienta.
+  if (estadoRecibo === "pending") {
+    const { subject, html } = renderRecibo(
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ raw }),
+        numero: pedido.numero,
+        fecha: formatFecha(pedido.created_at),
+        nombre: pedido.nombre,
+        items,
+        totales,
+        entrega,
       },
+      branding,
     );
-
-    if (!gmailResponse.ok) {
-      const errorText = await gmailResponse.text();
-      console.error(
-        `${LOG_PREFIX} Gmail API respondió ${gmailResponse.status} para pedido ${pedidoId}:`,
-        errorText,
-      );
-      return jsonResponse({ ok: false, error: "gmail_send_failed" }, 502);
+    const ok = await enviarGmail(
+      oauth.token,
+      { from, to: emailCliente, subject, html },
+      `recibo pedido ${pedidoId}`,
+    );
+    if (ok) {
+      console.log(`${LOG_PREFIX} recibo enviado — pedido ${pedidoId} → ${emailCliente}`);
+      await marcarEnviado(supabase, pedidoId, "email_enviado_at");
+      estadoRecibo = "sent";
+    } else {
+      estadoRecibo = "send_failed";
     }
-
-    console.log(`${LOG_PREFIX} enviado OK — pedido ${pedidoId} → ${recipient}`);
-    return jsonResponse({ ok: true, sent: true });
-  } catch (err) {
-    console.error(`${LOG_PREFIX} excepción llamando a Gmail API para pedido ${pedidoId}:`, err);
-    return jsonResponse({ ok: false, error: "gmail_exception" }, 502);
   }
+
+  // 2) Aviso a la dueña (independiente del resultado del recibo).
+  if (estadoAviso === "pending") {
+    const { subject, html } = renderAvisoDuena(
+      {
+        numero: pedido.numero,
+        fecha: formatFecha(pedido.created_at, true),
+        cliente: {
+          nombre: pedido.nombre,
+          telefono: pedido.telefono,
+          email: emailCliente || null,
+        },
+        entrega,
+        direccion: pedido.direccion,
+        localidad: pedido.localidad,
+        cp: pedido.cp,
+        provincia: pedido.provincia,
+        notas: pedido.notas,
+        items,
+        totales,
+        whatsappClienteUrl: waClienteUrl(pedido.telefono, pedido.numero, brandName),
+        panelUrl: storeUrl ? `${storeUrl.replace(/\/+$/, "")}/admin` : null,
+      },
+      branding,
+    );
+    const ok = await enviarGmail(
+      oauth.token,
+      { from, to: owner.validos.join(", "), subject, html },
+      `aviso a la dueña pedido ${pedidoId}`,
+    );
+    if (ok) {
+      console.log(`${LOG_PREFIX} aviso a la dueña enviado — pedido ${pedidoId}`);
+      await marcarEnviado(supabase, pedidoId, "aviso_duena_enviado_at");
+      estadoAviso = "sent";
+    } else {
+      estadoAviso = "send_failed";
+    }
+  }
+
+  const huboFalla = estadoRecibo === "send_failed" || estadoAviso === "send_failed";
+  return jsonResponse(
+    { ok: !huboFalla, recibo: estadoRecibo, aviso: estadoAviso },
+    huboFalla ? 502 : 200,
+  );
 });

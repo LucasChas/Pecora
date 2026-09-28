@@ -1,16 +1,41 @@
 # Edge Functions — Pecora
 
-Este proyecto NO adopta el stack local de Supabase (`supabase init`, `db push`,
-etc.). Las migraciones SQL se siguen corriendo a mano en el SQL Editor del
-dashboard, exactamente como hasta ahora (`0001` a `0012`). El único uso del
-CLI de Supabase en este repo es para desplegar Edge Functions y setear sus
-secretos — nada más.
+Las migraciones SQL se aplican con el CLI de Supabase y GitHub Actions (ver
+`CONTEXTO.md`, sección 8). Las Edge Functions y sus secretos, en cambio, se
+siguen desplegando **a mano** con los comandos de abajo.
 
 ## `enviar-recibo-pedido`
 
-Manda el mail de confirmación de pedido. La dispara el trigger de
-`supabase/migrations/0012_email_pedido.sql` (`AFTER INSERT ON pedidos`), vía
-`pg_net`, de forma asíncrona y sin poder abortar el pedido si falla.
+La dispara el trigger de `supabase/migrations/0012_email_pedido.sql`
+(`AFTER INSERT ON pedidos`), vía `pg_net`, de forma asíncrona y sin poder
+abortar el pedido si falla. Por cada pedido nuevo manda dos mails
+independientes (si uno falla, el otro se intenta igual):
+
+1. **Recibo a la clienta**, a `pedidos.email` (o, si está vacío, al email de
+   su cuenta). Muestra los productos, descuento y envío (solo si son mayores a
+   0; "Envío: a coordinar" si es a domicilio y todavía no hay costo) y el total.
+2. **Aviso a la dueña** ("Nuevo pedido #N · $ total"), a las direcciones del
+   secreto `OWNER_EMAIL`: datos de la clienta, entrega, productos, totales,
+   notas y un botón de WhatsApp a la clienta.
+
+Reglas:
+- Los pedidos cargados a mano desde el panel (`origen = 'admin'`) **no mandan
+  nada**.
+- Cada mail se marca en la base después de salir bien
+  (`pedidos.email_enviado_at`, `pedidos.aviso_duena_enviado_at`). Si la
+  función se vuelve a invocar para el mismo pedido, no reenvía lo ya enviado.
+- La función solo acepta requests cuyo `Authorization: Bearer ...` sea
+  **exactamente la service-role key** del proyecto. Cualquier otro valor
+  (incluida la anon key, que es pública) recibe `401`. Ver la sección 4.
+- **Reenvío desde el panel** (migración `*_reenviar_emails_pedido.sql`): en
+  Pedidos, un pedido web de los últimos 7 días que a los 2 minutos sigue sin
+  `email_enviado_at` / `aviso_duena_enviado_at` muestra "Mail a la clienta: no
+  enviado" / "Aviso a la dueña: no enviado" y un botón **Reenviar**, que llama
+  al RPC `reenviar_emails_pedido` (solo admin). El RPC hace la misma llamada
+  que el trigger (misma URL y token de Vault) y la función solo manda lo que
+  falta. Arriba de la lista aparece un aviso si hay alguno así.
+- La lógica pura de la función está en `logica.ts` (y los templates en
+  `template.ts`), con tests de Vitest al lado (`pnpm test`).
 
 ### 1) Login y link del proyecto (una sola vez por máquina)
 
@@ -32,6 +57,7 @@ GMAIL_CLIENT_ID=xxxxxxxxxxxx.apps.googleusercontent.com
 GMAIL_CLIENT_SECRET=xxxxxxxxxxxx
 GMAIL_REFRESH_TOKEN=1//xxxxxxxxxxxx
 GMAIL_SENDER=pecoraabril@gmail.com
+OWNER_EMAIL=pecoraabril@gmail.com
 BRAND_NAME=Pecora
 BRAND_LOGO_URL=https://tu-dominio.com/logo.png
 STORE_URL=https://tu-dominio.com
@@ -39,6 +65,11 @@ WHATSAPP_NUMBER=5493511234567
 ```
 
 Notas:
+- `OWNER_EMAIL` es a dónde llega el aviso de "Nuevo pedido". Acepta varias
+  direcciones separadas por coma (`a@gmail.com,b@gmail.com`). Si no está
+  cargado, el recibo a la clienta sale igual y la función deja un warning en
+  los logs (`OWNER_EMAIL no está configurado`). Conviene que sea una casilla
+  que la dueña mire seguido; puede ser la misma cuenta que `GMAIL_SENDER`.
 - `GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET`/`GMAIL_REFRESH_TOKEN` salen de un
   proyecto de Google Cloud propio, autorizado UNA vez contra la cuenta
   `pecoraabril@gmail.com` (ver "Setup completo" abajo) — no requieren un
@@ -80,6 +111,35 @@ También podés usar el script corto del `package.json`:
 pnpm run deploy:fn
 ```
 
+### 3b) Actualizar la función existente (aviso a la dueña + auth estricta)
+
+Esto es para un proyecto que ya tiene la función andando. Lo corre la dueña
+(o quien tenga acceso al proyecto), en este orden:
+
+1. **Primero la base.** Aplicar las migraciones `*_pedido_totales.sql` y
+   `*_ventas_validas.sql` (se aplican solas al mergear a `main`, con el
+   workflow de deploy de la base; ver `CONTEXTO.md` §8). La función nueva lee
+   columnas que crean esas migraciones: si se despliega antes, falla al leer el
+   pedido y no sale ningún mail. La función vieja sí funciona con la base nueva.
+2. **Revisar el token de Vault.** Tiene que ser la service-role key (ver la
+   sección 4). Si es otra cosa (por ejemplo la anon key), la función nueva
+   responde `401` y no sale ningún mail.
+3. **Cargar el secreto nuevo y desplegar:**
+
+   ```bash
+   pnpm dlx supabase@latest secrets set OWNER_EMAIL=pecoraabril@gmail.com
+   pnpm run deploy:fn
+   ```
+
+4. **Probar** con un pedido de prueba desde la web: tienen que llegar el
+   recibo a la clienta y el aviso a la dueña. Un pedido cargado a mano desde el
+   panel no tiene que mandar nada.
+
+Para volver atrás: desplegar la versión anterior de la función
+(`git checkout <commit-anterior> -- supabase/functions/enviar-recibo-pedido`
+y `pnpm run deploy:fn`). `OWNER_EMAIL` se puede dejar cargado; la versión
+anterior lo ignora.
+
 ### 4) Guardar la URL de la función + el token en Vault (SQL Editor, a mano)
 
 La migración `0012` lee estos dos valores desde Supabase Vault en tiempo de
@@ -99,11 +159,27 @@ select vault.create_secret(
 ```
 
 - La URL sale de reemplazar `<tu-project-ref>` por el ref real del proyecto.
-- El token recomendado es la **service-role key** del proyecto (Project
-  Settings → API → `service_role` secret). La función se despliega con
-  verificación JWT default (sin `--no-verify-jwt`), así que Supabase valida
-  este Bearer automáticamente antes de que corra el código de la función —
-  es más simple y menos propenso a errores que armar una firma HMAC a mano.
+- El token **tiene que ser la service-role key** del proyecto (Project
+  Settings → API Keys → pestaña "Legacy API keys" → `service_role`, la que
+  empieza con `eyJ...`). Es el mismo valor que Supabase le inyecta a la
+  función como `SUPABASE_SERVICE_ROLE_KEY`, y la función lo compara byte a
+  byte: cualquier otro valor recibe `401`.
+- Por qué: la función se despliega con verificación JWT default (sin
+  `--no-verify-jwt`), pero esa verificación también deja pasar la anon key,
+  que es pública (está en el bundle del front). Sin el chequeo propio,
+  cualquiera podía invocar la función.
+- Para ver qué respondió la función a las últimas llamadas del trigger (útil
+  si deja de llegar el mail), en el SQL Editor:
+
+  ```sql
+  select created, status_code, content
+  from net._http_response
+  order by created desc
+  limit 10;
+  ```
+
+  `401` = el token de Vault no es la service-role key.
+  `502` con `gmail_oauth_refresh_failed` = ver "El refresh token vence" más abajo.
 - Para rotar cualquiera de los dos valores más adelante, usá
   `select vault.update_secret(...)` en vez de `create_secret` (que falla si
   el nombre ya existe).
@@ -124,9 +200,14 @@ Cloud que se hace UNA sola vez.
    **Gmail API**.
 3. Ir a "APIs & Services" → "OAuth consent screen":
    - Tipo de usuario: **External**.
-   - Estado de publicación: dejarlo en **Testing** (no hace falta pasar la
-     revisión de Google para uso personal/de prueba con pocos usuarios).
-   - En "Test users", agregar `pecoraabril@gmail.com`.
+   - Estado de publicación: **In production** (botón "Publish app").
+     **No dejarla en Testing**: en modo Testing, Google hace vencer los
+     refresh tokens a los **7 días** y los mails dejan de salir (ver "El
+     refresh token vence" más abajo). Publicarla no obliga a pasar la
+     verificación de Google para una sola cuenta: al autorizar va a aparecer
+     el aviso "Google no verificó esta app", y se continúa igual.
+   - Si la dejás en Testing mientras probás, agregá `pecoraabril@gmail.com`
+     en "Test users".
 4. Ir a "APIs & Services" → "Credentials" → "Create Credentials" →
    "OAuth client ID":
    - Tipo de aplicación: **Desktop app** (es la más simple para sacar un
@@ -143,12 +224,44 @@ Cloud que se hace UNA sola vez.
       scope `https://www.googleapis.com/auth/gmail.send` → click
       "Authorize APIs".
    3. Iniciar sesión con `pecoraabril@gmail.com` y aceptar el permiso
-      (puede avisar que la app no está verificada — es esperado en modo
-      Testing, continuar igual).
+      (puede avisar que la app no está verificada — es esperado, continuar
+      igual).
    4. Ya en Step 2, click "Exchange authorization code for tokens".
-   5. Copiar el valor de **Refresh token** — es `GMAIL_REFRESH_TOKEN`. No
-      expira con el uso normal (solo si se revoca manualmente o si la app
-      queda sin usarse 6+ meses).
+   5. Copiar el valor de **Refresh token** — es `GMAIL_REFRESH_TOKEN`.
+      Cuánto dura depende del estado de publicación del paso 3:
+      - App en **Testing**: vence a los **7 días**, siempre.
+      - App **In production**: no vence con el uso normal. Se invalida si se
+        revoca el acceso desde la cuenta de Google, si se cambia la
+        contraseña de la cuenta, o si pasa 6 meses sin usarse.
+
+### El refresh token vence (los mails dejan de salir)
+
+Síntoma: dejan de llegar el recibo y el aviso de pedido nuevo. En los logs de
+la función (Edge Functions → enviar-recibo-pedido → Logs) aparece
+`gmail_oauth_refresh_failed` con `invalid_grant`, seguido de un mensaje
+`ACCIÓN REQUERIDA`. En `net._http_response` (ver la sección 4) se ve un `502`.
+
+Causa más común: la app OAuth está en modo **Testing** y el refresh token
+cumplió 7 días. Solución:
+
+1. Google Cloud → "APIs & Services" → "OAuth consent screen" → **Publish
+   app** (pasar a "In production").
+2. Sacar un refresh token nuevo con el OAuth Playground (paso 5 de arriba).
+   Los tokens emitidos mientras la app estaba en Testing siguen venciendo:
+   hay que generar uno nuevo después de publicarla.
+3. Cargarlo:
+
+   ```bash
+   pnpm dlx supabase@latest secrets set GMAIL_REFRESH_TOKEN=<nuevo>
+   ```
+
+   No hace falta volver a desplegar la función.
+
+4. En el panel (Pedidos), tocar **Reenviar** en cada pedido que quedó con
+   "no enviado": sale solo el mail que faltaba.
+
+Si esto se repite, la alternativa es pasar a un proveedor transaccional
+(Resend, Brevo, etc.), que usa una API key que no vence.
 
 **Parte 2 — Supabase (igual que antes, solo cambian los secretos):**
 
@@ -156,17 +269,17 @@ Cloud que se hace UNA sola vez.
    global, `pnpm dlx supabase@latest ...` lo descarga al vuelo cada vez.
 7. `pnpm dlx supabase@latest login` (abre el navegador para autenticarte).
 8. `pnpm dlx supabase@latest link --project-ref <tu-project-ref>`.
-9. Crear `supabase/functions/.env.local` con los 7 valores de la sección 2
+9. Crear `supabase/functions/.env.local` con los valores de la sección 2
    (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` del
-   paso 5, `GMAIL_SENDER=pecoraabril@gmail.com`, `BRAND_NAME`,
-   `BRAND_LOGO_URL`, `STORE_URL`).
+   paso 5, `GMAIL_SENDER=pecoraabril@gmail.com`, `OWNER_EMAIL`, `BRAND_NAME`,
+   `BRAND_LOGO_URL`, `STORE_URL` y, opcional, `WHATSAPP_NUMBER`).
 10. `pnpm run deploy:fn` (o el comando manual de la sección 3, paso 1).
 11. `pnpm dlx supabase@latest secrets set --env-file supabase/functions/.env.local`.
 12. En el SQL Editor: correr los dos `vault.create_secret(...)` de la
     sección 4 con la URL real de tu función y tu service-role key.
 13. En el SQL Editor: pegar y correr TODO `supabase/migrations/0012_email_pedido.sql`.
-14. Probar: hacer un pedido de prueba de punta a punta y confirmar que llega
-    el mail. Revisar los logs de la función en el dashboard
+14. Probar: hacer un pedido de prueba de punta a punta y confirmar que llegan
+    el recibo a la clienta y el aviso a `OWNER_EMAIL`. Revisar los logs de la función en el dashboard
     (Edge Functions → enviar-recibo-pedido → Logs) si algo no anduvo — todos
     los pasos (recibido, destinatario resuelto/omitido, enviado, error) están
     logueados con el prefijo `[enviar-recibo-pedido]`.
