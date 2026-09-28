@@ -485,3 +485,175 @@ pnpm dlx supabase@latest functions deploy gestionar-equipo
   `update public.profiles set rol = 'cliente' where rol = 'empleado';`
 - Revertir el esquema: ver el bloque "Cómo revertirla" al final de
   `*_roles_empleados.sql`.
+
+## `cotizar-envio` (Andreani y Correo Argentino)
+
+La llama el checkout (con la sesión de la clienta: el checkout exige cuenta)
+para cotizar el envío del carrito con los transportistas configurados. Cada
+opción se guarda en `public.cotizaciones_envio` (migración
+`*_envios_transportistas.sql`), que vence a los **30 minutos** y se usa **una
+sola vez**. El checkout manda el `cotizacion_id` elegido a `crear_pedido`
+(`p_cotizacion_envio`): la base vuelve a validar CP, provincia, productos y
+cantidades y toma el precio de esa fila. El navegador nunca decide el costo.
+Si la cotización no vale (no existe, venció, ya se usó o no coincide),
+`crear_pedido` responde con código `22023` y un mensaje para la clienta.
+
+`POST` (JWT de usuario; la anon key recibe `401`):
+
+```json
+{ "cp": "5000", "provincia": "Córdoba",
+  "items": [{ "producto_id": "<uuid>", "cantidad": 2 }] }
+```
+
+- `cp`: 4 dígitos o CPA (`X5000ABC`); a los transportistas va el código de 4
+  dígitos. `items`: 1 a 50, `cantidad` entera de 1 a 99 (se agrupan por
+  producto).
+- Respuesta `200`:
+  `{ opciones: [{ cotizacion_id, transportista, servicio, precio, plazo, expira_at, sucursal? }], zona, transportistas_activos }`
+  - `transportista`: `andreani` | `correo_argentino`; `servicio`:
+    `domicilio` | `sucursal`; `plazo`: texto (`"3 a 5 días hábiles"`) o
+    `null`; `expira_at`: ISO, el vencimiento guardado en la base.
+  - Envío a sucursal: **una opción por sucursal** (hasta 5), cada una con su
+    `cotizacion_id` y `sucursal: { id, nombre, direccion }` (mismo precio).
+    Si el transportista no devuelve sucursales, no hay opción de sucursal.
+  - `zona`: `{ precio, nombre }` de la tarifa por zona de siempre
+    (`cotizar_envio`) o `null`; sirve de respaldo si no hay opciones.
+  - Un transportista que falla o tarda más de **5 s** se omite (queda en los
+    logs como `[cotizar-envio] <id> omitido: <motivo>`, sin secretos).
+- `GET ?estado=1` (alcanza la anon key; lo usa el panel):
+  `{ transportistas_activos: [...] }`.
+- Errores: `{ error: <mensaje en español>, codigo }` con `400` (datos),
+  `401` (sesión), `403` (origen), `405`, `429` (límite), `500`.
+- Un cupón de envío gratis deja el envío en 0 también con transportista.
+
+Paquete: se arma **un solo bulto**. Peso = suma de `productos.peso_g` ×
+cantidad; si un producto no tiene peso se usa `DEFAULT_PESO_G` (300 g).
+Medidas = el máximo de cada lado entre los productos
+(`alto_cm` / `ancho_cm` / `largo_cm`); si falta, `DEFAULT_ALTO_CM` (10),
+`DEFAULT_ANCHO_CM` (15), `DEFAULT_LARGO_CM` (20). Valor declarado = subtotal
+con los precios de la base. Cargar peso y medidas reales mejora la
+cotización (`importar_productos` todavía no los carga).
+
+Límite de abuso: 20 pedidos por minuto por IP, **en memoria de cada
+instancia** (best effort: se reinicia cuando Supabase recicla la instancia y no
+se comparte entre instancias). Las cotizaciones vencidas sin usar de más de un
+día se borran de a poco (en ~2 % de los pedidos).
+
+### APIs de los transportistas: qué está verificado y qué no
+
+**Correo Argentino — API MiCorreo** (verificado con el manual oficial
+`https://www.correoargentino.com.ar/MiCorreo/public/img/pag/apiMiCorreo.pdf`,
+versión 8/8/2022):
+- Base: `https://api.correoargentino.com.ar/micorreo/v1` (QA:
+  `https://apitest.correoargentino.com.ar/micorreo/v1`). Credenciales por
+  ambiente, las da Correo Argentino.
+- `POST /token` con Basic Auth (usuario:contraseña) → `{ token, expires }`
+  (`expires` como `"2022-04-26 21:16:20"`; se asume hora de Argentina). El
+  resto va con `Authorization: Bearer <token>`. El token se guarda en memoria
+  hasta un minuto antes de vencer (máximo una hora).
+- `POST /rates` con `{ customerId, postalCodeOrigin, postalCodeDestination,
+  dimensions: { weight (g, 1–25000), height, width, length (cm enteros,
+  ≤ 150) } }`; sin `deliveredType` devuelve domicilio (`"D"`) y sucursal
+  (`"S"`) juntas: `{ customerId, validTo, rates: [{ deliveredType,
+  productType, productName, price }] }`. Si hay varias por tipo se toma la
+  más barata. Un paquete fuera de esos límites omite a Correo.
+- `GET /agencies?customerId&provinceCode&services=pickup_availability` →
+  sucursales de **la provincia** (`code`, `name`, `location.address`,
+  `services.pickupAvailability`, `status`). Códigos de provincia de una letra
+  (tabla del manual; Córdoba = `X`, CABA = `C`, etc.).
+- **Supuesto / no verificado**: `deliveryTimeMin` / `deliveryTimeMax` en
+  `rates` (no están en el manual de 2022; si vienen se usan para `plazo`, si
+  no `plazo` es `null`). La API no ordena sucursales por distancia: se eligen
+  las 5 activas con retiro cuyo CP numérico es más cercano al de destino
+  (aproximación). `customerId` se obtiene una vez con `POST /users/validate`
+  (email y contraseña de MiCorreo) o lo informa Correo.
+
+**Andreani** (el portal `developers.andreani.com` requiere registro y no se
+pudo leer; lo de abajo sale del plugin oficial de Magento
+`github.com/andreani-publico/magento-2.3` y de integraciones públicas — **no
+verificado contra la documentación oficial**):
+- Base: `https://apis.andreani.com` (QA: `https://apisqa.andreani.com`).
+- `GET /login` con Basic Auth → token en el header `x-authorization-token`
+  (duración no documentada: se guarda 1 hora). En varias integraciones
+  `/v1/tarifas` responde sin token; por eso usuario y contraseña son
+  opcionales: si están, las llamadas llevan el header.
+- `GET /v1/tarifas?cpDestino&contrato&cliente&sucursalOrigen&bultos[0][valorDeclarado]&bultos[0][volumen]&bultos[0][kilos]&bultos[0][altoCm]&bultos[0][anchoCm]&bultos[0][largoCm]`
+  (`volumen` en cm³, `kilos` en kg). Se usa `tarifaConIva.total` (el plugin
+  oficial lee ese campo; otras fuentes muestran `tarifaConIva` como número:
+  se aceptan las dos formas). `plazoEntrega` no está confirmado: si viene, se
+  usa. Un contrato para domicilio y otro para sucursal (los da Andreani).
+- `GET /v2/sucursales?codigoPostal=<cp>&canal=B2C` → lista con `id`,
+  `descripcion`, `direccion { calle, numero, localidad, provincia,
+  codigoPostal }`. Se toman las primeras 5.
+- Antes de producción: probar con las credenciales reales en QA
+  (`ANDREANI_API_URL=https://apisqa.andreani.com`) y revisar la respuesta
+  en los logs.
+
+### Secretos
+
+```
+CATALOG_ORIGIN=https://<url-del-muestrario>        # uno o varios, separados por coma (CORS)
+ADMIN_ORIGIN=https://<url-del-panel>               # ya existe (gestionar-equipo); también se permite
+ORIGEN_CP=5000                                     # CP desde donde se despacha (Correo lo exige)
+
+# Andreani (se activa con ANDREANI_CLIENTE y al menos un contrato)
+ANDREANI_CLIENTE=CL000xxxx
+ANDREANI_CONTRATO_DOMICILIO=300000xxxx
+ANDREANI_CONTRATO_SUCURSAL=300000xxxx
+ANDREANI_SUCURSAL_ORIGEN=XXX                       # opcional
+ANDREANI_USUARIO=...                               # opcional (login)
+ANDREANI_PASSWORD=...                              # opcional (login)
+ANDREANI_API_URL=https://apis.andreani.com         # opcional (QA: https://apisqa.andreani.com)
+
+# Correo Argentino / MiCorreo (se activa con los 3 + ORIGEN_CP)
+CORREO_USER=...
+CORREO_PASSWORD=...
+CORREO_CUSTOMER_ID=0000xxxxxx
+CORREO_API_URL=https://api.correoargentino.com.ar/micorreo/v1   # opcional
+
+# Paquete por defecto (opcionales)
+DEFAULT_PESO_G=300
+DEFAULT_ALTO_CM=10
+DEFAULT_ANCHO_CM=15
+DEFAULT_LARGO_CM=20
+```
+
+Un transportista sin sus secretos queda **desactivado** (no aparece en
+`transportistas_activos`); sin ninguno, el checkout sigue con la tarifa por
+zona. Los secretos nunca salen en respuestas ni logs.
+
+### Despliegue (en este orden)
+
+```bash
+# 1) La migración *_envios_transportistas.sql (workflow de la base, al mergear a main).
+# 2) Los secretos (los de un transportista se pueden cargar después)
+pnpm dlx supabase@latest secrets set CATALOG_ORIGIN=https://<url-del-muestrario> ORIGEN_CP=<cp>
+pnpm dlx supabase@latest secrets set CORREO_USER=... CORREO_PASSWORD=... CORREO_CUSTOMER_ID=...
+pnpm dlx supabase@latest secrets set ANDREANI_CLIENTE=... ANDREANI_CONTRATO_DOMICILIO=... ANDREANI_CONTRATO_SUCURSAL=...
+# 3) La función (verificación JWT default: NO usar --no-verify-jwt)
+pnpm dlx supabase@latest functions deploy cotizar-envio
+```
+
+### Prueba manual
+
+```bash
+URL=https://<project-ref>.supabase.co/functions/v1/cotizar-envio
+# Estado (anon key)
+curl -s "$URL?estado=1" -H "Authorization: Bearer <anon-key>"
+# Cotización (access_token de una sesión de prueba)
+curl -s -X POST "$URL" -H "Authorization: Bearer <access-token>" \
+  -H 'Content-Type: application/json' \
+  -d '{"cp":"5000","provincia":"Córdoba","items":[{"producto_id":"<uuid>","cantidad":1}]}'
+```
+
+En local: `supabase functions serve cotizar-envio --env-file <archivo>` y
+`http://127.0.0.1:55321/functions/v1/cotizar-envio` (el gateway local responde
+el preflight CORS por su cuenta). Logs con prefijo `[cotizar-envio]`.
+
+### Volver atrás
+
+- Borrar la función (`pnpm dlx supabase@latest functions delete cotizar-envio`)
+  o quitar los secretos de un transportista: el checkout vuelve a la tarifa
+  por zona. `crear_pedido` sin `p_cotizacion_envio` se comporta como antes.
+- Revertir el esquema: ver el bloque "Volver atrás" al final de
+  `*_envios_transportistas.sql`.
