@@ -6,6 +6,14 @@ import { waLink, instagramHabilitado, instagramDmLink } from '../../lib/config'
 import { imagenesDe } from '../../lib/images'
 import { avisoStockBajo } from '../../lib/stock'
 import { compartirProducto, copiarLink, puedeCompartirNativo } from '../../lib/share'
+import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+import {
+  MENSAJE_NO_DISPONIBLE,
+  cancelarAviso,
+  consultarAviso,
+  suscribirAviso,
+} from '../../lib/avisos'
 import AddToCart from '../cart/AddToCart'
 import ImageZoom from '../common/ImageZoom'
 
@@ -218,6 +226,9 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
           {/* CTA principal de ecommerce: agregar al carrito */}
           <AddToCart producto={producto} />
 
+          {/* "Avisame cuando vuelva": mail cuando vuelva a haber stock. */}
+          {!disponible && <AvisoReposicion productoId={producto.id} />}
+
           {/* Consulta directa (WhatsApp / Instagram) — solo si no hay stock */}
           {!disponible && (
             <div className="pd-actions">
@@ -265,5 +276,123 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
           overlay position:fixed dentro de él quedaría atrapado en ese contenedor. */}
       {zoom && <ImageZoom src={zoom} alt={producto.nombre} onClose={cerrarZoom} />}
     </>
+  )
+}
+
+type EstadoAviso =
+  | { tipo: 'cargando' }
+  | { tipo: 'libre' }
+  | { tipo: 'suscripta'; email: string }
+  | { tipo: 'no_disponible' }
+
+// "Avisame cuando vuelva" (solo productos sin stock). Pide cuenta: el mail sale
+// al email de la cuenta, que la base toma del lado del servidor.
+function AvisoReposicion({ productoId }: { productoId: string }) {
+  const { session, loading } = useAuth()
+  const { pathname, search } = useLocation()
+  const userId = session?.user.id ?? null
+  const [estado, setEstado] = useState<EstadoAviso>({ tipo: 'cargando' })
+  const [ocupado, setOcupado] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const montadoRef = useRef(true)
+
+  useEffect(() => {
+    montadoRef.current = true
+    return () => {
+      montadoRef.current = false
+    }
+  }, [])
+
+  // Al montar (o al cambiar de producto o de cuenta): ¿ya está anotada?
+  useEffect(() => {
+    if (!userId) return
+    let vigente = true
+    setEstado({ tipo: 'cargando' })
+    setError(null)
+    consultarAviso(productoId).then((r) => {
+      if (!vigente) return
+      if (r.ok) setEstado(r.valor ? { tipo: 'suscripta', email: r.valor } : { tipo: 'libre' })
+      else if (r.error === MENSAJE_NO_DISPONIBLE) setEstado({ tipo: 'no_disponible' })
+      else setEstado({ tipo: 'libre' })
+    })
+    return () => {
+      vigente = false
+    }
+  }, [productoId, userId])
+
+  const onSuscribir = async () => {
+    setOcupado(true)
+    setError(null)
+    const r = await suscribirAviso(productoId)
+    if (!montadoRef.current) return
+    setOcupado(false)
+    if (r.ok) setEstado({ tipo: 'suscripta', email: r.valor })
+    else setError(r.error)
+  }
+
+  const onCancelar = async () => {
+    setOcupado(true)
+    setError(null)
+    const r = await cancelarAviso(productoId)
+    if (!montadoRef.current) return
+    setOcupado(false)
+    if (r.ok) setEstado({ tipo: 'libre' })
+    else setError(r.error)
+  }
+
+  if (estado.tipo === 'no_disponible') return null
+
+  const campana = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  )
+
+  let contenido: React.ReactNode
+  if (!loading && !userId) {
+    contenido = (
+      <Link className="aviso-btn" to={`/cuenta?next=${encodeURIComponent(pathname + search)}`}>
+        {campana}
+        Ingresá para que te avisemos
+      </Link>
+    )
+  } else if (estado.tipo === 'suscripta') {
+    contenido = (
+      <>
+        <p className="aviso-ok" role="status">
+          Te vamos a avisar por mail a <strong>{estado.email}</strong>.
+        </p>
+        <button type="button" className="aviso-cancelar" onClick={onCancelar} disabled={ocupado}>
+          {ocupado ? 'Cancelando…' : 'Cancelar aviso'}
+        </button>
+      </>
+    )
+  } else {
+    const cargando = loading || estado.tipo === 'cargando'
+    contenido = (
+      <button
+        type="button"
+        className="aviso-btn"
+        onClick={onSuscribir}
+        disabled={cargando || ocupado}
+        aria-busy={cargando || ocupado}
+      >
+        {campana}
+        {ocupado ? 'Anotando…' : 'Avisame cuando vuelva'}
+      </button>
+    )
+  }
+
+  return (
+    <section className="aviso-stock" aria-label="Aviso de reposición">
+      <p className="aviso-texto">¿Lo querés? Te mandamos un mail cuando vuelva a haber stock.</p>
+      <div className="aviso-cuerpo">{contenido}</div>
+      {error && (
+        <p className="aviso-error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
   )
 }

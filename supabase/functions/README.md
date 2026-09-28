@@ -294,3 +294,103 @@ Este runbook no depende de correr la función localmente. Si igual querés
 iterar sin desplegar cada vez, podés usar `pnpm dlx supabase@latest functions
 serve enviar-recibo-pedido --env-file supabase/functions/.env.local`, pero eso
 es un accesorio de desarrollo, no un paso del flujo de despliegue.
+
+## `avisar-reposicion` ("Avisame cuando vuelva")
+
+La dispara el trigger `productos_aviso_reposicion` de
+`supabase/migrations/*_avisos_stock.sql` (`AFTER UPDATE OF stock ON
+productos`), vía `pg_net`, cuando un producto pasa de **0 a más de 0** y tiene
+suscripciones pendientes en `avisos_stock`. Manda un mail "¡Volvió
+&lt;producto&gt;!" a cada clienta anotada, con el link al producto y un link de
+baja (`<sitio>/aviso/baja?token=...`, también como header `List-Unsubscribe`).
+
+Reglas:
+- Para anotarse hace falta cuenta: el email sale de `auth.users` (RPC
+  `suscribir_aviso_stock`), nunca del navegador. Solo productos sin stock.
+- Cada suscripción avisa **una sola vez**: después de un envío OK la función
+  marca `avisos_stock.notificado_at`.
+- Antes de mandar, "reserva" la fila (RPC `reservar_aviso_stock`:
+  `reservado_at = now()` solo si seguía pendiente), así dos invocaciones
+  seguidas no duplican mails. Si el envío falla, borra la reserva y la fila
+  queda pendiente.
+- **Reservas vencidas**: si la función se cae o la cortan entre la reserva y el
+  envío, la reserva vence a los **15 minutos** y la fila vuelve a ser
+  pendiente. "Pendiente" = `notificado_at is null` y (`reservado_at is null` o
+  `reservado_at < now() - 15 min`), la misma regla (`aviso_stock_pendiente`)
+  en el trigger, en la lectura de pendientes (`avisos_stock_pendientes`) y en la
+  reserva. La reintenta la próxima reposición del producto o, a mano:
+  `select public.invocar_aviso_stock('<producto_id>');`. No hay reintento
+  automático programado.
+- Cada `fetch` (Google OAuth, Gmail y las llamadas a la base) tiene timeout de
+  15 s (`AbortSignal.timeout`), así una respuesta colgada no deja la
+  invocación esperando.
+- Si el mail salió pero no se pudo guardar `notificado_at`, el log lo avisa con
+  el `update` para marcarla: si no, al vencer la reserva podría salir un
+  segundo aviso.
+- Si el producto se volvió a agotar antes de que corra la función, no manda
+  nada (siguen pendientes).
+- Tandas de 200 filas, con tope de tiempo (~100 s) y corte tras 5 fallas
+  seguidas de Gmail. Si quedan pendientes, el log dice cómo reintentar:
+  `select public.invocar_aviso_stock('<producto_id>');` en el SQL Editor.
+- Misma auth que `enviar-recibo-pedido`: el Bearer tiene que ser exactamente la
+  service-role key (`401` si no).
+- Lógica pura en `logica.ts` y template en `template.ts`, con tests de Vitest al
+  lado (`pnpm test`). Reutiliza helpers de `enviar-recibo-pedido/logica.ts`
+  (el bundler de `functions deploy` incluye ese import relativo).
+
+### Secretos
+
+Usa los mismos de `enviar-recibo-pedido` (`GMAIL_*`, `BRAND_NAME`,
+`BRAND_LOGO_URL`) y uno nuevo, opcional:
+
+```
+PUBLIC_SITE_URL=https://pecora-muestrario.vercel.app
+```
+
+Es la URL pública del muestrario para armar los links. Si falta, usa
+`STORE_URL`, y si tampoco está, `https://pecora-muestrario.vercel.app`.
+
+### Vault
+
+- Token: reutiliza `pecora_email_function_token` (la service-role key).
+- URL: si ya está cargado `pecora_email_function_url` terminado en
+  `/enviar-recibo-pedido`, la migración **deriva** la URL
+  (`.../functions/v1/avisar-reposicion`) y no hace falta nada más. Para fijarla
+  a mano (por ejemplo, si la URL del mail de pedidos es otra):
+
+  ```sql
+  select vault.create_secret(
+    'https://<tu-project-ref>.supabase.co/functions/v1/avisar-reposicion',
+    'pecora_avisos_function_url'
+  );
+  ```
+
+### Despliegue (en este orden)
+
+```bash
+# 1) La función primero
+pnpm dlx supabase@latest functions deploy avisar-reposicion
+
+# 2) (Opcional) la URL pública del sitio
+pnpm dlx supabase@latest secrets set PUBLIC_SITE_URL=https://pecora-muestrario.vercel.app
+```
+
+3. Después, la migración `*_avisos_stock.sql` (se aplica sola al mergear a
+   `main`, con el workflow de deploy de la base; ver `CONTEXTO.md` §8). Si la
+   migración llega antes que la función, el trigger hace POST contra un 404:
+   no rompe nada, pero esas suscripciones quedan pendientes hasta la próxima
+   reposición (o hasta reintentar con `invocar_aviso_stock`).
+4. Probar: con una cuenta de prueba, anotarse en un producto sin stock; desde
+   el panel, cargarle stock; tiene que llegar el mail y el link de baja tiene
+   que funcionar. Diagnóstico: `net._http_response` (ver la sección 4 de
+   arriba) y los logs con prefijo `[avisar-reposicion]`.
+
+### Volver atrás
+
+- Sacar el trigger sin perder las suscripciones:
+  `drop trigger if exists productos_aviso_reposicion on public.productos;`
+- Revertir todo: ver el bloque "Cómo revertirla" al final de la migración
+  (borra la tabla y las suscripciones). El front oculta el bloque "Avisame
+  cuando vuelva" si los RPCs o la tabla no existen.
+- La función se puede borrar con
+  `pnpm dlx supabase@latest functions delete avisar-reposicion`.

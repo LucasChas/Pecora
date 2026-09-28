@@ -83,6 +83,12 @@ export function PrivacyPage() {
             <li>Coordinar el método de pago y entrega a través de canales directos (como WhatsApp o correo electrónico).</li>
             <li>Gestionar la creación y restablecimiento de contraseñas de cuentas registradas.</li>
           </ul>
+          <p>
+            <strong>Avisos de reposición:</strong> si pedís que te avisemos cuando vuelva un producto sin stock,
+            guardamos el correo electrónico de tu cuenta junto con ese producto solo para mandarte un único mail
+            cuando haya stock. Podés cancelar el aviso desde el producto o darte de baja con el link que figura en
+            el mail; los avisos se eliminan si se borra el producto o tu cuenta.
+          </p>
 
           <h2>4. Uso de Servicios de Terceros e Integración OAuth</h2>
           <p>Nuestra plataforma utiliza servicios de infraestructura y comunicación provistos por terceros de confianza:</p>

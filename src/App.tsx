@@ -12,6 +12,7 @@ import Footer from './components/catalog/Footer'
 import ScrollManager from './components/ScrollManager'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
+import BajaAvisoPage from './pages/BajaAvisoPage'
 // El "modo" define qué expone cada deploy (ver VITE_APP_MODE en .env):
 //   - 'admin'   -> deploy privado: SOLO el panel, servido en la raíz "/".
 //   - 'catalog' -> deploy público: muestrario + páginas de producto. /admin no existe.
@@ -50,6 +51,7 @@ function RutasCatalogo() {
       <Route path="/mis-pedidos" element={<MyOrdersPage />} />
       <Route path="/privacidad" element={<PrivacyPage />} />
       <Route path="/terminos" element={<TermsPage />} />
+      <Route path="/aviso/baja" element={<BajaAvisoPage />} />
     </Route>
   )
 }
