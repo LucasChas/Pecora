@@ -170,3 +170,46 @@ export interface MiembroEquipo {
   rol: Rol
   ultimo_ingreso: string | null
 }
+
+// ---- Reseñas de compradoras verificadas (migración *_resenas.sql) ----
+// Nunca traen el email ni el id de la cuenta: solo el primer nombre.
+export interface Resena {
+  id: string
+  // 1 a 5.
+  estrellas: number
+  comentario: string | null
+  nombre_corto: string
+  created_at: string
+  updated_at: string
+  // true si es la de quien está mirando (para ofrecerle editarla).
+  es_mia: boolean
+}
+
+// La reseña propia de un producto (aunque la admin la haya ocultado).
+export interface MiResena {
+  id: string
+  estrellas: number
+  comentario: string | null
+  oculta: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ResumenResenas {
+  // null si no hay reseñas visibles.
+  promedio: number | null
+  cantidad: number
+}
+
+// Fila de la lista de moderación del panel (solo admin).
+export interface ResenaModeracion {
+  id: string
+  producto_id: string
+  producto_nombre: string
+  producto_slug: string | null
+  estrellas: number
+  comentario: string | null
+  nombre_corto: string
+  oculta: boolean
+  created_at: string
+}

@@ -7,6 +7,7 @@ import Scallop from '../components/Scallop'
 import HeaderActions from '../components/account/HeaderActions'
 import ProductDetailView from '../components/catalog/ProductDetailView'
 import RelatedProducts, { type EstadoFicha } from '../components/catalog/RelatedProducts'
+import ResenasProducto from '../components/catalog/ResenasProducto'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 
@@ -156,6 +157,8 @@ export default function ProductPage() {
 
             {/* key: cada producto arranca con la galería y los avisos limpios. */}
             <ProductDetailView key={producto.id} producto={producto} />
+
+            <ResenasProducto key={`resenas-${producto.id}`} productoId={producto.id} />
 
             <Link className="pp-back" to="/" onClick={volverAlMuestrario}>
               ← Volver al muestrario

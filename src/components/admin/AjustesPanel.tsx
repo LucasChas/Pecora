@@ -3,13 +3,15 @@ import CuponesAdmin from './CuponesAdmin'
 import ZonasEnvioAdmin from './ZonasEnvioAdmin'
 import ImportarProductos from './ImportarProductos'
 import EquipoAdmin from './EquipoAdmin'
+import ResenasAdmin from './ResenasAdmin'
 
-type Seccion = 'cupones' | 'zonas' | 'importar' | 'equipo'
+type Seccion = 'cupones' | 'zonas' | 'importar' | 'resenas' | 'equipo'
 
 const SECCIONES: { valor: Seccion; texto: string }[] = [
   { valor: 'cupones', texto: 'Cupones' },
   { valor: 'zonas', texto: 'Zonas de envío' },
   { valor: 'importar', texto: 'Importar productos' },
+  { valor: 'resenas', texto: 'Reseñas' },
   { valor: 'equipo', texto: 'Equipo' },
 ]
 
@@ -19,7 +21,7 @@ interface Props {
 }
 
 // Pestaña "Ajustes" del panel (solo admin): cupones, zonas de envío, carga
-// masiva de productos y equipo.
+// masiva de productos, moderación de reseñas y equipo.
 export default function AjustesPanel({ onProductosImportados }: Props) {
   const [seccion, setSeccion] = useState<Seccion>('cupones')
 
@@ -28,7 +30,7 @@ export default function AjustesPanel({ onProductosImportados }: Props) {
       <div className="list-head">
         <div>
           <h1>Ajustes</h1>
-          <p>Cupones, envíos, carga masiva de productos y equipo del panel.</p>
+          <p>Cupones, envíos, carga masiva de productos, reseñas y equipo del panel.</p>
         </div>
       </div>
 
@@ -54,6 +56,8 @@ export default function AjustesPanel({ onProductosImportados }: Props) {
         <ZonasEnvioAdmin />
       ) : seccion === 'importar' ? (
         <ImportarProductos onImportado={onProductosImportados} />
+      ) : seccion === 'resenas' ? (
+        <ResenasAdmin />
       ) : (
         <EquipoAdmin />
       )}
