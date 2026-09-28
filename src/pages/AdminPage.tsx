@@ -19,11 +19,14 @@ import ManualOrderSheet from '../components/admin/ManualOrderSheet'
 import OrdersList from '../components/admin/OrdersList'
 import CatalogExport from '../components/admin/CatalogExport'
 import AjustesPanel from '../components/admin/AjustesPanel'
+import EstadisticasPanel from '../components/admin/EstadisticasPanel'
+import { permisosDe } from '../lib/roles'
 import '../styles/admin.css'
 
 // 'exportar' = lista de precios para imprimir/PDF (pantalla completa, sin pestañas).
-// 'ajustes' = cupones de descuento y zonas de envío.
-type Vista = 'productos' | 'pedidos' | 'ajustes' | 'exportar'
+// 'ajustes' = cupones, zonas de envío, carga masiva y equipo (solo admin).
+// 'estadisticas' = ventas y más vendidos (solo admin).
+type Vista = 'productos' | 'pedidos' | 'estadisticas' | 'ajustes' | 'exportar'
 
 // Chips de filtro de la pestaña Pedidos. El texto es el que usa la clienta en
 // "Mis pedidos", para hablar el mismo idioma en las dos puntas.
@@ -36,9 +39,11 @@ const FILTROS: { valor: FiltroEstado; texto: string }[] = [
   { valor: 'eliminados', texto: 'Papelera' },
 ]
 
-// Vista ADMINISTRADORA (mobile-first), protegida por login.
+// Vista ADMINISTRADORA (mobile-first), protegida por login. Entran admin y
+// empleado; lo que ve cada uno sale de permisosDe (lib/roles).
 export default function AdminPage() {
-  const { session, esAdmin, loading: cargandoSesion } = useAuth()
+  const { session, perfil, loading: cargandoSesion } = useAuth()
+  const permisos = permisosDe(perfil)
   const {
     productos,
     loading: cargandoProductos,
@@ -52,7 +57,13 @@ export default function AdminPage() {
     refetch: refetchCategorias,
   } = useCategories()
   const { confirmar } = useDialog()
-  const [vista, setVista] = useState<Vista>('productos')
+  const [vistaElegida, setVista] = useState<Vista>('productos')
+  // Si el rol no alcanza para la vista elegida (ej. cambió el perfil), Productos.
+  const vista: Vista =
+    (vistaElegida === 'ajustes' && !permisos.ajustes) ||
+    (vistaElegida === 'estadisticas' && !permisos.estadisticas)
+      ? 'productos'
+      : vistaElegida
 
   // Miniaturas que falten (fotos viejas): se generan solas, solo con la admin
   // logueada y fuera de "Exportar catálogo" (que ya procesa sus propias
@@ -60,7 +71,7 @@ export default function AdminPage() {
   // pasadas seguidas, una sola línea discreta en Productos.
   const { necesitaAtencion: miniaturasConProblemas } = useMiniaturasAutomaticas(
     productos,
-    Boolean(session) && esAdmin && vista !== 'exportar',
+    Boolean(session) && permisos.panel && vista !== 'exportar',
   )
 
   // Reintento de la carga de productos cuando falla la red.
@@ -129,8 +140,8 @@ export default function AdminPage() {
     )
   }
 
-  // Logueado pero SIN rol admin (ej. una clienta) => sin acceso al panel.
-  if (!esAdmin) {
+  // Logueado pero sin rol de staff (ej. una clienta) => sin acceso al panel.
+  if (!permisos.panel) {
     return (
       <div className="admin-root">
         <div className="login-root">
@@ -188,7 +199,7 @@ export default function AdminPage() {
           <div className="lockup">
             <Logo className="logo-img" />
             <div className="titles">
-              <div className="s">Panel admin</div>
+              <div className="s">{permisos.ajustes ? 'Panel admin' : 'Panel · Empleado'}</div>
             </div>
           </div>
           <button className="avatar" title="Cerrar sesión" onClick={cerrarSesion}>
@@ -196,8 +207,9 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* Pestañas: Productos / Pedidos / Ajustes */}
-        <div className="admin-tabs">
+        {/* Pestañas: Productos / Pedidos para todo el staff; Estadísticas y
+            Ajustes solo admin. Con 4 en el celular se desplazan de costado. */}
+        <div className={permisos.ajustes ? 'admin-tabs admin-tabs--scroll' : 'admin-tabs'}>
           <button
             className={vista === 'productos' ? 'active' : ''}
             onClick={() => setVista('productos')}
@@ -211,12 +223,22 @@ export default function AdminPage() {
             Pedidos
             {pedidosNuevos > 0 && <span className="tab-badge">{pedidosNuevos}</span>}
           </button>
-          <button
-            className={vista === 'ajustes' ? 'active' : ''}
-            onClick={() => setVista('ajustes')}
-          >
-            Ajustes
-          </button>
+          {permisos.estadisticas && (
+            <button
+              className={vista === 'estadisticas' ? 'active' : ''}
+              onClick={() => setVista('estadisticas')}
+            >
+              Estadísticas
+            </button>
+          )}
+          {permisos.ajustes && (
+            <button
+              className={vista === 'ajustes' ? 'active' : ''}
+              onClick={() => setVista('ajustes')}
+            >
+              Ajustes
+            </button>
+          )}
         </div>
 
         {vista === 'productos' ? (
@@ -296,7 +318,9 @@ export default function AdminPage() {
             </button>
           </>
         ) : vista === 'ajustes' ? (
-          <AjustesPanel />
+          <AjustesPanel onProductosImportados={refrescar} />
+        ) : vista === 'estadisticas' ? (
+          <EstadisticasPanel />
         ) : (
           <>
             <div className="list-head">
@@ -342,6 +366,7 @@ export default function AdminPage() {
               onVerMas={verMas}
               filtrando={filtroEstado !== 'todos' || busqueda.trim() !== ''}
               papelera={filtroEstado === 'eliminados'}
+              puedeBorrarDefinitivo={permisos.borrarPedidoDefinitivo}
             />
             <button
               className="fab"

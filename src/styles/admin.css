@@ -1956,3 +1956,177 @@
     border-color: var(--sage);
   }
 }
+
+/* ============================================================================
+   Fase 3: pestañas por rol, carga masiva (Importar productos) y Equipo.
+   ============================================================================ */
+
+/* Con 4 pestañas (admin) en el celular: se desplazan de costado sin barra. */
+.admin-root .admin-tabs--scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.admin-root .admin-tabs--scroll::-webkit-scrollbar {
+  display: none;
+}
+.admin-root .admin-tabs--scroll button {
+  flex: 1 0 auto;
+  white-space: nowrap;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  scroll-snap-align: start;
+}
+
+/* ---------- Importar productos ---------- */
+.admin-root .imp-panel {
+  display: block;
+}
+.admin-root .imp-card {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.06);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.admin-root .imp-nota {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.admin-root .imp-nota code {
+  font-size: 0.78rem;
+  background: var(--cream-deep);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.admin-root .imp-file {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 12px;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.admin-root .imp-file:focus-within {
+  border-color: var(--sage);
+}
+.admin-root .imp-file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.admin-root .imp-file--off {
+  opacity: 0.6;
+  cursor: default;
+}
+.admin-root .imp-estado {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.admin-root .imp-estado--error {
+  color: var(--danger);
+}
+.admin-root .imp-estado--ok {
+  color: var(--sage-deep);
+  font-weight: 700;
+}
+.admin-root .imp-resumen {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.admin-root .imp-num {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 6px;
+  border-radius: 12px;
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+}
+.admin-root .imp-num strong {
+  font-size: 1.3rem;
+}
+.admin-root .imp-num span {
+  font-size: 0.74rem;
+}
+.admin-root .imp-num--error {
+  background: var(--danger-pale);
+  color: var(--danger);
+}
+.admin-root .imp-errores {
+  margin: 0;
+  padding: 10px 12px 10px 28px;
+  max-height: 260px;
+  overflow-y: auto;
+  border-radius: 12px;
+  background: var(--danger-pale);
+  color: var(--danger);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+/* ---------- Equipo ---------- */
+.admin-root .equipo-invitar .field {
+  margin: 0;
+}
+.admin-root .equipo-invitar .form-error {
+  margin: 0;
+}
+.admin-root .equipo-ok {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--sage-deep);
+  font-weight: 600;
+}
+.admin-root .equipo-yo {
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.admin-root .ajuste-card p.ajuste-meta {
+  margin: 0;
+}
+.admin-root .equipo-rol {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 100px;
+  white-space: nowrap;
+  background: var(--cream-deep);
+  color: var(--ink-soft);
+}
+.admin-root .equipo-rol--admin {
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+}
+.admin-root .equipo-rol--empleado {
+  background: #e4ecf2;
+  color: var(--clay);
+}
+
+@media (min-width: 768px) {
+  .admin-root .imp-panel {
+    max-width: 720px;
+  }
+  .admin-root .admin-tabs--scroll button {
+    flex: 0 0 auto;
+    padding: 10px 22px;
+    font-size: 0.9rem;
+  }
+}

@@ -1,16 +1,26 @@
 import { useState } from 'react'
 import CuponesAdmin from './CuponesAdmin'
 import ZonasEnvioAdmin from './ZonasEnvioAdmin'
+import ImportarProductos from './ImportarProductos'
+import EquipoAdmin from './EquipoAdmin'
 
-type Seccion = 'cupones' | 'zonas'
+type Seccion = 'cupones' | 'zonas' | 'importar' | 'equipo'
 
 const SECCIONES: { valor: Seccion; texto: string }[] = [
   { valor: 'cupones', texto: 'Cupones' },
   { valor: 'zonas', texto: 'Zonas de envío' },
+  { valor: 'importar', texto: 'Importar productos' },
+  { valor: 'equipo', texto: 'Equipo' },
 ]
 
-// Pestaña "Ajustes" del panel: cupones de descuento y zonas de envío.
-export default function AjustesPanel() {
+interface Props {
+  // Tras una carga masiva, para refrescar productos y categorías del panel.
+  onProductosImportados?: () => void
+}
+
+// Pestaña "Ajustes" del panel (solo admin): cupones, zonas de envío, carga
+// masiva de productos y equipo.
+export default function AjustesPanel({ onProductosImportados }: Props) {
   const [seccion, setSeccion] = useState<Seccion>('cupones')
 
   return (
@@ -18,7 +28,7 @@ export default function AjustesPanel() {
       <div className="list-head">
         <div>
           <h1>Ajustes</h1>
-          <p>Cupones de descuento y costo del envío por zona.</p>
+          <p>Cupones, envíos, carga masiva de productos y equipo del panel.</p>
         </div>
       </div>
 
@@ -38,7 +48,15 @@ export default function AjustesPanel() {
         </div>
       </div>
 
-      {seccion === 'cupones' ? <CuponesAdmin /> : <ZonasEnvioAdmin />}
+      {seccion === 'cupones' ? (
+        <CuponesAdmin />
+      ) : seccion === 'zonas' ? (
+        <ZonasEnvioAdmin />
+      ) : seccion === 'importar' ? (
+        <ImportarProductos onImportado={onProductosImportados} />
+      ) : (
+        <EquipoAdmin />
+      )}
     </>
   )
 }
