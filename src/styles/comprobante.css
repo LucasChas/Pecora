@@ -1,0 +1,163 @@
+/* ============================================================
+   Comprobante de compra de la clienta (/mis-pedidos/:numero/comprobante)
+   y su acceso desde la card de "Mis pedidos".
+
+   La hoja reutiliza la maqueta de la nota de entrega del panel
+   (clases op-* de order-print.css, incluida la impresión de solo el
+   portal). Acá van solo los agregados, con prefijo "cp-"/"mp-".
+   ============================================================ */
+
+/* ---------- Acceso desde la card de "Mis pedidos" ---------- */
+.mp-comprobante {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--sage);
+  border-radius: 100px;
+  background: #fff;
+  color: var(--sage-deep);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.mp-comprobante svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.mp-comprobante:hover {
+  background: var(--sage-pale);
+  color: var(--ink);
+}
+.mp-comprobante:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+}
+@media (max-width: 480px) {
+  .mp-comprobante {
+    align-self: stretch;
+  }
+}
+
+/* ---------- Vista del comprobante ---------- */
+
+/* "Volver" es un link con aspecto de botón de la barra. */
+.cp-btn-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* Solo para lectores de pantalla. */
+.cp-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* El comprobante no lleva firmas al pie: la hoja crece con el contenido.
+   Selectores dobles (.op-nota.cp-*) para ganarle a order-print.css sin
+   depender del orden en que el bundle junta las hojas. */
+.op-nota.cp-comprobante {
+  min-height: 0;
+}
+
+/* Leyenda obligatoria, bien visible (también en blanco y negro). */
+.cp-leyenda {
+  padding: 2.5mm 4mm;
+  border: 1pt solid #3B2F22;
+  border-radius: 2mm;
+  text-align: center;
+  font-size: 10.5pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Pedido cancelado: franja que no se puede pasar por alto. */
+.cp-cancelado {
+  display: flex;
+  flex-direction: column;
+  gap: 1mm;
+  padding: 3mm 4mm;
+  border: 1.5pt solid var(--danger);
+  border-radius: 2mm;
+  background: #FBEDEB;
+  color: #8A3A32;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.cp-cancelado strong {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 15pt;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.cp-cancelado span {
+  font-size: 9pt;
+}
+
+.cp-estado--cancelado {
+  color: #8A3A32;
+}
+
+/* Celular: la hoja se lee sin zoom y la barra no tapa la mitad de la pantalla. */
+@media screen and (max-width: 640px) {
+  .cp-portal .op-toolbar {
+    padding: 10px 12px;
+  }
+  .cp-portal .op-toolbar-acciones {
+    width: 100%;
+    margin-left: 0;
+  }
+  .cp-portal .op-toolbar-acciones .op-btn {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
+  }
+  .op-nota.cp-comprobante {
+    font-size: 14px;
+  }
+  .cp-comprobante .op-nota-cabecera {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .cp-comprobante .op-nota-titulo {
+    text-align: left;
+  }
+  .cp-comprobante .op-nota-titulo h1 {
+    font-size: 1.45rem;
+  }
+  .cp-comprobante .op-nota-numero {
+    font-size: 1.05rem;
+  }
+  .op-tabla.cp-tabla {
+    font-size: 13px;
+  }
+  .op-tabla.cp-tabla th {
+    font-size: 10px;
+  }
+  .op-tabla.cp-tabla th,
+  .op-tabla.cp-tabla td {
+    padding: 8px 4px;
+  }
+}
+
+@media print {
+  /* Sin el alto mínimo de la nota de entrega (que deja lugar a las firmas). */
+  .op-nota.cp-comprobante {
+    min-height: 0;
+  }
+}

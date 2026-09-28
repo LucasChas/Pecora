@@ -6,6 +6,7 @@ import CheckoutPage from './pages/CheckoutPage'
 import AccountPage from './pages/AccountPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import MyOrdersPage from './pages/MyOrdersPage'
+import ComprobantePage from './pages/ComprobantePage'
 import AdminPage from './pages/AdminPage'
 import CartDrawer from './components/cart/CartDrawer'
 import Footer from './components/catalog/Footer'
@@ -49,6 +50,7 @@ function RutasCatalogo() {
       <Route path="/cuenta" element={<AccountPage />} />
       <Route path="/restablecer-contrasena" element={<ResetPasswordPage />} />
       <Route path="/mis-pedidos" element={<MyOrdersPage />} />
+      <Route path="/mis-pedidos/:numero/comprobante" element={<ComprobantePage />} />
       <Route path="/privacidad" element={<PrivacyPage />} />
       <Route path="/terminos" element={<TermsPage />} />
       <Route path="/aviso/baja" element={<BajaAvisoPage />} />

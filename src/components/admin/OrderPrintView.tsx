@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import logoUrl from '../../assets/logo.png'
 import type { Pedido } from '../../types'
 import { money } from '../../lib/format'
-import { catalogoHost, whatsappVisible } from '../../lib/config'
-import { detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
+import { catalogoHost, remitenteDireccion, whatsappVisible } from '../../lib/config'
+import { lineaLocalidad, lineasTotales } from '../../lib/comprobante'
 import { etiquetaEnvioPedido, sucursalDePedido } from '../../lib/transportistas'
+import { useVistaImpresion } from '../../hooks/useVistaImpresion'
 import '../../styles/order-print.css'
 
 export type TipoImpresion = 'nota' | 'etiqueta'
@@ -23,26 +24,10 @@ const PAGINA: Record<TipoImpresion, string> = {
   etiqueta: '@page { size: 100mm 150mm; margin: 4mm; }',
 }
 
-// Tipografías de marca que usa la plantilla. Se piden explícitamente: si no,
-// document.fonts.ready puede resolverse antes de que el navegador las necesite.
-const FUENTES = [
-  '400 12px Inter',
-  '600 12px Inter',
-  '700 12px Inter',
-  '500 20px Fraunces',
-  '600 20px Fraunces',
-]
-
-// Tope para esperar tipografías y logo: pasado ese tiempo se habilita igual.
-const TOPE_ESPERA_MS = 8_000
-
 const PREFIJO_LOG = '[imprimir pedido]'
 
-// Dirección del remitente (opcional, VITE_REMITENTE_DIRECCION en el .env). Se
-// lee con un cast local porque la variable no está declarada en vite-env.d.ts.
-const REMITENTE_DIRECCION = (
-  (import.meta.env as { VITE_REMITENTE_DIRECCION?: string }).VITE_REMITENTE_DIRECCION ?? ''
-).trim()
+// Dirección del remitente (opcional, VITE_REMITENTE_DIRECCION en el .env).
+const REMITENTE_DIRECCION = remitenteDireccion()
 
 function fecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-AR', {
@@ -52,50 +37,20 @@ function fecha(iso: string): string {
   })
 }
 
-// "Localidad · CP 5000 · Provincia", con lo que haya cargado.
-function lineaLocalidad(pedido: Pedido): string {
-  return [pedido.localidad, pedido.cp ? `CP ${pedido.cp}` : null, pedido.provincia]
-    .filter(Boolean)
-    .join(' · ')
-}
-
 function cantidadPrendas(pedido: Pedido): string {
   const n = pedido.items.reduce((total, i) => total + i.cantidad, 0)
   return n === 1 ? '1 prenda' : `${n} prendas`
 }
 
-// Resuelve cuando cargaron las tipografías y todas las <img> de `raiz`
-// (bien o con error: una imagen rota no traba la impresión).
-function esperarRecursos(raiz: HTMLElement | null): Promise<void> {
-  const fuentes = document.fonts
-  const esperaFuentes = Promise.all(
-    FUENTES.map((f) => fuentes.load(f).catch(() => [])),
-  ).then(() => fuentes.ready)
-  const esperaImagenes = Array.from(raiz?.querySelectorAll('img') ?? []).map((img) =>
-    img.complete
-      ? Promise.resolve()
-      : new Promise<void>((resolve) => {
-          img.addEventListener('load', () => resolve(), { once: true })
-          img.addEventListener('error', () => resolve(), { once: true })
-        }),
-  )
-  return Promise.all([esperaFuentes, ...esperaImagenes]).then(() => undefined)
-}
-
 // Vista de impresión de un pedido (card del panel → "Imprimir"): nota de
 // entrega A4 o etiqueta de envío 10×15. Se monta en un portal sobre
 // document.body, a pantalla completa, con una barra (Imprimir / Cerrar) que no
-// sale en papel. Mientras está abierta:
-//   - <html> lleva la clase op-activo: al imprimir se oculta todo lo que no
-//     sea el portal (ver order-print.css);
-//   - se monta la regla @page del formato elegido;
-//   - document.title pasa a "Pecora - Nota de entrega #N" / "Pecora -
-//     Etiqueta #N" (es el nombre por defecto del PDF);
-//   - el resto de la página queda inerte (sin foco ni clics).
-// Al desmontarse se restaura todo.
+// sale en papel. Mientras está abierta se monta la regla @page del formato
+// elegido y rige la mecánica de useVistaImpresion (solo el portal se imprime,
+// document.title = "Pecora - Nota de entrega #N" / "Pecora - Etiqueta #N",
+// resto de la página inerte). Al desmontarse se restaura todo.
 export default function OrderPrintView({ pedido, tipo, onClose }: Props) {
   const raizRef = useRef<HTMLDivElement>(null)
-  const [listo, setListo] = useState(false)
   const titulo =
     tipo === 'nota'
       ? `Pecora - Nota de entrega #${pedido.numero}`
@@ -107,26 +62,7 @@ export default function OrderPrintView({ pedido, tipo, onClose }: Props) {
     onCloseRef.current = onClose
   }, [onClose])
 
-  useEffect(() => {
-    const html = document.documentElement
-    const tituloAnterior = document.title
-    document.title = titulo
-    html.classList.add('op-activo')
-
-    const inertes: Element[] = []
-    for (const el of Array.from(document.body.children)) {
-      if (el === raizRef.current || el.hasAttribute('inert')) continue
-      el.setAttribute('inert', '')
-      inertes.push(el)
-    }
-    raizRef.current?.focus()
-
-    return () => {
-      document.title = tituloAnterior
-      html.classList.remove('op-activo')
-      for (const el of inertes) el.removeAttribute('inert')
-    }
-  }, [titulo])
+  const listo = useVistaImpresion(raizRef, titulo, PREFIJO_LOG)
 
   // Escape cierra la vista.
   useEffect(() => {
@@ -135,26 +71,6 @@ export default function OrderPrintView({ pedido, tipo, onClose }: Props) {
     }
     document.addEventListener('keydown', alTeclear)
     return () => document.removeEventListener('keydown', alTeclear)
-  }, [])
-
-  // "Imprimir" se habilita cuando cargaron tipografías y logo (con tope).
-  useEffect(() => {
-    let activo = true
-    let temporizador: number | undefined
-    const tope = new Promise<'tope'>((resolve) => {
-      temporizador = window.setTimeout(() => resolve('tope'), TOPE_ESPERA_MS)
-    })
-    Promise.race([esperarRecursos(raizRef.current), tope]).then((resultado) => {
-      if (!activo) return
-      if (resultado === 'tope') {
-        console.warn(`${PREFIJO_LOG} Tipografías o logo sin terminar de cargar; se habilita igual.`)
-      }
-      setListo(true)
-    })
-    return () => {
-      activo = false
-      window.clearTimeout(temporizador)
-    }
   }, [])
 
   return createPortal(
@@ -206,8 +122,6 @@ export default function OrderPrintView({ pedido, tipo, onClose }: Props) {
 const FIRMAS = ['Recibí conforme', 'Aclaración', 'Fecha']
 
 function NotaEntrega({ pedido }: { pedido: Pedido }) {
-  const t = totalesDe(pedido)
-  const detalle = detalleDe(pedido)
   const esEnvio = pedido.entrega === 'envio'
   const transportista = etiquetaEnvioPedido(pedido)
   const sucursal = sucursalDePedido(pedido)
@@ -282,30 +196,12 @@ function NotaEntrega({ pedido }: { pedido: Pedido }) {
           <div />
         )}
         <dl className="op-totales">
-          <div>
-            <dt>Subtotal</dt>
-            <dd>{money(t.subtotal)}</dd>
-          </div>
-          {t.descuento > 0 && (
-            <div>
-              <dt>Descuento{detalle.cupon ? ` (${detalle.cupon})` : ''}</dt>
-              <dd>− {money(t.descuento)}</dd>
+          {lineasTotales(pedido).map((l) => (
+            <div className={l.total ? 'op-totales-total' : undefined} key={l.etiqueta}>
+              <dt>{l.etiqueta}</dt>
+              <dd>{l.valor}</dd>
             </div>
-          )}
-          {detalle.cupon && t.descuento <= 0 && (
-            <div>
-              <dt>Cupón</dt>
-              <dd>{detalle.cupon}</dd>
-            </div>
-          )}
-          <div>
-            <dt>Envío{detalle.zona ? ` (${detalle.zona})` : ''}</dt>
-            <dd>{textoEnvio(t, pedido.entrega, detalle)}</dd>
-          </div>
-          <div className="op-totales-total">
-            <dt>Total</dt>
-            <dd>{money(t.total)}</dd>
-          </div>
+          ))}
         </dl>
       </section>
 

@@ -10,23 +10,11 @@ import { waConsultaCancelacionLink } from '../lib/config'
 import { detalleDe, lineasDesglose, montoLinea, totalesDe } from '../lib/orders'
 import { IMG_PLACEHOLDER, portadaDe } from '../lib/images'
 import ImageZoom from '../components/common/ImageZoom'
-import type { EstadoPedido, Pedido } from '../types'
+import { ESTADO_CLIENTE, estadoVisible } from '../lib/comprobante'
+import type { Pedido } from '../types'
 import '../styles/catalog.css'
 import '../styles/account.css'
-
-// Cómo se le muestra el estado a la clienta (más amable que el interno).
-const ESTADO_CLIENTE: Record<EstadoPedido, { texto: string; clase: string }> = {
-  nuevo: { texto: 'Pedido recibido', clase: 'e-nuevo' },
-  confirmado: { texto: 'Confirmado · en preparación', clase: 'e-confirmado' },
-  entregado: { texto: 'Entregado', clase: 'e-entregado' },
-  cancelado: { texto: 'Cancelado', clase: 'e-cancelado' },
-}
-
-// Un pedido que la admin mandó a la papelera se le muestra a la clienta como
-// "Cancelado": para ella el efecto es el mismo y así no desaparece sin aviso.
-function estadoVisible(pedido: Pedido): EstadoPedido {
-  return pedido.eliminado_at ? 'cancelado' : pedido.estado
-}
+import '../styles/comprobante.css'
 
 function fecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -207,6 +195,29 @@ export default function MyOrdersPage() {
                       ? `Envío a ${p.direccion}, ${p.localidad} (CP ${p.cp})${p.provincia ? `, ${p.provincia}` : ''}`
                       : 'Retiro / a coordinar'}
                   </div>
+
+                  {/* Comprobante de compra imprimible (no es factura). También
+                      para los cancelados: queda constancia de lo que se pidió. */}
+                  <Link
+                    className="mp-comprobante"
+                    to={`/mis-pedidos/${p.numero}/comprobante`}
+                    aria-label={`Descargar comprobante del pedido del ${fecha(p.created_at)}`}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 3v12" />
+                      <path d="M7 10l5 5 5-5" />
+                      <path d="M5 21h14" />
+                    </svg>
+                    Descargar comprobante
+                  </Link>
 
                   {/* Un pedido cancelado siempre tiene una explicación del otro
                       lado: le damos a la clienta cómo pedirla. */}
