@@ -1382,3 +1382,50 @@
     padding-top: 48px;
   }
 }
+
+/* ---------- Lo más vendido (portada del muestrario) ----------
+   Fila destacada arriba de la grilla cuando no hay búsqueda ni categoría.
+   Reusa .grid y las cards del muestrario (igual que .related). En celular
+   es un carrusel horizontal para no empujar la grilla muy abajo. */
+.mas-vendidos {
+  margin: 8px 0 34px;
+}
+.mas-vendidos-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.35rem;
+  margin: 0;
+  color: var(--ink);
+}
+.mas-vendidos-grid.grid {
+  margin-top: 16px;
+}
+/* Tablet (3 columnas): 6 cards = 2 filas completas. */
+@media (min-width: 721px) and (max-width: 1023px) {
+  .mas-vendidos-grid > :nth-child(n + 7) {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .mas-vendidos {
+    margin: 4px 0 26px;
+  }
+  .mas-vendidos-title {
+    font-size: 1.15rem;
+  }
+  .mas-vendidos-grid.grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: minmax(150px, 46%);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 2px;
+    padding-bottom: 6px;
+    margin-top: 12px;
+  }
+  .mas-vendidos-grid.grid > * {
+    scroll-snap-align: start;
+  }
+}

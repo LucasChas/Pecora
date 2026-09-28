@@ -5,6 +5,7 @@ import Scallop from '../components/Scallop'
 import SearchBar from '../components/common/SearchBar'
 import CategoryFilters from '../components/common/CategoryFilters'
 import ProductGrid from '../components/catalog/ProductGrid'
+import MasVendidos from '../components/catalog/MasVendidos'
 import HeaderActions from '../components/account/HeaderActions'
 import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
@@ -74,6 +75,9 @@ export default function CatalogPage() {
       return coincideCat && coincideTexto
     })
   }, [productos, busqueda, categoriaActiva])
+
+  // "Lo más vendido" solo en la portada: sin búsqueda ni categoría elegida.
+  const sinFiltros = !busqueda.trim() && categoriaActiva === 'Todos'
 
   return (
     <div className="catalog-root">
@@ -151,6 +155,7 @@ export default function CatalogPage() {
                 </div>
               </div>
             )}
+            {sinFiltros && <MasVendidos productos={productos} />}
             <ProductGrid productos={visibles} />
           </>
         )}

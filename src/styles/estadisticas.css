@@ -1,0 +1,414 @@
+/* ============================================================
+   Pestaña "Estadísticas" del panel (EstadisticasPanel).
+   Todo va prefijado con .est- para no chocar con admin.css.
+   Celular primero; en desktop, KPIs en fila y tarjetas en grilla.
+   ============================================================ */
+
+.est-panel {
+  font-family: 'Inter', sans-serif;
+  color: var(--ink);
+  padding: 4px 0 32px;
+}
+
+.est-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+}
+.est-titulo {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.35rem;
+  margin: 0;
+}
+.est-rango {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- Selector de período (pills con scroll horizontal) ---------- */
+.est-periodos {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin: 0 0 12px;
+  scrollbar-width: none;
+}
+.est-periodos::-webkit-scrollbar {
+  display: none;
+}
+.est-periodo {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.est-periodo:hover {
+  border-color: var(--sage);
+}
+.est-periodo--activo {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: #fff;
+}
+.est-periodo:focus-visible,
+.est-btn:focus-visible,
+.est-tabla-wrap summary:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+}
+
+/* ---------- Rango personalizado ---------- */
+.est-custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.est-custom-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  flex: 1 1 140px;
+}
+.est-custom-campo input {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+}
+.est-custom-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.est-btn {
+  min-height: 42px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 10px;
+  background: var(--sage);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.est-btn:hover {
+  background: var(--sage-deep);
+}
+
+/* ---------- Estados ---------- */
+.est-cargando,
+.est-error,
+.est-vacio {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px 18px;
+  text-align: center;
+  color: var(--ink-soft);
+  margin: 8px 0 0;
+}
+.est-cargando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.est-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line);
+  border-top-color: var(--sage);
+  border-radius: 50%;
+  animation: est-gira 0.8s linear infinite;
+}
+@keyframes est-gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .est-spinner {
+    animation: none;
+  }
+}
+.est-error {
+  background: var(--danger-pale);
+  border-color: transparent;
+  color: var(--ink);
+}
+.est-error p {
+  margin: 0 0 12px;
+}
+.est-error p:last-child {
+  margin-bottom: 0;
+}
+.est-vacio--chico {
+  padding: 12px;
+  border: none;
+  background: transparent;
+}
+
+/* ---------- KPIs ---------- */
+.est-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.est-kpi {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  min-width: 0;
+}
+.est-kpi--destacado {
+  grid-column: 1 / -1;
+  background: var(--sage-pale);
+  border-color: transparent;
+}
+.est-kpi-etiqueta {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0 0 4px;
+}
+.est-kpi-valor {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.3rem;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.est-kpi--destacado .est-kpi-valor {
+  font-size: 1.7rem;
+}
+
+/* ---------- Tarjetas ---------- */
+.est-grid {
+  display: grid;
+  gap: 14px;
+}
+.est-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  min-width: 0;
+}
+.est-card-titulo {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 0 0 12px;
+}
+
+/* ---------- Gráfico de barras ---------- */
+.est-chart {
+  width: 100%;
+  overflow: hidden;
+}
+.est-chart svg {
+  display: block;
+}
+.est-barra {
+  fill: var(--sage);
+  transition: fill 0.15s;
+}
+.est-barra:hover {
+  fill: var(--sage-deep);
+}
+.est-eje-linea {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.est-eje-texto {
+  fill: var(--ink-soft);
+  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+}
+
+.est-tabla-wrap {
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+.est-tabla-wrap summary {
+  cursor: pointer;
+  color: var(--sage-deep);
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+.est-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.est-tabla th,
+.est-tabla td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+.est-tabla th:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+.est-tabla thead th {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.est-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Top vendidos ---------- */
+.est-top {
+  list-style: none;
+  counter-reset: est-top;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.est-top-item {
+  counter-increment: est-top;
+}
+.est-top-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.88rem;
+}
+.est-top-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.est-top-nombre::before {
+  content: counter(est-top) '. ';
+  color: var(--ink-soft);
+}
+.est-top-num {
+  flex: 0 0 auto;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.est-top-pista {
+  margin-top: 4px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--cream-deep);
+  overflow: hidden;
+}
+.est-top-barra {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sage);
+}
+
+/* ---------- Web vs. manual ---------- */
+.est-origen-barra {
+  display: flex;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--cream-deep);
+}
+.est-origen-seg {
+  height: 100%;
+}
+.est-origen-seg--web,
+.est-origen-punto--web {
+  background: var(--sage);
+}
+.est-origen-seg--manual,
+.est-origen-punto--manual {
+  background: var(--ink-soft);
+}
+.est-origen-leyenda {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.est-origen-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: center;
+  font-size: 0.88rem;
+}
+.est-origen-punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.est-origen-dato {
+  grid-column: 2;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Desktop ---------- */
+@media (min-width: 721px) {
+  .est-kpis {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .est-kpi--destacado {
+    grid-column: auto;
+  }
+  .est-kpi--destacado .est-kpi-valor {
+    font-size: 1.3rem;
+  }
+  .est-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .est-card--ancha {
+    grid-column: 1 / -1;
+  }
+  .est-card {
+    padding: 18px;
+  }
+}
+@media (min-width: 1024px) {
+  .est-kpi-valor,
+  .est-kpi--destacado .est-kpi-valor {
+    font-size: 1.45rem;
+  }
+}
