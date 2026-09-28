@@ -164,6 +164,7 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `20260928144833_roles_empleados.sql` | Rol `empleado` y `es_staff()` (admin o empleado). Policies de staff sobre productos, categorías y pedidos; el trigger `pedidos_limitar_empleado` deja a un empleado cambiar solo `estado`, `eliminado_at` y `total`. `reenviar_emails_pedido` pasa a staff. `equipo_listar` y `usuario_id_por_email` solo para `service_role` (los usa la Edge Function `gestionar-equipo`). Tests: `supabase/tests/roles_empleados.test.sql`. |
 | `20260928144835_estadisticas_mas_vendidos.sql` | `estadisticas(p_desde, p_hasta)`: jsonb con ventas por mes (zona `America/Argentina/Cordoba`), solo admin. `mas_vendidos(p_limite, p_dias)`: público, para "Lo más vendido". Tests: `supabase/tests/estadisticas.test.sql`. |
 | `20260928144838_importar_productos.sql` | `productos.sku` y `importar_productos(p_filas jsonb, p_simular default true)`: solo staff, hasta 500 filas, todo o nada, errores con número de fila (desde 1); `p_simular = true` es la vista previa. Tests: `supabase/tests/importar_productos.test.sql`. |
+| `20260928155636_resenas.sql` | Reseñas con estrellas de compradoras verificadas: tabla `resenas` (una por producto y cuenta, `estrellas` 1–5, `comentario` ≤ 1000 recortado, `oculta`). Compra verificada = pedido propio del checkout, no cancelado ni en la papelera, que incluye el producto (`compra_verificada`, misma regla que `ventas_validas`; las cargas manuales no cuentan). Escritura solo por RPC: `guardar_resena` / `borrar_resena` (propia; 42501 sin login o sin compra), `ocultar_resena` y `resenas_moderacion` solo admin. Lectura pública: `resenas_de_producto` (solo el primer nombre, nunca email), `resumen_resenas`; `puede_resenar` y `mi_resena` para la clienta. RLS: visibles para todos, ocultas para el staff; `user_id` no se otorga a `anon`/`authenticated`. Tests: `supabase/tests/resenas.test.sql`. |
 
 ### Cómo se aplican
 
@@ -172,11 +173,11 @@ Las 0001→0013 se aplicaron **a mano** en producción (SQL Editor), así que la
 - **CI** (`.github/workflows/db-ci.yml`): en cada PR (y push a `develop`) que toque `supabase/**` o `.github/scripts/**`: corre los tests del guard (`.github/scripts/db-push-guard.test.sh`, con la CLI simulada), levanta una base local, aplica todas las migraciones desde cero, corre los tests pgTAP (`supabase/tests/`, incluido `privilegios_base.test.sql`) y el lint (falla solo con errores; los warnings son informativos).
 - **Deploy** (`.github/workflows/db-deploy.yml`): en cada push a `main` que toque `supabase/migrations/**`, o a mano con *Run workflow* sobre `main`.
   - `plan` (entorno `production-plan`): corre el guard (`.github/scripts/db-push-guard.sh`, un `supabase db push --dry-run`), deja la lista en el resumen del job y **se detiene** si fuera a aplicar alguna de las 0001→0013 o si no entiende la salida.
-  - `apply` (entorno `production`, **espera aprobación**): repite el guard, guarda el **esquema** `public` (sin datos, cifrado) como artifact `public-schema-before-run-<id>` por 7 días, ejecuta `supabase db push`, **verifica** que todas las migraciones quedaron aplicadas (`db-push-guard.sh --verify`) y hace un **smoke check**: `GET /rest/v1/productos` con la anon key debe dar HTTP 200. Resultados en el resumen del job.
+  - `apply` (entorno `supabase-production`, **espera aprobación**): repite el guard, guarda el **esquema** `public` (sin datos, cifrado) como artifact `public-schema-before-run-<id>` por 7 días, ejecuta `supabase db push`, **verifica** que todas las migraciones quedaron aplicadas (`db-push-guard.sh --verify`) y hace un **smoke check**: `GET /rest/v1/productos` con la anon key debe dar HTTP 200. Resultados en el resumen del job.
 
 > **Atención:** con el repo linkeado (`supabase link`, deja `supabase/.temp/`), **todo comando de la CLI sin `--local` apunta a producción** (`db push`, `migration list`, `migration repair`, `db dump`, ...). Para la base local, pasar siempre `--local`.
 
-**Antes de aprobar `production`**
+**Antes de aprobar `supabase-production`**
 
 - [ ] La lista del resumen de `plan` es exactamente la de migraciones esperadas.
 - [ ] *Dashboard → Database → Backups* muestra un backup reciente o un punto de PITR. El workflow **solo guarda el esquema**: los datos se recuperan únicamente desde ese backup. Si el plan de Supabase no tiene backups, hacer antes un dump de datos (`supabase db dump --linked --data-only -f <archivo>`) y guardarlo **fuera del repo** (tiene datos personales).
@@ -188,7 +189,7 @@ Las 0001→0013 se aplicaron **a mano** en producción (SQL Editor), así que la
 | Entorno | Reviewers | Environment secrets | Environment variables |
 |---|---|---|---|
 | `production-plan` | ninguno | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID` | — |
-| `production` | *Required reviewers* | los mismos tres + `SCHEMA_BACKUP_PASSPHRASE` | `SUPABASE_URL`, `SUPABASE_ANON_KEY` |
+| `supabase-production` | *Required reviewers* | los mismos tres + `SCHEMA_BACKUP_PASSPHRASE` | `SUPABASE_URL`, `SUPABASE_ANON_KEY` |
 
 - Los secretos van como **Environment secrets** en cada entorno, **no** como *Repository secrets*: esos los puede leer cualquier workflow de cualquier rama. Si ya existen como Repository secrets, borrarlos.
 - `SUPABASE_ACCESS_TOKEN`: token personal (supabase.com → *Account → Access Tokens*). `SUPABASE_DB_PASSWORD`: contraseña de la base (*Project Settings → Database*). `SUPABASE_PROJECT_ID`: `nmjwuxupovkqrxmttgrw`.
@@ -321,6 +322,9 @@ supabase/migrations/0001..0005
 ### Rutas
 - **Catálogo**: `/` · `/producto/:id` · `/carrito` · `/checkout` · `/cuenta` · `/mis-pedidos`
 - **Admin**: `/admin` (o `/` si `VITE_APP_MODE=admin`)
+
+### Vista previa por producto (Open Graph)
+WhatsApp, Instagram, Facebook y X leen las meta sin ejecutar JavaScript, así que la SPA sola siempre mostraba la vista previa genérica. `vercel.json` reescribe `/producto/:param` a la Vercel Function `api/producto-og.ts` **solo cuando el user-agent es un bot de vista previa** (facebookexternalhit, WhatsApp, Twitterbot, TelegramBot, etc.); las personas siguen recibiendo la SPA estática. La función toma el `index.html` del mismo deploy, busca el producto por slug o uuid en la API REST de Supabase con la clave anon (tope de 2,5 s) y reemplaza título, canónica, description, `og:*`, `twitter:*` y `product:*` con los datos del producto (nombre, descripción corta + precio en ARS, foto original https, URL canónica con slug). Ante cualquier falla (producto inexistente, Supabase lento o caído, falta de configuración) devuelve 200 con la vista previa genérica, nunca 500. Caché en el CDN: `s-maxage=600, stale-while-revalidate=86400` (genérica: 60 s). Solo actúa si `VITE_APP_MODE=catalog` en tiempo de ejecución (las variables `VITE_*` del proyecto de Vercel tienen que estar habilitadas para Production); en el deploy del panel devuelve el `index.html` sin cambios (con noindex). La lógica pura vive en `src/lib/ogProducto.ts`. Para refrescar una vista previa ya cacheada: Facebook Sharing Debugger → "Scrape Again". Probar con `curl -A "facebookexternalhit/1.1" <url-del-producto>`.
 
 ---
 
