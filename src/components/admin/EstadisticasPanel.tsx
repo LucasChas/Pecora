@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { money } from '../../lib/format'
 import {
   PERIODOS,
@@ -15,10 +15,17 @@ import {
   type Rango,
   type VentaMes,
 } from '../../lib/estadisticas'
+import { montoCompacto, techo } from '../../lib/graficos'
+import { useAncho } from '../../hooks/useAncho'
+import GastosVista from './GastosVista'
+import RentabilidadVista from './RentabilidadVista'
 import '../../styles/estadisticas.css'
 
-// Pestaña "Estadísticas" del panel (solo admin). Todo sale de una sola RPC
-// (estadisticas) para el rango elegido; ver lib/estadisticas.
+// Pestaña "Estadísticas" del panel (solo admin). Tres vistas que comparten el
+// período elegido:
+//   - Ventas: RPC estadisticas (ver lib/estadisticas).
+//   - Rentabilidad: RPC rentabilidad (ver lib/rentabilidad y RentabilidadVista).
+//   - Gastos: ABM de la tabla gastos (ver lib/gastos y GastosVista).
 
 type Estado =
   | { tipo: 'cargando' }
@@ -26,6 +33,14 @@ type Estado =
   | { tipo: 'listo'; datos: Estadisticas }
 
 const TOP = 10
+
+type Vista = 'ventas' | 'rentabilidad' | 'gastos'
+
+const VISTAS: { valor: Vista; etiqueta: string }[] = [
+  { valor: 'ventas', etiqueta: 'Ventas' },
+  { valor: 'rentabilidad', etiqueta: 'Rentabilidad' },
+  { valor: 'gastos', etiqueta: 'Gastos' },
+]
 
 const numero = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 0 })
 
@@ -35,6 +50,7 @@ function fechaCorta(iso: string): string {
 }
 
 export default function EstadisticasPanel() {
+  const [vista, setVista] = useState<Vista>('ventas')
   const [periodo, setPeriodo] = useState<Periodo>('este-mes')
   // Rango personalizado: lo que se está escribiendo y lo ya aplicado.
   const hoyISO = fechaISO(new Date())
@@ -67,8 +83,8 @@ export default function EstadisticasPanel() {
   const desdeRango = rango?.desde
   const hastaRango = rango?.hasta
   useEffect(() => {
-    if (desdeRango && hastaRango) void cargar({ desde: desdeRango, hasta: hastaRango })
-  }, [desdeRango, hastaRango, cargar])
+    if (vista === 'ventas' && desdeRango && hastaRango) void cargar({ desde: desdeRango, hasta: hastaRango })
+  }, [vista, desdeRango, hastaRango, cargar])
 
   useEffect(
     () => () => {
@@ -97,6 +113,23 @@ export default function EstadisticasPanel() {
           </p>
         )}
       </header>
+
+      <div className="est-vistas" role="tablist" aria-label="Sección">
+        {VISTAS.map((v) => (
+          <button
+            key={v.valor}
+            type="button"
+            role="tab"
+            id={`est-vista-${v.valor}`}
+            aria-selected={vista === v.valor}
+            aria-controls="est-vista-panel"
+            className={`est-vista${vista === v.valor ? ' est-vista--activa' : ''}`}
+            onClick={() => setVista(v.valor)}
+          >
+            {v.etiqueta}
+          </button>
+        ))}
+      </div>
 
       <div className="est-periodos" role="radiogroup" aria-label="Período">
         {PERIODOS.map((p) => (
@@ -144,25 +177,31 @@ export default function EstadisticasPanel() {
         </form>
       )}
 
-      {!rango ? (
-        <p className="est-vacio">Elegí las fechas y tocá “Ver”.</p>
-      ) : estado.tipo === 'cargando' ? (
-        <div className="est-cargando" role="status" aria-live="polite">
-          <span className="est-spinner" aria-hidden="true" />
-          Calculando estadísticas…
-        </div>
-      ) : estado.tipo === 'error' ? (
-        <div className="est-error" role="alert">
-          <p>{estado.mensaje}</p>
-          {!estado.faltaMigracion && (
-            <button type="button" className="est-btn" onClick={() => void cargar(rango)}>
-              Reintentar
-            </button>
-          )}
-        </div>
-      ) : (
-        <Contenido datos={estado.datos} rango={rango} />
-      )}
+      <div id="est-vista-panel" role="tabpanel" aria-labelledby={`est-vista-${vista}`}>
+        {!rango ? (
+          <p className="est-vacio">Elegí las fechas y tocá “Ver”.</p>
+        ) : vista === 'rentabilidad' ? (
+          <RentabilidadVista rango={rango} />
+        ) : vista === 'gastos' ? (
+          <GastosVista rango={rango} />
+        ) : estado.tipo === 'cargando' ? (
+          <div className="est-cargando" role="status" aria-live="polite">
+            <span className="est-spinner" aria-hidden="true" />
+            Calculando estadísticas…
+          </div>
+        ) : estado.tipo === 'error' ? (
+          <div className="est-error" role="alert">
+            <p>{estado.mensaje}</p>
+            {!estado.faltaMigracion && (
+              <button type="button" className="est-btn" onClick={() => void cargar(rango)}>
+                Reintentar
+              </button>
+            )}
+          </div>
+        ) : (
+          <Contenido datos={estado.datos} rango={rango} />
+        )}
+      </div>
     </section>
   )
 }
@@ -215,42 +254,6 @@ function Kpi({ etiqueta, valor, destacado }: { etiqueta: string; valor: string; 
 
 // ---- Gráfico de barras (SVG a medida del contenedor) ----------------------
 
-const compacto = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'ARS',
-  notation: 'compact',
-  maximumFractionDigits: 1,
-})
-
-// Techo "redondo" para el eje (1, 2, 2.5, 5 × 10^n).
-function techo(max: number): number {
-  if (!(max > 0)) return 1
-  const exp = Math.pow(10, Math.floor(Math.log10(max)))
-  for (const f of [1, 2, 2.5, 5, 10]) {
-    if (f * exp >= max) return f * exp
-  }
-  return 10 * exp
-}
-
-function useAncho<T extends HTMLElement>(inicial: number) {
-  const ref = useRef<T>(null)
-  const [ancho, setAncho] = useState(inicial)
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const medir = () => {
-      const w = Math.round(el.getBoundingClientRect().width)
-      if (w > 0) setAncho(w)
-    }
-    medir()
-    if (typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(medir)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-  return [ref, ancho] as const
-}
-
 function GraficoMeses({ meses }: { meses: VentaMes[] }) {
   const id = useId()
   const [ref, ancho] = useAncho<HTMLDivElement>(600)
@@ -294,7 +297,7 @@ function GraficoMeses({ meses }: { meses: VentaMes[] }) {
                 <g key={t} aria-hidden="true">
                   <line className="est-eje-linea" x1={0} x2={internoAncho} y1={y} y2={y} />
                   <text className="est-eje-texto" x={-8} y={y} dy="0.32em" textAnchor="end">
-                    {compacto.format(t)}
+                    {montoCompacto.format(t)}
                   </text>
                 </g>
               )
