@@ -2130,3 +2130,100 @@
     font-size: 0.9rem;
   }
 }
+
+/* ============================================================
+   Envíos con transportistas: peso y medidas en el formulario de
+   producto, transportista en la card del pedido y estado de los
+   transportistas en Ajustes → Zonas de envío.
+   ============================================================ */
+.medidas-envio {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 12px 0;
+  margin: 0 0 14px;
+  min-width: 0;
+}
+.medidas-envio legend {
+  padding: 0 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.medidas-envio-ayuda {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.medidas-envio-grilla {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 10px;
+}
+@media (min-width: 560px) {
+  .medidas-envio-grilla {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.medidas-envio .field input {
+  min-height: 44px;
+}
+
+.order-transportista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--ink);
+}
+.order-transportista strong {
+  font-weight: 700;
+}
+.order-transportista span {
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.admin-root .transportistas-estado {
+  margin: 0 16px 14px;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.06);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.admin-root .transportistas-estado h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.admin-root .transportistas-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.admin-root .transportistas-lista li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.admin-root .transportistas-nota {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.admin-root .transportistas-estado .ajuste-btn {
+  align-self: flex-start;
+}

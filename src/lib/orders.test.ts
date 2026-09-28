@@ -27,6 +27,7 @@ import {
   totalesDe,
   type NuevoPedido,
 } from './orders'
+import { ErrorCotizacionVencida, MENSAJE_COTIZACION_VENCIDA } from './transportistas'
 
 // Intl separa "$" del número con un espacio duro: se normaliza para comparar.
 const plano = (s: string) => s.replace(/\s/g, ' ')
@@ -341,6 +342,92 @@ describe('crearPedido', () => {
     })
     await expect(crearPedido({ ...base, cupon: 'VERANO10' })).rejects.toThrow('El cupón VERANO10 venció.')
     expect(rpc).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('crearPedido con cotización de transportista', () => {
+  const base: NuevoPedido = {
+    datos: {
+      nombre: 'Ana',
+      telefono: '3541 123456',
+      entrega: 'envio',
+      direccion: 'San Martín 123',
+      localidad: 'Córdoba',
+      cp: '5000',
+      provincia: 'Córdoba',
+    },
+    items: [{ id: 'a', nombre: 'Body', precio: 1500, cantidad: 1 }],
+    idempotencyKey: '11111111-2222-4333-8444-555555555555',
+    cotizacionEnvio: ' q-123 ',
+  }
+
+  beforeEach(() => {
+    rpc.mockReset()
+  })
+
+  it('manda p_cotizacion_envio (y p_cupon null) en una sola llamada', async () => {
+    rpc.mockResolvedValueOnce({ data: 5, error: null })
+    await expect(crearPedido(base)).resolves.toBe(5)
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_cotizacion_envio: 'q-123', p_cupon: null })
+  })
+
+  it('con cupón manda los dos', async () => {
+    rpc.mockResolvedValueOnce({ data: 5, error: null })
+    await crearPedido({ ...base, cupon: 'verano10' })
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_cotizacion_envio: 'q-123', p_cupon: 'VERANO10' })
+  })
+
+  it('retiro: ignora la cotización', async () => {
+    rpc.mockResolvedValueOnce({ data: 5, error: null })
+    await crearPedido({ ...base, datos: { ...base.datos, entrega: 'coordinar' } })
+    expect(rpc.mock.calls[0][1]).not.toHaveProperty('p_cotizacion_envio')
+  })
+
+  it('cotización vencida (22023): lanza ErrorCotizacionVencida sin reintentar', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'La cotización del envío venció.' } })
+    const promesa = crearPedido(base)
+    await expect(promesa).rejects.toBeInstanceOf(ErrorCotizacionVencida)
+    await expect(promesa).rejects.toThrow(MENSAJE_COTIZACION_VENCIDA)
+    expect(rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('sin la migración de transportistas: sigue sin la cotización (envío por zona)', async () => {
+    const aviso = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } })
+      .mockResolvedValueOnce({ data: 8, error: null })
+    await expect(crearPedido(base)).resolves.toBe(8)
+    expect(rpc).toHaveBeenCalledTimes(2)
+    expect(rpc.mock.calls[1][1]).not.toHaveProperty('p_cotizacion_envio')
+    expect(rpc.mock.calls[1][1]).not.toHaveProperty('p_cupon')
+    expect(rpc.mock.calls[1][1]).toHaveProperty('p_idempotency_key')
+    aviso.mockRestore()
+  })
+
+  it('sin la migración y con cupón: reintenta con cupón y sin cotización', async () => {
+    const aviso = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } })
+      .mockResolvedValueOnce({ data: 9, error: null })
+    await expect(crearPedido({ ...base, cupon: 'X' })).resolves.toBe(9)
+    expect(rpc.mock.calls[1][1]).toMatchObject({ p_cupon: 'X' })
+    expect(rpc.mock.calls[1][1]).not.toHaveProperty('p_cotizacion_envio')
+    aviso.mockRestore()
+  })
+
+  it('otros errores de negocio se muestran tal cual', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: 'P0001', message: 'Tu carrito está vacío.' } })
+    await expect(crearPedido(base)).rejects.toThrow('Tu carrito está vacío.')
+  })
+})
+
+describe('detalleDe con transportista', () => {
+  it('el transportista gana sobre la zona', () => {
+    expect(
+      detalleDe({ zona_nombre: 'AMBA', transportista: 'andreani', servicio_envio: 'sucursal', sucursal_envio: 'Centro' }),
+    ).toEqual({ cupon: null, zona: 'Andreani a sucursal' })
+    expect(detalleDe({ zona_nombre: 'AMBA', transportista: null })).toEqual({ cupon: null, zona: 'AMBA' })
   })
 })
 

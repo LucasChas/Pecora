@@ -5,6 +5,13 @@ import { comprimirImagen } from '../../lib/imageCompress'
 import { BUCKET_PRODUCTOS } from '../../lib/images'
 import { subirOriginalConMiniatura } from '../../lib/thumbnails'
 import { useDialog } from '../../context/DialogContext'
+import {
+  esColumnaInexistente,
+  formMedidasDe,
+  hayMedidas,
+  parsearMedidas,
+  type FormMedidas,
+} from '../../lib/transportistas'
 import ImagePicker, { type ImagenItem } from './ImagePicker'
 
 interface Props {
@@ -56,6 +63,9 @@ export default function ProductFormSheet({
   const [descripcion, setDescripcion] = useState('')
   const [precio, setPrecio] = useState('')
   const [stock, setStock] = useState('')
+  // Peso y medidas del paquete (opcionales): se usan para cotizar el envío
+  // con Andreani / Correo Argentino.
+  const [medidas, setMedidas] = useState<FormMedidas>(formMedidasDe(null))
   // Galería: lista única y ordenada (URLs existentes + archivos nuevos
   // intercalados, en el orden en que se van a mostrar/guardar). El índice 0
   // es la portada. Reemplaza los antiguos keepUrls/newFiles disjuntos, que
@@ -65,7 +75,7 @@ export default function ProductFormSheet({
   const [mostrarNuevaCat, setMostrarNuevaCat] = useState(false)
   const [nuevaCat, setNuevaCat] = useState('')
 
-  const { confirmar } = useDialog()
+  const { confirmar, avisar } = useDialog()
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -90,6 +100,7 @@ export default function ProductFormSheet({
     setDescripcion(producto?.descripcion ?? '')
     setPrecio(producto ? String(producto.precio) : '')
     setStock(producto ? String(producto.stock) : '')
+    setMedidas(formMedidasDe(producto))
     setImagenes(imagenesGuardadas(producto))
     setMostrarNuevaCat(false)
     setNuevaCat('')
@@ -165,6 +176,11 @@ export default function ProductFormSheet({
       setError('Elegí o creá una categoría.')
       return
     }
+    const medidasParseadas = parsearMedidas(medidas)
+    if (!medidasParseadas.ok) {
+      setError(medidasParseadas.mensaje)
+      return
+    }
     setGuardando(true)
     setError(null)
     try {
@@ -186,15 +202,30 @@ export default function ProductFormSheet({
         imagen_url: imagenesFinal[0] ?? null, // portada para la grilla / compatibilidad (índice 0)
       }
 
-      if (producto) {
-        const { error } = await supabase.from('productos').update(payload).eq('id', producto.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('productos').insert(payload)
-        if (error) throw error
+      const guardar = (datos: Record<string, unknown>) =>
+        producto
+          ? supabase.from('productos').update(datos).eq('id', producto.id)
+          : supabase.from('productos').insert(datos)
+
+      // Con peso y medidas; si la base todavía no tiene esas columnas (falta
+      // la migración de transportistas), se guarda el resto igual.
+      let { error } = await guardar({ ...payload, ...medidasParseadas.datos })
+      let medidasSinGuardar = false
+      if (error && esColumnaInexistente(error)) {
+        medidasSinGuardar = hayMedidas(medidasParseadas.datos)
+        ;({ error } = await guardar(payload))
       }
+      if (error) throw error
       onChanged() // Refresca los datos para que el cambio se vea al instante.
       onClose()
+      if (medidasSinGuardar) {
+        await avisar({
+          titulo: 'El producto se guardó sin peso ni medidas',
+          mensaje:
+            'Falta aplicar la migración de envíos con transportistas en Supabase. ' +
+            'Cuando esté aplicada, volvé a cargar el peso y las medidas.',
+        })
+      }
     } catch (err) {
       setError('No se pudo guardar: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
@@ -315,6 +346,38 @@ export default function ProductFormSheet({
               />
             </div>
           </div>
+
+          <fieldset className="medidas-envio">
+            <legend>Peso y medidas del paquete (opcional)</legend>
+            <p className="medidas-envio-ayuda" id="medidas-envio-ayuda">
+              Se usan para cotizar el envío con Andreani y Correo Argentino. Cargalos para que el
+              precio que ve la clienta sea preciso.
+            </p>
+            <div className="medidas-envio-grilla">
+              {(
+                [
+                  { campo: 'peso', rotulo: 'Peso (g)', ejemplo: '300', decimales: false },
+                  { campo: 'alto', rotulo: 'Alto (cm)', ejemplo: '5', decimales: true },
+                  { campo: 'ancho', rotulo: 'Ancho (cm)', ejemplo: '25', decimales: true },
+                  { campo: 'largo', rotulo: 'Largo (cm)', ejemplo: '30', decimales: true },
+                ] as const
+              ).map(({ campo, rotulo, ejemplo, decimales }) => (
+                <div className="field" key={campo}>
+                  <label htmlFor={`producto-${campo}`}>{rotulo}</label>
+                  <input
+                    id={`producto-${campo}`}
+                    type="text"
+                    inputMode={decimales ? 'decimal' : 'numeric'}
+                    value={medidas[campo]}
+                    onChange={(e) => setMedidas((m) => ({ ...m, [campo]: e.target.value }))}
+                    placeholder={ejemplo}
+                    autoComplete="off"
+                    aria-describedby="medidas-envio-ayuda"
+                  />
+                </div>
+              ))}
+            </div>
+          </fieldset>
 
           {error && <p className="form-error">{error}</p>}
 

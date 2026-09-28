@@ -26,7 +26,21 @@ import {
   textoCotizacion,
   type CotizacionEnvio,
 } from '../lib/envios'
+import {
+  ErrorCotizacionVencida,
+  MENSAJE_COTIZACION_VENCIDA,
+  elegirSeleccion,
+  etiquetaEnvioPedido,
+  etiquetaServicio,
+  necesitaRecotizar,
+  opcionEquivalente,
+  textoPrecioOpcion,
+  type OpcionEnvio,
+  type SeleccionEnvio,
+} from '../lib/transportistas'
+import { useCotizacionTransportistas } from '../hooks/useCotizacionTransportistas'
 import OrderSuccess from '../components/cart/OrderSuccess'
+import OpcionesEnvio from '../components/cart/OpcionesEnvio'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 
@@ -83,6 +97,23 @@ export default function CheckoutPage() {
   const [cotizacion, setCotizacion] = useState<CotizacionEnvio | null>(null)
   const [cotizando, setCotizando] = useState(false)
 
+  // ---- Envío con transportistas (Andreani / Correo Argentino) ----
+  // Si la función cotizar-envio no está o no hay transportistas activos, el
+  // estado queda en 'no_disponible' y todo sigue como con el envío por zona.
+  const transportistas = useCotizacionTransportistas({
+    activo: entrega === 'envio',
+    cp,
+    provincia,
+    items,
+  })
+  const [seleccionEnvio, setSeleccionEnvio] = useState<SeleccionEnvio>({ tipo: 'zona' })
+  // Última opción de transportista elegida: tras recotizar se busca su
+  // equivalente (el id de cotización cambia).
+  const ultimaOpcionRef = useRef<OpcionEnvio | null>(null)
+  // true cuando la clienta tocó una opción: se respeta al llegar precios nuevos.
+  const eligioEnvioRef = useRef(false)
+  const [recotizando, setRecotizando] = useState(false)
+
   // Clave de idempotencia del intento de compra: se mantiene en los reintentos
   // (ej. tras un corte de red, si la base ya registró el pedido devuelve el
   // mismo número en vez de duplicarlo) y se renueva cuando cambia el carrito,
@@ -91,7 +122,9 @@ export default function CheckoutPage() {
   const claveRef = useRef<string | null>(null)
   const firmaCarrito = items.map((i) => `${i.id}:${i.cantidad}:${i.precio}`).join('|')
   const codigoCupon = cupon?.resultado.codigo ?? ''
-  const firmaIntento = [firmaCarrito, codigoCupon, entrega, provincia, cp.trim()].join('#')
+  const firmaEnvio =
+    seleccionEnvio.tipo === 'transportista' ? seleccionEnvio.cotizacionId : seleccionEnvio.tipo
+  const firmaIntento = [firmaCarrito, codigoCupon, entrega, provincia, cp.trim(), firmaEnvio].join('#')
   useEffect(() => {
     claveRef.current = null
   }, [firmaIntento])
@@ -166,26 +199,81 @@ export default function CheckoutPage() {
 
   // ---- Estimación de totales (la base recalcula todo al registrar) ----
   const esEnvio = entrega === 'envio'
-  const envioConZona = esEnvio && !cotizando && cotizacion?.disponible === true
+  const zonaDisponible = esEnvio && !cotizando && cotizacion?.disponible === true
   const envioGratisCupon = cupon?.resultado.envioGratis === true
   const descuentoEstimado = cupon?.resultado.descuento ?? 0
-  const costoEnvioEstimado =
-    envioConZona && !envioGratisCupon && cotizacion ? cotizacion.costo : 0
+
+  // Opciones de transportista: solo cuando hay respuesta con opciones y la
+  // zona ya se cotizó (para comparar precios sin saltos).
+  const hayTransportistas =
+    esEnvio && !cotizando && transportistas.estado === 'listo' && transportistas.opciones.length > 0
+  const opcionElegida =
+    hayTransportistas && seleccionEnvio.tipo === 'transportista'
+      ? transportistas.opciones.find((o) => o.cotizacionId === seleccionEnvio.cotizacionId) ?? null
+      : null
+  const envioTransportista = opcionElegida !== null
+  // Sin transportistas, la zona se usa siempre que exista (como antes).
+  const envioConZona = zonaDisponible && (!hayTransportistas || seleccionEnvio.tipo === 'zona')
+  const zonaCosto = zonaDisponible && cotizacion ? cotizacion.costo : null
+
+  useEffect(() => {
+    if (opcionElegida) ultimaOpcionRef.current = opcionElegida
+  }, [opcionElegida])
+
+  // Llegaron opciones nuevas (o cambió la zona): se mantiene lo elegido si
+  // sigue existiendo; si no, la opción más barata.
+  const opcionesTransportistas = transportistas.opciones
+  useEffect(() => {
+    if (!hayTransportistas) return
+    setSeleccionEnvio((previa) =>
+      elegirSeleccion(
+        opcionesTransportistas,
+        zonaCosto,
+        eligioEnvioRef.current || previa.tipo === 'transportista'
+          ? { seleccion: previa, opcion: ultimaOpcionRef.current }
+          : null,
+      ),
+    )
+  }, [hayTransportistas, opcionesTransportistas, zonaCosto])
+
+  function elegirEnvio(s: SeleccionEnvio) {
+    eligioEnvioRef.current = true
+    setSeleccionEnvio(s)
+  }
+
+  const costoEnvioEstimado = envioGratisCupon
+    ? 0
+    : opcionElegida
+      ? opcionElegida.precio
+      : envioConZona && cotizacion
+        ? cotizacion.costo
+        : 0
   const totales = totalesDe({
     subtotal,
     descuento: Math.min(descuentoEstimado, subtotal),
     costo_envio: costoEnvioEstimado,
   })
-  const zonaEstimada = envioConZona ? cotizacion?.zonaNombre ?? null : null
+  // Nombre del envío en el resumen: el servicio del transportista o la zona.
+  const zonaEstimada = opcionElegida
+    ? etiquetaServicio(opcionElegida.transportista, opcionElegida.servicio)
+    : envioConZona
+      ? cotizacion?.zonaNombre ?? null
+      : null
   const textoEnvioResumen = !esEnvio
     ? 'Sin costo'
-    : cotizando
+    : cotizando || recotizando
       ? 'Calculando…'
-      : envioConZona && envioGratisCupon
-        ? 'Gratis'
-        : textoCotizacion(cotizacion ?? ENVIO_A_COORDINAR)
-  const envioACoordinar = esEnvio && !cotizando && !envioConZona
-  const hayEstimacion = totales.descuento > 0 || envioConZona
+      : opcionElegida
+        ? envioGratisCupon
+          ? 'Gratis'
+          : textoPrecioOpcion(opcionElegida.precio)
+        : envioConZona && envioGratisCupon
+          ? 'Gratis'
+          : envioConZona
+            ? textoCotizacion(cotizacion ?? ENVIO_A_COORDINAR)
+            : 'A coordinar'
+  const envioACoordinar = esEnvio && !cotizando && !envioConZona && !envioTransportista
+  const hayEstimacion = totales.descuento > 0 || envioConZona || envioTransportista
 
   // Texto bajo los campos de dirección: cómo va la cotización del envío.
   let textoCotizando: string
@@ -200,6 +288,38 @@ export default function CheckoutPage() {
     textoCotizando =
       cotizacion?.mensaje ??
       'No tenemos una tarifa fija para ese destino: el costo del envío se coordina al confirmar el pedido.'
+  }
+  const consultandoTransportistas = esEnvio && !cotizando && transportistas.estado === 'cotizando'
+
+  // La cotización venció (en el servidor o por tiempo): se pide una nueva, se
+  // mantiene la misma opción si sigue disponible y se le pide a la clienta que
+  // revise el precio y vuelva a confirmar.
+  async function recotizarVencida(anterior: OpcionEnvio) {
+    setRecotizando(true)
+    const nuevas = await transportistas.recotizar()
+    setRecotizando(false)
+    const etiqueta = etiquetaServicio(anterior.transportista, anterior.servicio)
+    if (!nuevas) {
+      setError(`${MENSAJE_COTIZACION_VENCIDA}. No pudimos traer precios nuevos: probá de nuevo en un momento.`)
+      return
+    }
+    const eq = opcionEquivalente(nuevas, anterior)
+    if (!eq) {
+      setAviso(
+        `La cotización del envío venció y ${etiqueta} ya no está disponible para este destino. ` +
+          'Elegí otra forma de envío y confirmá el pedido.',
+      )
+      return
+    }
+    setSeleccionEnvio({ tipo: 'transportista', cotizacionId: eq.cotizacionId })
+    const cambio =
+      eq.precio === anterior.precio
+        ? `sigue costando ${textoPrecioOpcion(eq.precio)}`
+        : `ahora cuesta ${textoPrecioOpcion(eq.precio)} (antes ${textoPrecioOpcion(anterior.precio)})`
+    setAviso(
+      `La cotización del envío venció y la actualizamos: ${etiqueta} ${cambio}. ` +
+        'Revisá el total y confirmá el pedido.',
+    )
   }
 
   // Prefill de nombre/teléfono con los datos de la cuenta (si están cargados).
@@ -267,6 +387,17 @@ export default function CheckoutPage() {
       }
 
       const envio = entrega === 'envio'
+      // Cotización de transportista vencida por tiempo: se renueva antes de
+      // mandar el pedido (la base la rechazaría igual).
+      if (envio && opcionElegida && necesitaRecotizar(transportistas.vigente, transportistas.clave, Date.now())) {
+        await recotizarVencida(opcionElegida)
+        return
+      }
+      const etiquetaEnvioElegido = opcionElegida
+        ? [etiquetaServicio(opcionElegida.transportista, opcionElegida.servicio), opcionElegida.sucursal?.nombre]
+            .filter(Boolean)
+            .join(' · ')
+        : null
       const datos: DatosPedido = {
         nombre,
         entrega,
@@ -284,6 +415,7 @@ export default function CheckoutPage() {
         items: corregidos,
         idempotencyKey: claveIdempotencia(),
         cupon: codigoCupon || null,
+        cotizacionEnvio: envio && opcionElegida ? opcionElegida.cotizacionId : null,
       })
       claveRef.current = null
 
@@ -298,16 +430,20 @@ export default function CheckoutPage() {
             descuento: Math.min(descuentoEstimado, subtotalFinal),
             costo_envio: costoEnvioEstimado,
           })
-      // Cupón y zona: los de la base si ya tiene esas columnas.
+      // Cupón y zona / transportista: los de la base si ya tiene esas columnas.
       const delServidor = creado ? detalleDe(creado) : null
+      const baseTieneEnvio =
+        creado !== null && (creado.zona_nombre !== undefined || creado.transportista !== undefined)
       const detalle: DetallePedido = {
         cupon: creado && creado.cupon_codigo !== undefined ? delServidor?.cupon : codigoCupon || null,
-        zona: !envio
-          ? null
-          : creado && creado.zona_nombre !== undefined
-            ? delServidor?.zona
-            : zonaEstimada,
+        zona: !envio ? null : baseTieneEnvio ? delServidor?.zona : zonaEstimada,
       }
+      // En el mensaje de WhatsApp va también la sucursal.
+      const envioMensaje = !envio
+        ? null
+        : creado && creado.transportista !== undefined
+          ? (etiquetaEnvioPedido(creado, true) ?? detalle.zona)
+          : (etiquetaEnvioElegido ?? detalle.zona)
 
       // TODO (fase MercadoPago): si metodoPago === 'mercadopago', acá se llama a
       // la Edge Function que crea la preferencia y se redirige al checkout de MP.
@@ -315,11 +451,15 @@ export default function CheckoutPage() {
         numero,
         items: corregidos,
         totales: totalesFinales,
-        datos: { ...datos, cupon: detalle.cupon ?? undefined, zona: detalle.zona ?? undefined },
+        datos: { ...datos, cupon: detalle.cupon ?? undefined, zona: envioMensaje ?? undefined },
         detalle,
       })
       vaciar()
     } catch (err) {
+      if (err instanceof ErrorCotizacionVencida && opcionElegida) {
+        await recotizarVencida(opcionElegida)
+        return
+      }
       // crear_pedido devuelve mensajes ya redactados para la clienta (falta de
       // stock, carrito vacío, cupón vencido…), así que los mostramos tal cual.
       setError(
@@ -421,12 +561,38 @@ export default function CheckoutPage() {
                           ))}
                         </select>
                       </div>
-                      <p
-                        className={envioConZona ? 'cart-note envio-cotizacion envio-cotizacion--ok' : 'cart-note envio-cotizacion'}
-                        aria-live="polite"
-                      >
-                        {textoCotizando}
-                      </p>
+                      {hayTransportistas ? (
+                        <>
+                          <OpcionesEnvio
+                            opciones={transportistas.opciones}
+                            zona={
+                              zonaDisponible && cotizacion
+                                ? { nombre: cotizacion.zonaNombre, texto: textoCotizacion(cotizacion) }
+                                : null
+                            }
+                            seleccion={seleccionEnvio}
+                            onSeleccion={elegirEnvio}
+                            deshabilitado={enviando || recotizando}
+                          />
+                          <p className="cart-note envio-cotizacion" aria-live="polite">
+                            {recotizando
+                              ? 'Actualizando los precios del envío…'
+                              : envioGratisCupon
+                                ? 'Tu cupón cubre el costo del envío.'
+                                : 'Los precios de Andreani y Correo Argentino se mantienen por 30 minutos.'}
+                          </p>
+                        </>
+                      ) : (
+                        <p
+                          className={envioConZona ? 'cart-note envio-cotizacion envio-cotizacion--ok' : 'cart-note envio-cotizacion'}
+                          aria-live="polite"
+                        >
+                          {textoCotizando}
+                          {consultandoTransportistas && (
+                            <span className="envio-consultando"> Consultando Andreani y Correo Argentino…</span>
+                          )}
+                        </p>
+                      )}
                     </div>
                   )}
                 </section>
@@ -460,11 +626,23 @@ export default function CheckoutPage() {
                   <textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Aclaraciones, horarios, etc." />
                 </div>
 
-                {aviso && <p className="checkout-aviso">{aviso}</p>}
-                {error && <p className="form-error">{error}</p>}
+                {aviso && (
+                  <p className="checkout-aviso" role="status">
+                    {aviso}
+                  </p>
+                )}
+                {error && (
+                  <p className="form-error" role="alert">
+                    {error}
+                  </p>
+                )}
 
-                <button type="submit" className="btn btn-primary" disabled={enviando || validandoCupon}>
-                  {enviando ? 'Registrando…' : 'Confirmar pedido'}
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={enviando || validandoCupon || recotizando}
+                >
+                  {recotizando ? 'Actualizando envío…' : enviando ? 'Registrando…' : 'Confirmar pedido'}
                 </button>
                 <Link className="pp-back" to="/carrito">
                   ← Volver al carrito

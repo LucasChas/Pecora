@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
 import { money } from '../../lib/format'
 import { detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
+import { etiquetaEnvioPedido, sucursalDePedido } from '../../lib/transportistas'
 import OrderPrintView, { type TipoImpresion } from './OrderPrintView'
 
 interface Props {
@@ -76,6 +77,9 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
   const totales = totalesDe(pedido)
   const detalle = detalleDe(pedido)
   const esEnvio = pedido.entrega === 'envio'
+  // Transportista y sucursal (si el envío se cotizó con Andreani / Correo).
+  const envioTransportista = etiquetaEnvioPedido(pedido)
+  const sucursal = envioTransportista ? sucursalDePedido(pedido) : null
   const mails = mailsPendientes(pedido, ahora ?? Date.now())
 
   const [reenvio, setReenvio] = useState<EstadoReenvio>('listo')
@@ -271,6 +275,12 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
           <>
             📦 Envío a: {pedido.direccion}, {pedido.localidad} (CP {pedido.cp})
             {pedido.provincia ? `, ${pedido.provincia}` : ''}
+            {envioTransportista && (
+              <div className="order-transportista">
+                <strong>🚚 {envioTransportista}</strong>
+                {sucursal && <span>Sucursal: {sucursal}</span>}
+              </div>
+            )}
           </>
         ) : (
           <>🛍️ Retiro / a coordinar</>

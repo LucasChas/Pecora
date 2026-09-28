@@ -5,6 +5,7 @@ import type { Pedido } from '../../types'
 import { money } from '../../lib/format'
 import { catalogoHost, whatsappVisible } from '../../lib/config'
 import { detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
+import { etiquetaEnvioPedido, sucursalDePedido } from '../../lib/transportistas'
 import '../../styles/order-print.css'
 
 export type TipoImpresion = 'nota' | 'etiqueta'
@@ -208,6 +209,8 @@ function NotaEntrega({ pedido }: { pedido: Pedido }) {
   const t = totalesDe(pedido)
   const detalle = detalleDe(pedido)
   const esEnvio = pedido.entrega === 'envio'
+  const transportista = etiquetaEnvioPedido(pedido)
+  const sucursal = sucursalDePedido(pedido)
 
   return (
     <article className="op-hoja op-nota">
@@ -239,6 +242,8 @@ function NotaEntrega({ pedido }: { pedido: Pedido }) {
             <>
               {pedido.direccion && <p>{pedido.direccion}</p>}
               {lineaLocalidad(pedido) && <p>{lineaLocalidad(pedido)}</p>}
+              {transportista && <p>Envío: {transportista}</p>}
+              {transportista && sucursal && <p>Sucursal: {sucursal}</p>}
             </>
           ) : (
             <p>Retiro / a coordinar</p>
@@ -328,6 +333,8 @@ function EtiquetaEnvio({ pedido }: { pedido: Pedido }) {
   const localidad = [pedido.localidad, pedido.cp ? `CP ${pedido.cp}` : null]
     .filter(Boolean)
     .join(' · ')
+  const transportista = etiquetaEnvioPedido(pedido)
+  const sucursal = transportista ? sucursalDePedido(pedido) : null
 
   return (
     <article className="op-hoja op-etiqueta-hoja">
@@ -345,6 +352,14 @@ function EtiquetaEnvio({ pedido }: { pedido: Pedido }) {
           {pedido.provincia && <p className="op-etq-dir">{pedido.provincia}</p>}
           <p className="op-etq-tel">Tel. {pedido.telefono}</p>
         </div>
+
+        {transportista && (
+          <div className="op-etq-transporte">
+            <span className="op-etq-rotulo">Envío</span>
+            <p className="op-etq-transporte-nombre">{transportista}</p>
+            {sucursal && <p>Sucursal: {sucursal}</p>}
+          </div>
+        )}
 
         <div className="op-etq-remitente">
           <span className="op-etq-rotulo">Remitente</span>

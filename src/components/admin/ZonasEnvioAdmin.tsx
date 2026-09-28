@@ -15,6 +15,7 @@ import {
   validarDatosZona,
   type DatosZona,
 } from '../../lib/envios'
+import TransportistasEstado from './TransportistasEstado'
 
 interface Formulario {
   nombre: string
@@ -180,6 +181,8 @@ export default function ZonasEnvioAdmin() {
 
   return (
     <>
+      <TransportistasEstado />
+
       <div className="ajustes-subhead">
         <p>
           Costo del envío a domicilio según provincia o código postal. Un prefijo de CP que
