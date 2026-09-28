@@ -165,6 +165,7 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `20260928144835_estadisticas_mas_vendidos.sql` | `estadisticas(p_desde, p_hasta)`: jsonb con ventas por mes (zona `America/Argentina/Cordoba`), solo admin. `mas_vendidos(p_limite, p_dias)`: público, para "Lo más vendido". Tests: `supabase/tests/estadisticas.test.sql`. |
 | `20260928144838_importar_productos.sql` | `productos.sku` y `importar_productos(p_filas jsonb, p_simular default true)`: solo staff, hasta 500 filas, todo o nada, errores con número de fila (desde 1); `p_simular = true` es la vista previa. Tests: `supabase/tests/importar_productos.test.sql`. |
 | `20260928155636_resenas.sql` | Reseñas con estrellas de compradoras verificadas: tabla `resenas` (una por producto y cuenta, `estrellas` 1–5, `comentario` ≤ 1000 recortado, `oculta`). Compra verificada = pedido propio del checkout, no cancelado ni en la papelera, que incluye el producto (`compra_verificada`, misma regla que `ventas_validas`; las cargas manuales no cuentan). Escritura solo por RPC: `guardar_resena` / `borrar_resena` (propia; 42501 sin login o sin compra), `ocultar_resena` y `resenas_moderacion` solo admin. Lectura pública: `resenas_de_producto` (solo el primer nombre, nunca email), `resumen_resenas`; `puede_resenar` y `mi_resena` para la clienta. RLS: visibles para todos, ocultas para el staff; `user_id` no se otorga a `anon`/`authenticated`. Tests: `supabase/tests/resenas.test.sql`. |
+| `20260928191953_gastos_rentabilidad.sql` | Gastos y rentabilidad (solo admin). Tabla `gastos` (`fecha` por defecto hoy en hora de Argentina, `concepto` recortado de 1 a 200, `categoria` `materiales`/`packaging`/`envios`/`otros`, `monto` > 0, `producto_id` opcional con `on delete set null`, `cantidad` opcional > 0 = unidades que cubre la compra, `notas`, `created_by` fijado por trigger con `auth.uid()`); RLS de select/insert/update/delete con `es_admin()`, sin permisos para `anon`. `rentabilidad(p_desde, p_hasta)`: jsonb solo admin (42501) con `por_mes` (ingresos = `pedidos.total` de ventas válidas, igual que `estadisticas()`; gastos por `fecha`; beneficio y margen; zona `America/Argentina/Cordoba`), `totales`, `productos` (unidades y ventas brutas de `ventas_validas`, costo unitario estimado = sum(monto)/sum(cantidad) de las compras del producto con cantidad hasta `p_hasta`, costo, beneficio y margen estimados, `gastos_periodo`), `gastos_por_categoria` y `gastos_generales` (sin producto). Tests: `supabase/tests/gastos_rentabilidad.test.sql`. |
 
 ### Cómo se aplican
 
@@ -407,3 +408,19 @@ pnpm dev          # http://localhost:5173
 ```
 - Catálogo: `/` · Panel: `/admin`
 - Requiere `.env` con las variables de la sección 3 y las migraciones 0001→0005 corridas en Supabase.
+
+### Desarrollo contra Supabase local (con datos de prueba)
+
+1. **Apuntar el dev server al stack local.** Crear `.env.development.local` en la raíz (está en `.gitignore`) con:
+   ```
+   VITE_SUPABASE_URL=http://127.0.0.1:55321
+   VITE_SUPABASE_ANON_KEY=<ANON_KEY de `supabase status -o env`>
+   ```
+   Vite lo aplica solo en `pnpm dev` y pisa esas dos variables de `.env`; el resto (WhatsApp, etc.) sigue saliendo de `.env`. Si el dev server ya estaba corriendo y no lo toma, reiniciarlo. Borrar el archivo vuelve a apuntar a producción.
+2. **Cargar los datos de prueba.** Con las variables de puertos del stack local exportadas (`SUPABASE_API_PORT=55321 SUPABASE_DB_PORT=55322 SUPABASE_DB_SHADOW_PORT=55320 SUPABASE_STUDIO_PORT=55323 SUPABASE_INBUCKET_PORT=55324 SUPABASE_ANALYTICS_PORT=55327 SUPABASE_DB_POOLER_PORT=55329`):
+   ```bash
+   supabase db reset --local          # base vacía con todas las migraciones
+   docker exec -i supabase_db_pecora psql -U postgres -v ON_ERROR_STOP=1 < supabase/seed-local.sql
+   ```
+   El seed crea categorías, productos, pedidos de los últimos ~4 meses, zonas de envío, cupones, reseñas y un aviso de stock. Se puede volver a correr sin resetear. No es `supabase/seed.sql` a propósito, para que el `db reset` de CI no lo cargue.
+3. **Cuentas de prueba.** Las cuatro cuentas (admin, empleada y dos clientas) y su contraseña están en el comentario al principio de `supabase/seed-local.sql`. Solo existen en la base local.
