@@ -1,4 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/producto/:param",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|meta-externalagent|WhatsApp|Twitterbot|TelegramBot|Slackbot|Discordbot|LinkedInBot|Pinterestbot|SkypeUriPreview|redditbot|Applebot|Googlebot|Google-InspectionTool|bingbot|DuckDuckBot|YandexBot|Embedly|Iframely|vkShare|Mastodon|Bluesky).*"
+        }
+      ],
+      "destination": "/api/producto-og?param=:param"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
