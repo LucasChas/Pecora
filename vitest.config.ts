@@ -8,5 +8,12 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts', 'supabase/functions/**/*.test.ts', 'api/**/*.test.ts'],
+    // Valores ficticios: algunos módulos testeados importan supabaseClient, que
+    // falla al cargar si faltan estas variables (en CI no hay .env). Los tests
+    // nunca llaman a Supabase de verdad, así que tampoco usan el .env local.
+    env: {
+      VITE_SUPABASE_URL: 'http://127.0.0.1:1',
+      VITE_SUPABASE_ANON_KEY: 'clave-de-prueba',
+    },
   },
 })
