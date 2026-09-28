@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import type { Perfil } from '../types'
@@ -22,31 +22,84 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+// Espera antes del único reintento cuando la lectura del perfil falla.
+const ESPERA_REINTENTO_PERFIL_MS = 1500
+
+type LecturaPerfil = { ok: true; fila: Perfil | null } | { ok: false; error: unknown }
+
+// Lee la fila de profiles. Distingue "no hay fila" (ok con fila null) de un
+// fallo del backend o de la red (ok: false), que NO dice nada sobre el rol.
+async function leerPerfil(id: string): Promise<LecturaPerfil> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    if (error) return { ok: false, error }
+    return { ok: true, fila: data as Perfil | null }
+  } catch (e) {
+    return { ok: false, error: e }
+  }
+}
+
+const esperar = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
 // Provee la sesión y el perfil (con rol) a toda la app. Lo usan tanto el
 // muestrario (clientas) como el panel (admin) para saber quién está logueado.
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [loading, setLoading] = useState(true)
+  // Cuenta cuyo perfil se pidió por última vez (null = sin sesión).
+  const usuarioDelPerfilRef = useRef<string | null>(null)
 
   // Trae el perfil (rol, nombre) del usuario logueado.
   //
   // Las cuentas creadas antes del trigger handle_new_user no tienen fila en
   // profiles (o la tienen sin nombre/teléfono). Para que la app no se quede sin
   // datos, completamos con el metadata que guardó Supabase Auth al registrarse.
+  //
+  // Solo "sin fila" significa rol 'cliente'. Si la lectura FALLA (backend o
+  // red), se reintenta una vez y, si vuelve a fallar, se conserva el perfil que
+  // ya estaba cargado para esa cuenta: un corte momentáneo (ej. al refrescarse
+  // el token) no le quita el panel a una admin.
   const cargarPerfil = useCallback(async (usuario: User | undefined) => {
     if (!usuario) {
+      usuarioDelPerfilRef.current = null
       setPerfil(null)
       return
     }
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', usuario.id)
-      .maybeSingle()
+    usuarioDelPerfilRef.current = usuario.id
+    // El perfil de OTRA cuenta no queda a la vista mientras se lee el nuevo.
+    setPerfil((previo) => (previo && previo.id !== usuario.id ? null : previo))
+    // Si mientras tanto se cerró la sesión o entró otra cuenta, esta lectura
+    // ya no corresponde y no toca el estado.
+    const sigueVigente = () => usuarioDelPerfilRef.current === usuario.id
+
+    let lectura = await leerPerfil(usuario.id)
+    if (!lectura.ok && sigueVigente()) {
+      console.error(
+        `No se pudo leer el perfil; se reintenta en ${ESPERA_REINTENTO_PERFIL_MS} ms.`,
+        lectura.error,
+      )
+      await esperar(ESPERA_REINTENTO_PERFIL_MS)
+      if (sigueVigente()) lectura = await leerPerfil(usuario.id)
+    }
+    if (!sigueVigente()) return
+
+    if (!lectura.ok) {
+      // Sin datos confiables del rol: queda el perfil anterior de esta cuenta
+      // (o ninguno, sin permisos de admin, si todavía no se había cargado).
+      console.error(
+        'No se pudo leer el perfil tras reintentar; se conserva el que estaba cargado.',
+        lectura.error,
+      )
+      return
+    }
 
     const meta = usuario.user_metadata ?? {}
-    const fila = data as Perfil | null
+    const fila = lectura.fila
     setPerfil({
       id: usuario.id,
       nombre: fila?.nombre || (meta.nombre as string) || null,
@@ -57,15 +110,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session)
-      await cargarPerfil(data.session?.user)
-      setLoading(false)
-    })
+    // Sesión inicial. `loading` se apaga SIEMPRE (finally): si getSession o el
+    // perfil fallan, la app sigue como "sin sesión" en vez de quedar trabada
+    // (Checkout y el panel no renderizan nada mientras loading es true).
+    const iniciar = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        if (error) console.error('No se pudo recuperar la sesión:', error.message)
+        setSession(data.session)
+        await cargarPerfil(data.session?.user)
+      } catch (e) {
+        console.error('No se pudo recuperar la sesión:', e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    iniciar()
 
     const { data: sub } = supabase.auth.onAuthStateChange((_e, nueva) => {
       setSession(nueva)
-      cargarPerfil(nueva?.user)
+      cargarPerfil(nueva?.user).catch((e) => console.error('No se pudo cargar el perfil:', e))
     })
     return () => sub.subscription.unsubscribe()
   }, [cargarPerfil])

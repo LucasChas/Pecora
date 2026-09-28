@@ -9,7 +9,9 @@ export function PrivacyPage() {
   return (
     <div className="catalog-root">
       <header className="cart-header">
-        <Logo />
+        <Link to="/">
+          <Logo />
+        </Link>
         <HeaderActions />
       </header>
       <Scallop />

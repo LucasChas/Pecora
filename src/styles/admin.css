@@ -385,6 +385,23 @@
   font-size: 0.8rem;
   color: var(--ink-soft);
 }
+/* Acción del encabezado (ej. "Exportar catálogo"): misma píldora que las pestañas. */
+.list-head .head-action {
+  flex-shrink: 0;
+  margin-left: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 8px 14px;
+  border-radius: 100px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.list-head .head-action:active {
+  background: var(--sage-pale);
+}
 
 /* ---------- Lista de productos (cards, no tabla) ---------- */
 .list {
@@ -1094,3 +1111,486 @@
 
 /* El zoom de imagen ahora es compartido — ver src/components/common/ImageZoom.tsx
    y src/styles/image-zoom.css (el componente importa su propio CSS). */
+
+/* ============================================================
+   Adaptación a tablet / desktop.
+   El layout de teléfono (< 768px) queda tal cual: todo lo de abajo vive
+   dentro de media queries min-width. Cada selector va prefijado con
+   .admin-root porque esta hoja se carga en toda la app y las páginas
+   públicas comparten nombres de clase (.field, .row2, .btn, .empty).
+   ============================================================ */
+
+/* Texto del botón flotante: oculto por defecto, sólo se ve en pantallas
+   anchas (botón extendido "+ Nuevo …"). */
+.admin-root .fab-label {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .admin-root {
+    --admin-max: 1200px;
+    --admin-gutter: 24px;
+  }
+  .admin-root .phone {
+    max-width: var(--admin-max);
+  }
+
+  /* Barra superior: el fondo se extiende a todo el ancho de la ventana
+     aunque el contenido quede limitado a --admin-max. */
+  .admin-root .topbar {
+    padding: 14px var(--admin-gutter);
+    box-shadow: 0 0 0 100vmax var(--ink);
+    clip-path: inset(0 -100vmax);
+  }
+  .admin-root .topbar .lockup {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+  }
+  .admin-root .topbar .logo-img {
+    height: 30px;
+  }
+  .admin-root .topbar .titles {
+    padding-left: 14px;
+    border-left: 1px solid rgba(248, 241, 225, 0.25);
+  }
+  .admin-root .topbar .titles .s {
+    font-size: 0.7rem;
+  }
+  .admin-root .topbar .avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 0.85rem;
+  }
+
+  /* Pestañas, estadísticas y encabezado de la lista */
+  .admin-root .admin-tabs {
+    padding: 20px var(--admin-gutter) 4px;
+  }
+  .admin-root .admin-tabs button {
+    flex: 0 0 auto;
+    min-width: 150px;
+    padding: 10px 22px;
+  }
+  .admin-root .stats {
+    grid-template-columns: repeat(3, minmax(0, 200px));
+    padding: 16px var(--admin-gutter) 4px;
+  }
+  .admin-root .list-head {
+    padding: 22px var(--admin-gutter) 10px;
+  }
+  .admin-root .list-head h1 {
+    font-size: 1.5rem;
+  }
+  .admin-root .list-head p {
+    font-size: 0.85rem;
+  }
+  .admin-root .orders-tools {
+    padding: 0 var(--admin-gutter) 14px;
+  }
+  .admin-root .orders-search {
+    max-width: 420px;
+  }
+
+  /* Listas en grilla: productos y pedidos pasan de una columna a varias. */
+  .admin-root .list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+    padding: 8px var(--admin-gutter) 120px;
+  }
+  .admin-root .list--pedidos {
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 16px;
+  }
+  .admin-root .list > .empty,
+  .admin-root .list > .orders-mas {
+    grid-column: 1 / -1;
+  }
+  .admin-root .list > .orders-mas {
+    justify-self: center;
+    min-width: 280px;
+    padding: 12px 28px;
+  }
+  .admin-root .prod-card img {
+    width: 72px;
+    height: 72px;
+  }
+  /* Las cards de una misma fila tienen igual alto: las acciones bajan al pie. */
+  .admin-root .prod-main {
+    display: flex;
+    flex-direction: column;
+  }
+  .admin-root .prod-actions {
+    margin-top: auto;
+    padding-top: 10px;
+  }
+  .admin-root .link-btn {
+    padding: 4px 6px;
+    margin: -4px -6px;
+    border-radius: 6px;
+  }
+  .admin-root .order-pie {
+    margin-top: auto;
+  }
+
+  /* Botón flotante alineado al margen derecho del contenido. En un elemento
+     fixed, el 100% de "right" es el ancho de la ventana sin la barra de scroll. */
+  .admin-root .fab {
+    left: auto;
+    right: max(var(--admin-gutter), calc((100% - var(--admin-max)) / 2 + var(--admin-gutter)));
+    bottom: 32px;
+    margin-left: 0;
+    transform: none;
+  }
+
+  /* Hojas como modal centrado. Se centra con flex (no con transform) porque
+     ImageZoom (position: fixed) se renderiza dentro de .sheet y un transform
+     lo encerraría en la hoja. */
+  .admin-root .overlay.open {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+  }
+  /* Hoja abierta encima de otra (ej. categorías sobre producto): fondo más
+     liviano para no oscurecer de más. */
+  .admin-root .overlay.open ~ .overlay.open {
+    background: rgba(51, 48, 42, 0.25);
+  }
+  .admin-root .sheet {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    width: 100%;
+    max-width: 560px;
+    max-height: calc(100vh - 64px);
+    max-height: calc(100dvh - 64px);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px 0;
+    box-shadow: 0 20px 50px rgba(51, 48, 42, 0.3);
+    overscroll-behavior: contain;
+  }
+  .admin-root .sheet--producto {
+    max-width: 760px;
+  }
+  .admin-root .sheet--categorias {
+    max-width: 460px;
+  }
+  .admin-root .sheet .handle {
+    display: none;
+  }
+  .admin-root .sheet h2 {
+    font-size: 1.35rem;
+    margin-bottom: 18px;
+  }
+
+  /* Formulario de producto en dos columnas con flex-wrap (no grid, para que
+     .sheet-actions pueda seguir siendo sticky). */
+  .admin-root .sheet--producto form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    column-gap: 16px;
+  }
+  .admin-root .sheet--producto form > * {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .admin-root .sheet--producto form > .field:has(> input),
+  .admin-root .sheet--producto form > .field:has(> select) {
+    flex-basis: calc(50% - 8px);
+  }
+
+  /* Acciones fijas al pie de la hoja, en fila y alineadas a la derecha. */
+  .admin-root .sheet .sheet-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin: 8px -28px 0;
+    padding: 14px 28px 20px;
+    background: var(--cream);
+    border-top: 1px solid var(--line);
+  }
+  .admin-root .sheet .sheet-actions .btn {
+    width: auto;
+    min-width: 140px;
+  }
+  .admin-root .sheet .sheet-actions .btn-ghost {
+    order: 1;
+  }
+  .admin-root .sheet .sheet-actions .btn-primary {
+    order: 2;
+  }
+  .admin-root .sheet .sheet-actions .btn-danger-text {
+    order: 0;
+    margin-right: auto;
+  }
+
+  /* Selector de imágenes: el input de archivo queda enfocable con teclado
+     (display: none lo sacaba del orden de tabulación). */
+  .admin-root .img-add {
+    position: relative;
+  }
+  .admin-root .img-add input[type='file'] {
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .admin-root .img-remove {
+    width: 26px;
+    height: 26px;
+  }
+  .admin-root .cat-manage-item .btn-del-cat {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 8px;
+  }
+
+  /* Foco visible para navegación con teclado. La regla con :has() va aparte
+     para que un navegador sin soporte no descarte también la otra. */
+  .admin-root :is(button, select, a, [role='button']):focus-visible {
+    outline: 2px solid var(--sage-deep);
+    outline-offset: 2px;
+  }
+  .admin-root .img-add:has(input:focus-visible) {
+    outline: 2px solid var(--sage-deep);
+    outline-offset: 2px;
+  }
+  .admin-root .topbar .avatar:focus-visible {
+    outline-color: var(--cream);
+  }
+  .admin-root :is(.admin-tabs button, .chip, .head-action, .btn, .fab, .prod-card, .order-card, .link-btn) {
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  /* Login: tarjeta centrada en vez de pantalla completa. */
+  .admin-root:has(> .login-root) {
+    padding: 24px;
+  }
+  .admin-root > .login-root {
+    min-height: 0;
+    max-width: 420px;
+    margin: auto;
+    padding: 36px 32px 30px;
+    background: var(--cream);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 50px rgba(51, 48, 42, 0.12);
+  }
+}
+
+@media (min-width: 1100px) {
+  .admin-root {
+    --admin-gutter: 32px;
+  }
+  /* Buscador y chips en una sola fila. */
+  .admin-root .orders-tools {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px 16px;
+  }
+  .admin-root .orders-search {
+    flex: 0 0 320px;
+    max-width: none;
+  }
+  .admin-root .orders-chips {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  /* Botón flotante extendido: ícono + texto. */
+  .admin-root .fab {
+    width: auto;
+    height: 48px;
+    padding: 0 20px 0 16px;
+    border-radius: 100px;
+    gap: 8px;
+    /* El "+" base (1.7rem) está pensado para el botón redondo de 56px. */
+    font-size: 1.3rem;
+  }
+  .admin-root .fab-label {
+    display: inline;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+}
+
+/* Estados hover sólo con mouse (en pantallas táctiles quedarían pegados). */
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .admin-root .admin-tabs button:not(.active):hover,
+  .admin-root .list-head .head-action:hover,
+  .admin-root .orders-chips .chip:not(.active):hover {
+    border-color: var(--sage);
+    background: var(--sage-pale);
+    color: var(--ink);
+  }
+  .admin-root .topbar .avatar:hover {
+    background: var(--sage);
+  }
+  .admin-root .fab:hover,
+  .admin-root .btn-primary:not(:disabled):hover,
+  .admin-root .new-cat-row button:hover,
+  .admin-root .cat-manage-add button:hover {
+    background: var(--sage-deep);
+  }
+  .admin-root .btn-ghost:hover {
+    background: var(--cream-deep);
+    color: var(--ink);
+  }
+  .admin-root .link-btn:hover,
+  .admin-root .qty-stepper button:not(:disabled):hover {
+    background: var(--sage-pale);
+  }
+  .admin-root .btn-danger-text:hover,
+  .admin-root .order-item-remove:hover,
+  .admin-root .order-wa:hover {
+    text-decoration: underline;
+  }
+  .admin-root .prod-card:hover,
+  .admin-root .order-card:hover {
+    box-shadow: 0 6px 18px rgba(51, 48, 42, 0.1);
+  }
+  .admin-root .order-estado:not(:disabled):hover,
+  .admin-root .mini-field input:hover,
+  .admin-root .orders-search:hover,
+  .admin-root .img-add:hover {
+    border-color: var(--sage);
+  }
+  .admin-root .cat-manage-item .btn-del-cat:not(:disabled):hover {
+    background: var(--danger-pale);
+  }
+}
+
+/* Entrada suave del modal, salvo que el sistema pida reducir el movimiento.
+   Solo opacidad: un transform, aunque sea animado, volvería a la hoja el
+   bloque contenedor del ImageZoom (position: fixed) mientras dura. */
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  .admin-root .overlay.open .sheet {
+    animation: admin-modal-in 0.18s ease-out;
+  }
+}
+@keyframes admin-modal-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- Aviso bajo el encabezado de Productos ---------- */
+/* Error al actualizar la lista (con "Reintentar"). */
+.admin-root .head-status {
+  margin: 0 16px 10px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.admin-root .head-status--error {
+  color: var(--danger);
+}
+@media (min-width: 768px) {
+  .admin-root .head-status {
+    margin: 0 var(--admin-gutter) 12px;
+  }
+}
+
+/* ---------- Pedidos: mails sin enviar (recibo / aviso a la dueña) ---------- */
+/* Dentro de la card: qué mail no salió + "Reenviar". */
+.admin-root .order-mails {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  background: var(--danger-pale);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.admin-root .order-mails-lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.admin-root .order-mails-lista li::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+  vertical-align: middle;
+}
+.admin-root .order-mails-btn {
+  flex-shrink: 0;
+  border: 1px solid var(--danger);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 100px;
+  padding: 6px 12px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.admin-root .order-mails-btn:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+/* Arriba de la lista de pedidos. En la grilla de escritorio ocupa todo el ancho. */
+.admin-root .orders-aviso-mails {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--danger-pale);
+  border: 1px solid rgba(201, 100, 90, 0.35);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.admin-root .orders-aviso-mails p {
+  flex: 1;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.admin-root .orders-aviso-cerrar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin: -4px -4px -4px 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 1.2rem;
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+}
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .admin-root .order-mails-btn:not(:disabled):hover {
+    background: var(--danger);
+    color: #fff;
+  }
+  .admin-root .orders-aviso-cerrar:hover {
+    background: rgba(201, 100, 90, 0.12);
+    color: var(--ink);
+  }
+}

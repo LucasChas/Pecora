@@ -37,7 +37,9 @@ export default function SearchBar({
           <path d="m20 20-3.5-3.5" />
         </svg>
         <input
-          type="text"
+          type="search"
+          enterKeyHint="search"
+          aria-label="Buscar productos"
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}

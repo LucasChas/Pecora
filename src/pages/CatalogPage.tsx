@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
@@ -15,8 +15,26 @@ import '../styles/cart.css'
 // La categoría y la búsqueda viven en la URL (?cat=...&q=...): así el filtro es
 // compartible, el botón "atrás" funciona y al volver de un producto se conserva.
 export default function CatalogPage() {
-  const { productos, loading } = useProducts()
+  const { productos, loading, error, refetch } = useProducts()
   const { categorias } = useCategories()
+
+  // Errores de carga (ver useProducts): sin datos se muestra un panel de error;
+  // con la lista en caché, se sigue mostrando y se avisa que puede estar vieja.
+  const [reintentando, setReintentando] = useState(false)
+  const [avisoCerrado, setAvisoCerrado] = useState(false)
+  // Tras una carga exitosa, un error posterior vuelve a mostrar el aviso.
+  useEffect(() => {
+    if (!error) setAvisoCerrado(false)
+  }, [error])
+
+  const reintentar = async () => {
+    setReintentando(true)
+    try {
+      await refetch()
+    } finally {
+      setReintentando(false)
+    }
+  }
 
   const [params, setParams] = useSearchParams()
   const busqueda = params.get('q') ?? ''
@@ -81,8 +99,60 @@ export default function CatalogPage() {
             <span className="loading-spinner" aria-hidden="true" />
             Cargando muestrario…
           </div>
+        ) : productos.length === 0 && error ? (
+          // Arranque en frío fallido: no hay nada que mostrar.
+          <div className="load-error" role="alert">
+            <p className="load-error-title">No pudimos cargar el muestrario</p>
+            <p className="load-error-text">
+              Puede ser un problema de conexión. Revisá tu internet y volvé a intentar.
+            </p>
+            <div className="load-error-actions">
+              <button
+                type="button"
+                className="load-error-btn"
+                onClick={reintentar}
+                disabled={reintentando}
+              >
+                {reintentando ? 'Reintentando…' : 'Reintentar'}
+              </button>
+            </div>
+          </div>
+        ) : productos.length === 0 ? (
+          // Carga correcta pero sin productos (distinto de "tu búsqueda no dio resultados").
+          <div className="no-results">Todavía no hay productos en el muestrario.</div>
         ) : (
-          <ProductGrid productos={visibles} />
+          <>
+            {/* Falló un refresco pero hay lista en caché: se sigue mostrando. */}
+            {error && !avisoCerrado && (
+              <div className="load-notice" role="status">
+                <p className="load-notice-text">
+                  No pudimos actualizar el muestrario. Los precios y el stock podrían no
+                  estar al día.
+                </p>
+                <div className="load-notice-actions">
+                  <button
+                    type="button"
+                    className="load-notice-retry"
+                    onClick={reintentar}
+                    disabled={reintentando}
+                  >
+                    {reintentando ? 'Reintentando…' : 'Reintentar'}
+                  </button>
+                  <button
+                    type="button"
+                    className="load-notice-close"
+                    aria-label="Cerrar aviso"
+                    onClick={() => setAvisoCerrado(true)}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+            <ProductGrid productos={visibles} />
+          </>
         )}
       </main>
     </div>

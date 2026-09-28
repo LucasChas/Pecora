@@ -4,6 +4,7 @@ import { money } from '../../lib/format'
 import { waLink, instagramHabilitado, instagramDmLink } from '../../lib/config'
 import { portadaDe } from '../../lib/images'
 import { avisoStockBajo } from '../../lib/stock'
+import Miniatura from '../common/Miniatura'
 
 // Card de producto del catálogo. Si stock = 0: card grisada, badge "Sin stock"
 // y el botón cambia de texto (mismo link de WhatsApp, mensaje distinto).
@@ -15,13 +16,18 @@ export default function ProductCard({ producto }: { producto: ProductoConCategor
 
   return (
     <div className={disponible ? 'card' : 'card unavailable'}>
+      {/* desdeCatalogo: el "Volver al muestrario" de la ficha usa el historial
+          (conserva filtros y scroll) en vez de navegar a "/" de cero. */}
       <Link
         to={`/producto/${producto.slug ?? producto.id}`}
+        state={{ desdeCatalogo: true }}
         className="card-open"
         aria-label={`Ver ${producto.nombre}`}
       >
         <div className="card-img">
-          <img src={portadaDe(producto)} alt={producto.nombre} />
+          {/* Miniatura liviana (cae al original si falta), carga diferida.
+              width/height = caja cuadrada del CSS (.card-img): sin saltos. */}
+          <Miniatura src={portadaDe(producto)} alt={producto.nombre} width={480} height={480} />
           {!disponible && <span className="badge">Sin stock</span>}
           {cantidadFotos > 1 && <span className="photo-count">{cantidadFotos} fotos</span>}
         </div>

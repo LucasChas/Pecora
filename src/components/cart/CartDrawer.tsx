@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../../context/CartContext'
 import { money } from '../../lib/format'
+import Miniatura from '../common/Miniatura'
 
 // Carrito lateral (drawer) que se desliza desde la derecha. Es la vista rápida
 // del carrito: se abre al agregar un producto o al tocar el ícono del header.
@@ -64,7 +65,7 @@ export default function CartDrawer() {
             <div className="drawer-items">
               {items.map((i) => (
                 <div className="drawer-item" key={i.id}>
-                  <img src={i.imagen} alt={i.nombre} />
+                  <Miniatura src={i.imagen} alt={i.nombre} width={68} height={68} />
                   <div className="drawer-item-main">
                     <p className="drawer-item-name">{i.nombre}</p>
                     <p className="drawer-item-price">{money(i.precio)}</p>

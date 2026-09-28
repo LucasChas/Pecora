@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
 import { waConsultaCancelacionLink } from '../lib/config'
+import { lineasDesglose, montoLinea, totalesDe } from '../lib/orders'
 import { IMG_PLACEHOLDER, portadaDe } from '../lib/images'
 import ImageZoom from '../components/common/ImageZoom'
 import type { EstadoPedido, Pedido } from '../types'
@@ -120,6 +121,8 @@ export default function MyOrdersPage() {
             {pedidos.map((p) => {
               const estado = estadoVisible(p)
               const est = ESTADO_CLIENTE[estado]
+              const totales = totalesDe(p)
+              const desglose = lineasDesglose(totales)
               return (
                 <div className={`mp-card ${est.clase}`} key={p.id}>
                   <div className="mp-top">
@@ -151,9 +154,20 @@ export default function MyOrdersPage() {
                         </div>
                       )
                     })}
+                    {/* Subtotal / descuento / envío solo si algo modifica el total. */}
+                    {desglose.length > 0 && (
+                      <div className="mp-desglose">
+                        {desglose.map((l) => (
+                          <div className="mp-desglose-linea" key={l.concepto}>
+                            <span>{l.concepto}</span>
+                            <span>{montoLinea(l.importe)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div className="mp-item total">
                       <span>Total</span>
-                      <strong>{money(p.subtotal)}</strong>
+                      <strong>{money(totales.total)}</strong>
                     </div>
                   </div>
                   <div className="mp-entrega">
@@ -188,7 +202,7 @@ export default function MyOrdersPage() {
                       </svg>
                     )}
                     {p.entrega === 'envio'
-                      ? `Envío a ${p.direccion}, ${p.localidad} (CP ${p.cp})`
+                      ? `Envío a ${p.direccion}, ${p.localidad} (CP ${p.cp})${p.provincia ? `, ${p.provincia}` : ''}`
                       : 'Retiro / a coordinar'}
                   </div>
 
@@ -197,7 +211,7 @@ export default function MyOrdersPage() {
                   {estado === 'cancelado' && (
                     <a
                       className="mp-consultar"
-                      href={waConsultaCancelacionLink(p.numero)}
+                      href={waConsultaCancelacionLink(p.numero, totales.total)}
                       target="_blank"
                       rel="noopener noreferrer"
                     >

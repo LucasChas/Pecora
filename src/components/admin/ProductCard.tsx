@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import type { ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
+import { portadaDe } from '../../lib/images'
+import Miniatura from '../common/Miniatura'
 
 interface Props {
   producto: ProductoConCategoria
@@ -9,8 +11,6 @@ interface Props {
   // Refresca los datos después de guardar una edición inline.
   onChanged: () => void
 }
-
-const IMG_PLACEHOLDER = 'https://placehold.co/120x120/EEE1C4/B08F55?text=Pecora'
 
 // Card de producto en el panel admin, con edición inline de precio y stock.
 // Los cambios se guardan al salir del campo (onBlur) y Realtime refresca la
@@ -53,7 +53,8 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
 
   return (
     <div className="prod-card">
-      <img src={producto.imagen_url || IMG_PLACEHOLDER} alt="" />
+      {/* Portada = primera de la galería (igual que el catálogo), en miniatura. */}
+      <Miniatura src={portadaDe(producto)} alt="" width={60} height={60} />
       <div className="prod-main">
         <div className="prod-top">
           <div>
@@ -74,6 +75,9 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
               value={precio}
               onChange={(e) => setPrecio(e.target.value)}
               onBlur={() => confirmarCampo('precio', precio, producto.precio)}
+              // En desktop la rueda del mouse cambiaría el número sin querer
+              // (y se guardaría al salir): soltamos el foco antes de que pase.
+              onWheel={(e) => e.currentTarget.blur()}
             />
           </div>
           <div className="mini-field">
@@ -84,6 +88,7 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
               value={stock}
               onChange={(e) => setStock(e.target.value)}
               onBlur={() => confirmarCampo('stock', stock, producto.stock)}
+              onWheel={(e) => e.currentTarget.blur()}
             />
           </div>
         </div>

@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react'
-import type { ProductoConCategoria } from '../../types'
+import { useEffect, useRef, useState } from 'react'
+import type { EntregaPedido, ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { money } from '../../lib/format'
+import {
+  PROVINCIAS_AR,
+  calcularSubtotal,
+  crearPedido,
+  nuevaClaveIdempotencia,
+} from '../../lib/orders'
 
 interface Props {
   open: boolean
@@ -20,6 +26,11 @@ interface ItemSeleccionado {
 export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
+  const [entrega, setEntrega] = useState<EntregaPedido>('coordinar')
+  const [direccion, setDireccion] = useState('')
+  const [localidad, setLocalidad] = useState('')
+  const [cp, setCp] = useState('')
+  const [provincia, setProvincia] = useState('')
   const [notas, setNotas] = useState('')
 
   const [productos, setProductos] = useState<ProductoConCategoria[]>([])
@@ -30,10 +41,29 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Clave de idempotencia del alta: un reintento (ej. tras un corte de red) no
+  // duplica el pedido. Se renueva al abrir la hoja, al cambiar los productos y
+  // después de crear el pedido.
+  const claveRef = useRef<string | null>(null)
+  const firmaItems = items.map((i) => `${i.id}:${i.cantidad}`).join('|')
+  useEffect(() => {
+    claveRef.current = null
+  }, [open, firmaItems])
+
+  function claveIdempotencia(): string {
+    if (!claveRef.current) claveRef.current = nuevaClaveIdempotencia()
+    return claveRef.current
+  }
+
   useEffect(() => {
     if (!open) return
     setNombre('')
     setTelefono('')
+    setEntrega('coordinar')
+    setDireccion('')
+    setLocalidad('')
+    setCp('')
+    setProvincia('')
     setNotas('')
     setBusqueda('')
     setPickerAbierto(false)
@@ -101,10 +131,14 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     setItems((prev) => prev.filter((i) => i.id !== id))
   }
 
-  const subtotal = items.reduce((n, i) => n + i.precio * i.cantidad, 0)
+  const subtotal = calcularSubtotal(items)
   const nombreValido = nombre.trim().length >= 2
   const telefonoValido = telefono.replace(/\D/g, '').length >= 8
-  const puedeConfirmar = nombreValido && telefonoValido && items.length > 0 && !guardando
+  // Para envío hace falta al menos dirección y localidad (CP y provincia opcionales).
+  const entregaValida =
+    entrega === 'coordinar' || (direccion.trim() !== '' && localidad.trim() !== '')
+  const puedeConfirmar =
+    nombreValido && telefonoValido && entregaValida && items.length > 0 && !guardando
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -112,25 +146,13 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     setGuardando(true)
     setError(null)
     try {
-      const { error } = await supabase.rpc('crear_pedido', {
-        p_nombre: nombre,
-        p_telefono: telefono,
-        p_email: null,
-        p_entrega: 'coordinar',
-        p_direccion: null,
-        p_localidad: null,
-        p_cp: null,
-        p_notas: notas || null,
-        p_items: items.map((i) => ({
-          id: i.id,
-          nombre: i.nombre,
-          precio: i.precio,
-          cantidad: i.cantidad,
-        })),
-        p_subtotal: subtotal,
-        p_origen: 'admin',
+      await crearPedido({
+        datos: { nombre, telefono, entrega, direccion, localidad, cp, provincia, notas },
+        items,
+        origen: 'admin',
+        idempotencyKey: claveIdempotencia(),
       })
-      if (error) throw new Error(error.message)
+      claveRef.current = null
       onChanged()
       onClose()
     } catch (err) {
@@ -171,6 +193,71 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
               placeholder="Ej: 11 5555 5555"
             />
           </div>
+
+          <div className="field">
+            <label htmlFor="manual-entrega">Entrega</label>
+            <select
+              id="manual-entrega"
+              value={entrega}
+              onChange={(e) => setEntrega(e.target.value as EntregaPedido)}
+            >
+              <option value="coordinar">Retiro / a coordinar</option>
+              <option value="envio">Envío a domicilio</option>
+            </select>
+          </div>
+
+          {entrega === 'envio' && (
+            <>
+              <div className="field">
+                <label htmlFor="manual-direccion">Dirección</label>
+                <input
+                  id="manual-direccion"
+                  type="text"
+                  value={direccion}
+                  onChange={(e) => setDireccion(e.target.value)}
+                  placeholder="Calle y número"
+                />
+              </div>
+              <div className="row2">
+                <div className="field">
+                  <label htmlFor="manual-localidad">Localidad</label>
+                  <input
+                    id="manual-localidad"
+                    type="text"
+                    value={localidad}
+                    onChange={(e) => setLocalidad(e.target.value)}
+                    placeholder="Ciudad"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="manual-cp">Código postal</label>
+                  <input
+                    id="manual-cp"
+                    type="text"
+                    inputMode="numeric"
+                    value={cp}
+                    onChange={(e) => setCp(e.target.value)}
+                    placeholder="CP"
+                  />
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor="manual-provincia">Provincia (opcional)</label>
+                <select
+                  id="manual-provincia"
+                  value={provincia}
+                  onChange={(e) => setProvincia(e.target.value)}
+                >
+                  <option value="">Elegí una provincia</option>
+                  {PROVINCIAS_AR.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
 
           <div className="field order-product-picker">
             <label>Agregar producto</label>

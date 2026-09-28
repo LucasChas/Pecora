@@ -5,6 +5,7 @@ import { useDialog } from '../context/DialogContext'
 import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
 import { useOrders, type FiltroEstado } from '../hooks/useOrders'
+import { useMiniaturasAutomaticas } from '../hooks/useMiniaturasAutomaticas'
 import type { ProductoConCategoria } from '../types'
 import Logo from '../components/Logo'
 import LoginForm from '../components/admin/LoginForm'
@@ -16,9 +17,11 @@ import ProductFormSheet from '../components/admin/ProductFormSheet'
 import CategoryManagerSheet from '../components/admin/CategoryManagerSheet'
 import ManualOrderSheet from '../components/admin/ManualOrderSheet'
 import OrdersList from '../components/admin/OrdersList'
+import CatalogExport from '../components/admin/CatalogExport'
 import '../styles/admin.css'
 
-type Vista = 'productos' | 'pedidos'
+// 'exportar' = lista de precios para imprimir/PDF (pantalla completa, sin pestañas).
+type Vista = 'productos' | 'pedidos' | 'exportar'
 
 // Chips de filtro de la pestaña Pedidos. El texto es el que usa la clienta en
 // "Mis pedidos", para hablar el mismo idioma en las dos puntas.
@@ -34,10 +37,37 @@ const FILTROS: { valor: FiltroEstado; texto: string }[] = [
 // Vista ADMINISTRADORA (mobile-first), protegida por login.
 export default function AdminPage() {
   const { session, esAdmin, loading: cargandoSesion } = useAuth()
-  const { productos, refetch: refetchProductos } = useProducts()
-  const { categorias, refetch: refetchCategorias } = useCategories()
+  const {
+    productos,
+    loading: cargandoProductos,
+    error: errorProductos,
+    refetch: refetchProductos,
+  } = useProducts()
+  const {
+    categorias,
+    loading: cargandoCategorias,
+    error: errorCategorias,
+    refetch: refetchCategorias,
+  } = useCategories()
   const { confirmar } = useDialog()
   const [vista, setVista] = useState<Vista>('productos')
+
+  // Miniaturas que falten (fotos viejas): se generan solas, solo con la admin
+  // logueada y fuera de "Exportar catálogo" (que ya procesa sus propias
+  // fotos). Nada en pantalla mientras funcione; si viene fallando varias
+  // pasadas seguidas, una sola línea discreta en Productos.
+  const { necesitaAtencion: miniaturasConProblemas } = useMiniaturasAutomaticas(
+    productos,
+    Boolean(session) && esAdmin && vista !== 'exportar',
+  )
+
+  // Reintento de la carga de productos cuando falla la red.
+  const [reintentando, setReintentando] = useState(false)
+  const reintentarProductos = useCallback(async () => {
+    setReintentando(true)
+    await refetchProductos()
+    setReintentando(false)
+  }, [refetchProductos])
 
   // Filtro y búsqueda de la pestaña Pedidos (la consulta se hace en la base).
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos')
@@ -112,6 +142,20 @@ export default function AdminPage() {
     )
   }
 
+  // Exportar catálogo: vista de impresión a pantalla completa. Queda detrás del
+  // mismo control de sesión/rol y reusa los datos que ya cargó el panel.
+  if (vista === 'exportar') {
+    return (
+      <CatalogExport
+        productos={productos}
+        categorias={categorias}
+        loading={cargandoProductos || cargandoCategorias}
+        error={errorProductos ?? errorCategorias}
+        onVolver={() => setVista('productos')}
+      />
+    )
+  }
+
   const inicial = (session.user.email?.[0] ?? 'A').toUpperCase()
   // Del conteo de la base, no de la página cargada.
   const pedidosNuevos = conteos.nuevo
@@ -175,7 +219,16 @@ export default function AdminPage() {
                 <h1>Productos</h1>
                 <p>Tocá un producto para editarlo.</p>
               </div>
+              <button className="head-action" onClick={() => setVista('exportar')}>
+                Exportar catálogo
+              </button>
             </div>
+            {miniaturasConProblemas && (
+              <p className="head-status">
+                Algunas fotos no se pudieron optimizar. Se reintenta solo; si sigue así, avisá a
+                soporte.
+              </p>
+            )}
 
             {/* Buscador + chips de categoría/stock */}
             <div className="orders-tools">
@@ -201,9 +254,37 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <ProductList productos={productosFiltrados} onEditar={abrirEdicion} onChanged={refrescar} />
+            {/* Error de red: mensaje propio con reintento (antes caía en
+                "Todavía no cargaste ningún producto"). Si ya había una lista
+                cargada se sigue mostrando, con el aviso arriba. */}
+            {errorProductos && productos.length > 0 && (
+              <p className="head-status head-status--error" role="alert">
+                No pudimos actualizar la lista.{' '}
+                <button className="link-btn" onClick={reintentarProductos} disabled={reintentando}>
+                  {reintentando ? 'Reintentando…' : 'Reintentar'}
+                </button>
+              </p>
+            )}
+            {errorProductos && productos.length === 0 ? (
+              <div className="list">
+                <div className="empty">
+                  No pudimos cargar los productos.
+                  <br />
+                  {errorProductos}
+                </div>
+                <button className="orders-mas" onClick={reintentarProductos} disabled={reintentando}>
+                  {reintentando ? 'Reintentando…' : 'Reintentar'}
+                </button>
+              </div>
+            ) : cargandoProductos ? (
+              <div className="list">
+                <div className="empty">Cargando productos…</div>
+              </div>
+            ) : (
+              <ProductList productos={productosFiltrados} onEditar={abrirEdicion} onChanged={refrescar} />
+            )}
             <button className="fab" aria-label="Nuevo producto" onClick={abrirNuevo}>
-              +
+              +<span className="fab-label">Nuevo producto</span>
             </button>
           </>
         ) : (
@@ -257,7 +338,7 @@ export default function AdminPage() {
               aria-label="Nuevo pedido manual"
               onClick={() => setPedidoSheetAbierta(true)}
             >
-              +
+              +<span className="fab-label">Nuevo pedido</span>
             </button>
           </>
         )}

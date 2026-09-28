@@ -77,7 +77,7 @@ export default function CategoryManagerSheet({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="sheet">
+      <div className="sheet sheet--categorias">
         <div className="handle" />
         <h2>Categorías</h2>
 
