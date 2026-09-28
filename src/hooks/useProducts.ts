@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { REALTIME_SUBSCRIBE_STATES } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import { crearCacheMonotona } from '../lib/productsCache'
+import {
+  crearSincronizacionProductos,
+  type AvisosCanal,
+  type ResultadoCarga,
+} from '../lib/sincronizacionProductos'
 import type { ProductoConCategoria } from '../types'
 
 // Trae los productos con el nombre de su categoría resuelto y se mantiene
@@ -33,108 +38,87 @@ const cache = crearCacheMonotona<ProductoConCategoria[]>()
 // terminar de cerrarse, el cliente descarta todo canal con ese nombre.
 let secuenciaCanal = 0
 
+// Pide la lista con el nombre de la categoría ya resuelto.
+async function traerProductos(): Promise<ResultadoCarga<ProductoConCategoria[]>> {
+  const { data, error } = await supabase
+    .from('productos')
+    .select('*, categorias(nombre)')
+    .order('created_at', { ascending: false })
+
+  if (error) return { error: error.message }
+
+  // Aplanamos el join: categorias.nombre -> categoria_nombre
+  return {
+    datos: (data ?? []).map((row) => {
+      const { categorias, ...resto } = row as Record<string, unknown> & {
+        categorias: { nombre: string } | null
+      }
+      return {
+        ...(resto as unknown as ProductoConCategoria),
+        categoria_nombre: categorias?.nombre ?? null,
+      }
+    }),
+  }
+}
+
+// Suscripción Realtime a ambas tablas. Los estados del canal se traducen a
+// avisos: SUBSCRIBED = conectado; cualquier otro (error, timeout o cierre) =
+// cortado. Tras un corte, al volver a conectarse se refresca la lista (ver
+// lib/sincronizacionProductos).
+function suscribirCambios(avisos: AvisosCanal): () => void {
+  const canal = supabase
+    .channel(`catalogo-productos-${++secuenciaCanal}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'productos' }, () => avisos.cambio())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, () => avisos.cambio())
+    .subscribe((estado, err) => {
+      if (estado === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
+        avisos.conectado()
+        return
+      }
+      if (estado === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR) {
+        console.warn('Realtime de productos con error; se reintenta solo.', err)
+      }
+      avisos.cortado()
+    })
+  return () => {
+    supabase.removeChannel(canal)
+  }
+}
+
 export function useProducts() {
   const [productos, setProductos] = useState<ProductoConCategoria[]>(() => cache.leer() ?? [])
   const [loading, setLoading] = useState(() => cache.leer() === null)
   const [error, setError] = useState<string | null>(null)
-  // Número (global) del último pedido lanzado por esta instancia: si dos
-  // respuestas llegan fuera de orden (ej. "Reintentar" y un aviso de Realtime
-  // casi juntos), en pantalla solo cuenta la más nueva.
-  const ultimoPedidoRef = useRef(0)
-  // Tras desmontar, las respuestas pendientes ya no tocan el estado (solo
-  // pueden alimentar la caché, y únicamente si son más nuevas).
-  const montadoRef = useRef(false)
 
-  const fetchProductos = useCallback(async () => {
-    const pedido = cache.nuevoPedido()
-    ultimoPedidoRef.current = pedido
-    // Sin datos todavía (arranque en frío o reintento tras un error): se
-    // muestra "cargando". Con caché, se refresca en segundo plano.
-    if (montadoRef.current && cache.leer() === null) setLoading(true)
-
-    let filas: ProductoConCategoria[] | null = null
-    let mensajeError: string | null = null
-    try {
-      const { data, error } = await supabase
-        .from('productos')
-        .select('*, categorias(nombre)')
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        mensajeError = error.message
-      } else {
-        // Aplanamos el join: categorias.nombre -> categoria_nombre
-        filas = (data ?? []).map((row) => {
-          const { categorias, ...resto } = row as Record<string, unknown> & {
-            categorias: { nombre: string } | null
-          }
-          return {
-            ...(resto as unknown as ProductoConCategoria),
-            categoria_nombre: categorias?.nombre ?? null,
-          }
-        })
-      }
-    } catch (e) {
-      mensajeError = e instanceof Error ? e.message : String(e)
-    }
-
-    // La caché decide sola si la respuesta es más nueva que la guardada; lo
-    // vigente puede ser una lista aún más nueva que trajo otra instancia.
-    const vigentes = filas ? cache.ofrecer(pedido, filas) : null
-
-    if (!montadoRef.current || pedido !== ultimoPedidoRef.current) return
-
-    if (vigentes) {
-      setProductos(vigentes)
-      setError(null)
-    } else {
-      console.error('No se pudieron cargar los productos:', mensajeError)
-      setError(mensajeError || 'No se pudieron cargar los productos.')
-    }
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    montadoRef.current = true
-    fetchProductos()
-
-    // Si el canal se corta (error, timeout o cierre) y después vuelve a quedar
-    // suscripto, pudo haberse perdido algún cambio en el medio: se pide la
-    // lista una vez para ponerse al día.
-    let huboCorte = false
-
-    // Suscripción Realtime a ambas tablas.
-    const canal = supabase
-      .channel(`catalogo-productos-${++secuenciaCanal}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'productos' },
-        fetchProductos,
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'categorias' },
-        fetchProductos,
-      )
-      .subscribe((estado, err) => {
-        if (estado === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
-          if (huboCorte) {
-            huboCorte = false
-            fetchProductos()
-          }
+  // La orquestación (carga inicial, avisos de Realtime agrupados, reconexión,
+  // respuestas fuera de orden y desmontaje) vive en lib/sincronizacionProductos,
+  // con tests. Una instancia por montaje del hook; los setters son estables.
+  const [sincronizacion] = useState(() =>
+    crearSincronizacionProductos<ProductoConCategoria[]>({
+      cache,
+      traer: traerProductos,
+      suscribir: suscribirCambios,
+      publicar: (evento) => {
+        if (evento.tipo === 'cargando') {
+          setLoading(true)
           return
         }
-        huboCorte = true
-        if (estado === REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR) {
-          console.warn('Realtime de productos con error; se reintenta solo.', err)
+        if (evento.tipo === 'datos') {
+          setProductos(evento.datos)
+          setError(null)
+        } else {
+          console.error('No se pudieron cargar los productos:', evento.mensaje)
+          setError(evento.mensaje)
         }
-      })
+        setLoading(false)
+      },
+    }),
+  )
 
-    return () => {
-      montadoRef.current = false
-      supabase.removeChannel(canal)
-    }
-  }, [fetchProductos])
+  useEffect(() => {
+    sincronizacion.iniciar()
+    return () => sincronizacion.detener()
+  }, [sincronizacion])
 
-  return { productos, loading, error, refetch: fetchProductos }
+  return { productos, loading, error, refetch: sincronizacion.refrescar }
 }
