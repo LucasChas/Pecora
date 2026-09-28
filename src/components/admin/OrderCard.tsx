@@ -3,7 +3,7 @@ import type { EstadoPedido, Pedido } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
 import { money } from '../../lib/format'
-import { textoEnvio, totalesDe } from '../../lib/orders'
+import { detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
 import OrderPrintView, { type TipoImpresion } from './OrderPrintView'
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
   // Hora de referencia para el aviso de mails (la pasa la lista, así todas las
   // cards y el banner usan la misma). Si falta, la hora actual.
   ahora?: number
+  // Solo admin: borrado definitivo desde la papelera. Por defecto oculto.
+  puedeBorrarDefinitivo?: boolean
 }
 
 const ESTADOS: EstadoPedido[] = ['nuevo', 'confirmado', 'entregado', 'cancelado']
@@ -68,10 +70,11 @@ function fecha(iso: string): string {
 // Card de un pedido en el panel: datos de la clienta, entrega, ítems, totales,
 // un selector para cambiar el estado y el menú "Imprimir" (nota de entrega y,
 // si es envío, etiqueta).
-export default function OrderCard({ pedido, onChanged, ahora }: Props) {
+export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinitivo = false }: Props) {
   const { confirmar, avisar } = useDialog()
   const enPapelera = pedido.eliminado_at !== null
   const totales = totalesDe(pedido)
+  const detalle = detalleDe(pedido)
   const esEnvio = pedido.entrega === 'envio'
   const mails = mailsPendientes(pedido, ahora ?? Date.now())
 
@@ -291,14 +294,21 @@ export default function OrderCard({ pedido, onChanged, ahora }: Props) {
           </div>
           {totales.descuento > 0 && (
             <div className="op-card-linea">
-              <span>Descuento</span>
+              <span>Descuento{detalle.cupon ? ` (${detalle.cupon})` : ''}</span>
               <span>− {money(totales.descuento)}</span>
+            </div>
+          )}
+          {/* Cupón sin descuento en pesos (envío gratis): igual se nombra. */}
+          {detalle.cupon && totales.descuento <= 0 && (
+            <div className="op-card-linea">
+              <span>Cupón</span>
+              <span>{detalle.cupon}</span>
             </div>
           )}
           {(esEnvio || totales.costoEnvio > 0) && (
             <div className="op-card-linea">
-              <span>Envío</span>
-              <span>{textoEnvio(totales, pedido.entrega)}</span>
+              <span>Envío{detalle.zona ? ` (${detalle.zona})` : ''}</span>
+              <span>{textoEnvio(totales, pedido.entrega, detalle)}</span>
             </div>
           )}
           <div className="op-card-linea op-card-total">
@@ -338,9 +348,11 @@ export default function OrderCard({ pedido, onChanged, ahora }: Props) {
             <button type="button" className="order-restaurar" onClick={restaurar}>
               ↩ Restaurar
             </button>
-            <button type="button" className="order-borrar" onClick={borrarDefinitivo}>
-              Eliminar para siempre
-            </button>
+            {puedeBorrarDefinitivo && (
+              <button type="button" className="order-borrar" onClick={borrarDefinitivo}>
+                Eliminar para siempre
+              </button>
+            )}
           </>
         ) : (
           <>

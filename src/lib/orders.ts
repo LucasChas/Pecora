@@ -88,17 +88,56 @@ export function totalesDe(pedido: MontosPedido): TotalesPedido {
 
 export interface LineaDesglose {
   concepto: 'Subtotal' | 'Descuento' | 'Envío'
+  // Texto a mostrar: el concepto con el cupón o la zona entre paréntesis
+  // (ej. "Descuento (VERANO10)", "Envío (AMBA)").
+  etiqueta: string
   // Negativo para el descuento.
   importe: number
+  // Texto en lugar del monto (ej. "Gratis" para un envío sin costo).
+  texto?: string
+}
+
+// Cupón y zona de envío que se aplicaron al pedido (columnas cupon_codigo y
+// zona_nombre). Opcionales: antes de la migración no existen.
+export interface DetallePedido {
+  cupon?: string | null
+  zona?: string | null
+}
+
+// Detalle de cupón / zona de una fila de pedidos (tolera columnas ausentes).
+export function detalleDe(pedido: Partial<Pick<Pedido, 'cupon_codigo' | 'zona_nombre'>>): DetallePedido {
+  return {
+    cupon: textoOpcional(pedido.cupon_codigo),
+    zona: textoOpcional(pedido.zona_nombre),
+  }
 }
 
 // Líneas que van antes del total. Solo hay desglose si algo modifica el
-// subtotal (descuento o envío con costo): si no, el total ya lo dice todo.
-export function lineasDesglose(t: TotalesPedido): LineaDesglose[] {
-  if (t.descuento <= 0 && t.costoEnvio <= 0) return []
-  const lineas: LineaDesglose[] = [{ concepto: 'Subtotal', importe: t.subtotal }]
-  if (t.descuento > 0) lineas.push({ concepto: 'Descuento', importe: -t.descuento })
-  if (t.costoEnvio > 0) lineas.push({ concepto: 'Envío', importe: t.costoEnvio })
+// subtotal (descuento o envío con costo) o si el envío quedó gratis por zona o
+// cupón: si no, el total ya lo dice todo.
+export function lineasDesglose(t: TotalesPedido, detalle: DetallePedido = {}): LineaDesglose[] {
+  const cupon = textoOpcional(detalle.cupon)
+  const zona = textoOpcional(detalle.zona)
+  // Cupón de envío gratis: no genera descuento, se nombra en la línea de envío.
+  const cuponEnEnvio = cupon !== null && t.descuento <= 0
+  const envioGratis = t.costoEnvio <= 0 && (zona !== null || cuponEnEnvio)
+  if (t.descuento <= 0 && t.costoEnvio <= 0 && !envioGratis) return []
+
+  const lineas: LineaDesglose[] = [{ concepto: 'Subtotal', etiqueta: 'Subtotal', importe: t.subtotal }]
+  if (t.descuento > 0) {
+    lineas.push({
+      concepto: 'Descuento',
+      etiqueta: cupon ? `Descuento (${cupon})` : 'Descuento',
+      importe: -t.descuento,
+    })
+  }
+  const partesEnvio = [zona, cuponEnEnvio ? `cupón ${cupon}` : null].filter(Boolean)
+  const etiquetaEnvio = partesEnvio.length > 0 ? `Envío (${partesEnvio.join(' · ')})` : 'Envío'
+  if (t.costoEnvio > 0) {
+    lineas.push({ concepto: 'Envío', etiqueta: etiquetaEnvio, importe: t.costoEnvio })
+  } else if (envioGratis) {
+    lineas.push({ concepto: 'Envío', etiqueta: etiquetaEnvio, importe: 0, texto: 'Gratis' })
+  }
   return lineas
 }
 
@@ -107,11 +146,18 @@ export function montoLinea(importe: number): string {
   return importe < 0 ? `− ${money(-importe)}` : money(importe)
 }
 
-// Cómo se muestra el envío: su costo si ya se cargó; si no, "A coordinar"
-// para envío a domicilio y "Sin costo" para retiro / a coordinar.
-export function textoEnvio(t: TotalesPedido, entrega: EntregaPedido): string {
+// Cómo se muestra el envío: su costo si ya se cargó; "Gratis" si es a domicilio
+// y la base le asignó una zona (o un cupón de envío gratis) sin costo; si no,
+// "A coordinar" para envío a domicilio y "Sin costo" para retiro / a coordinar.
+export function textoEnvio(
+  t: TotalesPedido,
+  entrega: EntregaPedido,
+  detalle: DetallePedido = {},
+): string {
   if (t.costoEnvio > 0) return money(t.costoEnvio)
-  return entrega === 'envio' ? 'A coordinar' : 'Sin costo'
+  if (entrega !== 'envio') return 'Sin costo'
+  const cuponEnEnvio = Boolean(textoOpcional(detalle.cupon)) && t.descuento <= 0
+  return textoOpcional(detalle.zona) || cuponEnEnvio ? 'Gratis' : 'A coordinar'
 }
 
 // ---- Alta del pedido ------------------------------------------------------------
@@ -143,7 +189,16 @@ export interface NuevoPedido {
   // Mismo valor en un reintento = mismo pedido (la base no lo duplica ni
   // descuenta el stock dos veces).
   idempotencyKey?: string
+  // Código de cupón. La base lo valida y calcula el descuento; si no es
+  // válido, rechaza el pedido con un mensaje ya redactado.
+  cupon?: string | null
 }
+
+// Mensaje cuando la clienta cargó un cupón pero la base todavía no acepta
+// p_cupon (falta la migración de cupones): se corta en vez de cobrar sin
+// descuento a sus espaldas.
+export const MENSAJE_CUPON_NO_DISPONIBLE = 'No pudimos aplicar el cupón, intentá más tarde.'
+
 
 // Texto opcional: recortado, y null si queda vacío.
 function textoOpcional(valor: string | null | undefined): string | null {
@@ -181,24 +236,30 @@ function numeroDePedido(data: unknown): number | null {
 }
 
 // Registra el pedido con la función crear_pedido (SECURITY DEFINER) y devuelve
-// su número. La base recalcula precios y subtotal con los valores vigentes y
-// descuenta el stock; p_subtotal se sigue mandando por compatibilidad.
+// su número. La base recalcula precios, subtotal, descuento (cupón) y costo de
+// envío (zona) con los valores vigentes y descuenta el stock; p_subtotal se
+// sigue mandando por compatibilidad.
 //
-// Orden de despliegue: si la base todavía no tiene la firma nueva (sin
-// p_provincia / p_idempotency_key), se reintenta UNA vez con la firma anterior
-// de 11 parámetros. En ese caso se pierde la provincia y la protección contra
-// duplicados, igual que antes de la migración.
+// Orden de despliegue (el frontend puede llegar antes que las migraciones):
+//   - Con cupón: firma de 14 parámetros (con p_cupon). Si la base todavía no
+//     la tiene, NO se reintenta sin el cupón (sería cobrar sin el descuento
+//     prometido): se corta con MENSAJE_CUPON_NO_DISPONIBLE.
+//   - Sin cupón: firma de 13 parámetros (p_cupon tiene default null en la
+//     base nueva, así que sirve para las dos). Si tampoco existe, se reintenta
+//     UNA vez con la firma anterior de 11 parámetros; se pierde la provincia y
+//     la protección contra duplicados, igual que antes de esa migración.
 //
-// Los errores de la base (falta de stock, carrito vacío…) ya vienen redactados
+// Los errores de la base (falta de stock, cupón vencido…) ya vienen redactados
 // para mostrarse tal cual.
 export async function crearPedido({
   datos,
   items,
   origen = 'checkout',
   idempotencyKey,
+  cupon,
 }: NuevoPedido): Promise<number> {
   const envio = datos.entrega === 'envio'
-  const firmaAnterior = {
+  const firma11 = {
     p_nombre: datos.nombre.trim(),
     p_telefono: datos.telefono.trim(),
     p_email: textoOpcional(datos.email),
@@ -216,20 +277,35 @@ export async function crearPedido({
     p_subtotal: calcularSubtotal(items),
     p_origen: origen,
   }
-  const firmaNueva = {
-    ...firmaAnterior,
+  const firma13 = {
+    ...firma11,
     p_provincia: envio ? textoOpcional(datos.provincia) : null,
     p_idempotency_key: idempotencyKey ?? null,
   }
+  const codigoCupon = textoOpcional(cupon)?.toUpperCase() ?? null
 
-  let { data, error } = await supabase.rpc('crear_pedido', firmaNueva)
-  if (error && esFirmaInexistente(error)) {
-    console.warn(
-      `${PREFIJO_LOG} crear_pedido todavía no acepta p_provincia / p_idempotency_key ` +
-        '(falta aplicar la migración): se reintenta con la firma anterior.',
-      error.message,
-    )
-    ;({ data, error } = await supabase.rpc('crear_pedido', firmaAnterior))
+  let data: unknown
+  let error: ErrorRpc | null
+  if (codigoCupon) {
+    ;({ data, error } = await supabase.rpc('crear_pedido', { ...firma13, p_cupon: codigoCupon }))
+    if (error && esFirmaInexistente(error)) {
+      console.warn(
+        `${PREFIJO_LOG} crear_pedido todavía no acepta p_cupon (falta aplicar la migración ` +
+          'de cupones): se cancela el alta para no cobrar sin el descuento.',
+        error.message,
+      )
+      throw new Error(MENSAJE_CUPON_NO_DISPONIBLE)
+    }
+  } else {
+    ;({ data, error } = await supabase.rpc('crear_pedido', firma13))
+    if (error && esFirmaInexistente(error)) {
+      console.warn(
+        `${PREFIJO_LOG} crear_pedido todavía no acepta p_provincia / p_idempotency_key ` +
+          '(falta aplicar la migración): se reintenta con la firma anterior.',
+        error.message,
+      )
+      ;({ data, error } = await supabase.rpc('crear_pedido', firma11))
+    }
   }
 
   if (error) {
@@ -248,6 +324,25 @@ export async function crearPedido({
     )
   }
   return numero
+}
+
+// Lee el pedido recién creado (la clienta puede leer los suyos por RLS) para
+// mostrar los totales que calculó la base: descuento del cupón, costo de envío
+// de la zona y total. Devuelve null si no se puede leer: quien llama se queda
+// con su estimación.
+export async function leerPedidoCreado(numero: number, userId: string): Promise<Pedido | null> {
+  try {
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select('*')
+      .eq('numero', numero)
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (error || !data) return null
+    return data as Pedido
+  } catch {
+    return null
+  }
 }
 
 // Clave de idempotencia (UUID v4). crypto.randomUUID solo existe en contextos

@@ -11,11 +11,21 @@ import {
   PROVINCIAS_AR,
   calcularSubtotal,
   crearPedido,
+  detalleDe,
+  leerPedidoCreado,
   nuevaClaveIdempotencia,
-  textoEnvio,
   totalesDe,
+  type DetallePedido,
   type TotalesPedido,
 } from '../lib/orders'
+import { validarCupon, type ResultadoCupon } from '../lib/cupones'
+import {
+  ENVIO_A_COORDINAR,
+  cotizarEnvio,
+  puedeCotizar,
+  textoCotizacion,
+  type CotizacionEnvio,
+} from '../lib/envios'
 import OrderSuccess from '../components/cart/OrderSuccess'
 import '../styles/catalog.css'
 import '../styles/cart.css'
@@ -25,12 +35,24 @@ interface PedidoConfirmado {
   items: CartItem[]
   totales: TotalesPedido
   datos: DatosPedido
+  detalle: DetallePedido
 }
+
+// Cupón aplicado y el subtotal contra el que se validó (si el carrito cambia,
+// se vuelve a validar).
+interface CuponAplicado {
+  resultado: ResultadoCupon
+  subtotal: number
+}
+
+// Espera antes de cotizar el envío mientras la clienta escribe el CP.
+const DEBOUNCE_COTIZACION_MS = 400
 
 type MetodoPago = 'whatsapp' | 'mercadopago'
 
-// Checkout como INVITADA (/checkout): datos de contacto y entrega, método de
-// pago, revalidación de stock/precios contra la base y registro del pedido.
+// Checkout como INVITADA (/checkout): datos de contacto y entrega, cupón,
+// cotización del envío, método de pago, revalidación de stock/precios contra
+// la base y registro del pedido.
 export default function CheckoutPage() {
   const { items, subtotal, reemplazar, vaciar } = useCart()
   const { session, perfil, loading: cargandoSesion } = useAuth()
@@ -51,23 +73,134 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirmado, setConfirmado] = useState<PedidoConfirmado | null>(null)
 
+  // ---- Cupón ----
+  const [cuponInput, setCuponInput] = useState('')
+  const [cupon, setCupon] = useState<CuponAplicado | null>(null)
+  const [validandoCupon, setValidandoCupon] = useState(false)
+  const [mensajeCupon, setMensajeCupon] = useState<string | null>(null)
+
+  // ---- Cotización del envío ----
+  const [cotizacion, setCotizacion] = useState<CotizacionEnvio | null>(null)
+  const [cotizando, setCotizando] = useState(false)
+
   // Clave de idempotencia del intento de compra: se mantiene en los reintentos
   // (ej. tras un corte de red, si la base ya registró el pedido devuelve el
-  // mismo número en vez de duplicarlo) y se renueva cuando cambia el carrito o
-  // después de un pedido confirmado.
+  // mismo número en vez de duplicarlo) y se renueva cuando cambia el carrito,
+  // el cupón o la entrega/destino (es otro pedido), y después de un pedido
+  // confirmado.
   const claveRef = useRef<string | null>(null)
   const firmaCarrito = items.map((i) => `${i.id}:${i.cantidad}:${i.precio}`).join('|')
+  const codigoCupon = cupon?.resultado.codigo ?? ''
+  const firmaIntento = [firmaCarrito, codigoCupon, entrega, provincia, cp.trim()].join('#')
   useEffect(() => {
     claveRef.current = null
-  }, [firmaCarrito])
+  }, [firmaIntento])
 
   function claveIdempotencia(): string {
     if (!claveRef.current) claveRef.current = nuevaClaveIdempotencia()
     return claveRef.current
   }
 
-  // En el checkout todavía no hay descuento ni costo de envío cargados.
-  const totales = totalesDe({ subtotal })
+  // Cotiza el envío cuando hay provincia o CP (con debounce). Si una respuesta
+  // llega tarde (la clienta siguió escribiendo), se descarta.
+  const destinoCotizable = entrega === 'envio' && puedeCotizar(provincia, cp)
+  useEffect(() => {
+    if (!destinoCotizable) {
+      setCotizacion(null)
+      setCotizando(false)
+      return
+    }
+    let vigente = true
+    setCotizando(true)
+    const t = window.setTimeout(() => {
+      cotizarEnvio(provincia, cp, subtotal).then((c) => {
+        if (!vigente) return
+        setCotizacion(c)
+        setCotizando(false)
+      })
+    }, DEBOUNCE_COTIZACION_MS)
+    return () => {
+      vigente = false
+      window.clearTimeout(t)
+    }
+  }, [destinoCotizable, provincia, cp, subtotal])
+
+  // Si el subtotal cambia con un cupón aplicado (ej. la revalidación ajustó el
+  // carrito), se vuelve a validar: puede dejar de cumplir el mínimo.
+  useEffect(() => {
+    if (!cupon || cupon.subtotal === subtotal || subtotal <= 0) return
+    let vigente = true
+    validarCupon(cupon.resultado.codigo, subtotal).then((r) => {
+      if (!vigente) return
+      if (r.valido) {
+        setCupon({ resultado: r, subtotal })
+      } else {
+        setCupon(null)
+        setCuponInput(cupon.resultado.codigo)
+        setMensajeCupon(r.mensaje)
+      }
+    })
+    return () => {
+      vigente = false
+    }
+  }, [cupon, subtotal])
+
+  async function aplicarCupon() {
+    if (validandoCupon || cuponInput.trim() === '') return
+    setValidandoCupon(true)
+    setMensajeCupon(null)
+    const r = await validarCupon(cuponInput, subtotal)
+    setValidandoCupon(false)
+    if (r.valido) {
+      setCupon({ resultado: r, subtotal })
+      setCuponInput('')
+    } else {
+      setMensajeCupon(r.mensaje)
+    }
+  }
+
+  function quitarCupon() {
+    setCupon(null)
+    setMensajeCupon(null)
+  }
+
+  // ---- Estimación de totales (la base recalcula todo al registrar) ----
+  const esEnvio = entrega === 'envio'
+  const envioConZona = esEnvio && !cotizando && cotizacion?.disponible === true
+  const envioGratisCupon = cupon?.resultado.envioGratis === true
+  const descuentoEstimado = cupon?.resultado.descuento ?? 0
+  const costoEnvioEstimado =
+    envioConZona && !envioGratisCupon && cotizacion ? cotizacion.costo : 0
+  const totales = totalesDe({
+    subtotal,
+    descuento: Math.min(descuentoEstimado, subtotal),
+    costo_envio: costoEnvioEstimado,
+  })
+  const zonaEstimada = envioConZona ? cotizacion?.zonaNombre ?? null : null
+  const textoEnvioResumen = !esEnvio
+    ? 'Sin costo'
+    : cotizando
+      ? 'Calculando…'
+      : envioConZona && envioGratisCupon
+        ? 'Gratis'
+        : textoCotizacion(cotizacion ?? ENVIO_A_COORDINAR)
+  const envioACoordinar = esEnvio && !cotizando && !envioConZona
+  const hayEstimacion = totales.descuento > 0 || envioConZona
+
+  // Texto bajo los campos de dirección: cómo va la cotización del envío.
+  let textoCotizando: string
+  if (!destinoCotizable) {
+    textoCotizando = 'Elegí la provincia o cargá el código postal para calcular el envío.'
+  } else if (cotizando) {
+    textoCotizando = 'Calculando el envío…'
+  } else if (envioConZona && cotizacion) {
+    const zona = cotizacion.zonaNombre ? ` (${cotizacion.zonaNombre})` : ''
+    textoCotizando = `Envío${zona}: ${envioGratisCupon ? 'gratis con tu cupón' : textoCotizacion(cotizacion)}`
+  } else {
+    textoCotizando =
+      cotizacion?.mensaje ??
+      'No tenemos una tarifa fija para ese destino: el costo del envío se coordina al confirmar el pedido.'
+  }
 
   // Prefill de nombre/teléfono con los datos de la cuenta (si están cargados).
   useEffect(() => {
@@ -144,26 +277,51 @@ export default function CheckoutPage() {
         notas: notas || undefined,
       }
       // crear_pedido (SECURITY DEFINER) registra el pedido y devuelve el número
-      // de orden, sin exponer la lectura de pedidos (ver lib/orders).
+      // de orden, sin exponer la lectura de pedidos (ver lib/orders). La base
+      // valida el cupón y calcula el descuento y el costo del envío.
       const numero = await crearPedido({
         datos: { ...datos, telefono, email },
         items: corregidos,
         idempotencyKey: claveIdempotencia(),
+        cupon: codigoCupon || null,
       })
       claveRef.current = null
+
+      // Totales definitivos: los que guardó la base. Si no se pueden leer, la
+      // estimación que la clienta vio en el resumen.
+      const creado = session ? await leerPedidoCreado(numero, session.user.id) : null
+      const subtotalFinal = calcularSubtotal(corregidos)
+      const totalesFinales = creado
+        ? totalesDe(creado)
+        : totalesDe({
+            subtotal: subtotalFinal,
+            descuento: Math.min(descuentoEstimado, subtotalFinal),
+            costo_envio: costoEnvioEstimado,
+          })
+      // Cupón y zona: los de la base si ya tiene esas columnas.
+      const delServidor = creado ? detalleDe(creado) : null
+      const detalle: DetallePedido = {
+        cupon: creado && creado.cupon_codigo !== undefined ? delServidor?.cupon : codigoCupon || null,
+        zona: !envio
+          ? null
+          : creado && creado.zona_nombre !== undefined
+            ? delServidor?.zona
+            : zonaEstimada,
+      }
 
       // TODO (fase MercadoPago): si metodoPago === 'mercadopago', acá se llama a
       // la Edge Function que crea la preferencia y se redirige al checkout de MP.
       setConfirmado({
         numero,
         items: corregidos,
-        totales: totalesDe({ subtotal: calcularSubtotal(corregidos) }),
-        datos,
+        totales: totalesFinales,
+        datos: { ...datos, cupon: detalle.cupon ?? undefined, zona: detalle.zona ?? undefined },
+        detalle,
       })
       vaciar()
     } catch (err) {
       // crear_pedido devuelve mensajes ya redactados para la clienta (falta de
-      // stock, carrito vacío…), así que los mostramos tal cual.
+      // stock, carrito vacío, cupón vencido…), así que los mostramos tal cual.
       setError(
         err instanceof Error
           ? err.message
@@ -253,7 +411,7 @@ export default function CheckoutPage() {
                         </div>
                       </div>
                       <div className="field">
-                        <label htmlFor="checkout-provincia">Provincia (opcional)</label>
+                        <label htmlFor="checkout-provincia">Provincia</label>
                         <select id="checkout-provincia" value={provincia} onChange={(e) => setProvincia(e.target.value)} autoComplete="address-level1">
                           <option value="">Elegí una provincia</option>
                           {PROVINCIAS_AR.map((p) => (
@@ -263,7 +421,12 @@ export default function CheckoutPage() {
                           ))}
                         </select>
                       </div>
-                      <p className="cart-note">El costo del envío se coordina al confirmar el pedido.</p>
+                      <p
+                        className={envioConZona ? 'cart-note envio-cotizacion envio-cotizacion--ok' : 'cart-note envio-cotizacion'}
+                        aria-live="polite"
+                      >
+                        {textoCotizando}
+                      </p>
                     </div>
                   )}
                 </section>
@@ -300,7 +463,7 @@ export default function CheckoutPage() {
                 {aviso && <p className="checkout-aviso">{aviso}</p>}
                 {error && <p className="form-error">{error}</p>}
 
-                <button type="submit" className="btn btn-primary" disabled={enviando}>
+                <button type="submit" className="btn btn-primary" disabled={enviando || validandoCupon}>
                   {enviando ? 'Registrando…' : 'Confirmar pedido'}
                 </button>
                 <Link className="pp-back" to="/carrito">
@@ -324,20 +487,93 @@ export default function CheckoutPage() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Cupón: fuera del <form> para que Enter aplique el cupón
+                      y no confirme el pedido. */}
+                  <div className="cupon-box">
+                    {cupon ? (
+                      <div className="cupon-aplicado">
+                        <span className="cupon-chip">{cupon.resultado.codigo}</span>
+                        <span className="cupon-desc">
+                          {cupon.resultado.envioGratis && cupon.resultado.descuento <= 0
+                            ? 'Envío gratis'
+                            : `− ${money(cupon.resultado.descuento)}`}
+                        </span>
+                        <button
+                          type="button"
+                          className="cupon-quitar"
+                          onClick={quitarCupon}
+                          aria-label={`Quitar el cupón ${cupon.resultado.codigo}`}
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <label className="cupon-label" htmlFor="checkout-cupon">
+                          ¿Tenés un cupón?
+                        </label>
+                        <div className="cupon-fila">
+                          <input
+                            id="checkout-cupon"
+                            type="text"
+                            value={cuponInput}
+                            onChange={(e) => {
+                              setCuponInput(e.target.value)
+                              setMensajeCupon(null)
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                aplicarCupon()
+                              }
+                            }}
+                            placeholder="Código"
+                            autoComplete="off"
+                            autoCapitalize="characters"
+                            spellCheck={false}
+                            aria-invalid={mensajeCupon ? true : undefined}
+                            aria-describedby={mensajeCupon ? 'checkout-cupon-msg' : undefined}
+                          />
+                          <button
+                            type="button"
+                            className="cupon-aplicar"
+                            onClick={aplicarCupon}
+                            disabled={validandoCupon || cuponInput.trim() === ''}
+                          >
+                            {validandoCupon ? 'Validando…' : 'Aplicar'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    <p id="checkout-cupon-msg" className="cupon-msg" role="status">
+                      {mensajeCupon ?? cupon?.resultado.mensaje ?? ''}
+                    </p>
+                  </div>
+
                   <div className="summary-linea">
                     <span>Subtotal</span>
                     <span>{money(totales.subtotal)}</span>
                   </div>
+                  {totales.descuento > 0 && (
+                    <div className="summary-linea summary-descuento">
+                      <span>Descuento ({codigoCupon})</span>
+                      <span>− {money(totales.descuento)}</span>
+                    </div>
+                  )}
                   <div className="summary-linea muted">
-                    <span>Envío</span>
-                    <span>{textoEnvio(totales, entrega)}</span>
+                    <span>Envío{zonaEstimada ? ` (${zonaEstimada})` : ''}</span>
+                    <span>{textoEnvioResumen}</span>
                   </div>
                   <div className="summary-linea total">
-                    <span>Total</span>
+                    <span>{hayEstimacion ? 'Total estimado' : 'Total'}</span>
                     <strong>{money(totales.total)}</strong>
                   </div>
-                  {entrega === 'envio' && (
+                  {envioACoordinar && (
                     <p className="summary-nota">El costo del envío se suma al coordinarlo.</p>
+                  )}
+                  {hayEstimacion && (
+                    <p className="summary-nota">El total final se confirma al registrar el pedido.</p>
                   )}
                 </div>
               </aside>
@@ -351,6 +587,7 @@ export default function CheckoutPage() {
         <OrderSuccess
           items={confirmado.items}
           totales={confirmado.totales}
+          detalle={confirmado.detalle}
           entrega={confirmado.datos.entrega}
           waHref={waPedidoConfirmadoLink(
             confirmado.numero,

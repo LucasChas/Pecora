@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
 import { waConsultaCancelacionLink } from '../lib/config'
-import { lineasDesglose, montoLinea, totalesDe } from '../lib/orders'
+import { detalleDe, lineasDesglose, montoLinea, totalesDe } from '../lib/orders'
 import { IMG_PLACEHOLDER, portadaDe } from '../lib/images'
 import ImageZoom from '../components/common/ImageZoom'
 import type { EstadoPedido, Pedido } from '../types'
@@ -122,7 +122,8 @@ export default function MyOrdersPage() {
               const estado = estadoVisible(p)
               const est = ESTADO_CLIENTE[estado]
               const totales = totalesDe(p)
-              const desglose = lineasDesglose(totales)
+              const detalle = detalleDe(p)
+              const desglose = lineasDesglose(totales, detalle)
               return (
                 <div className={`mp-card ${est.clase}`} key={p.id}>
                   <div className="mp-top">
@@ -154,13 +155,14 @@ export default function MyOrdersPage() {
                         </div>
                       )
                     })}
-                    {/* Subtotal / descuento / envío solo si algo modifica el total. */}
+                    {/* Subtotal / descuento (con el cupón) / envío (con la zona)
+                        solo si algo modifica el total o el envío salió gratis. */}
                     {desglose.length > 0 && (
                       <div className="mp-desglose">
                         {desglose.map((l) => (
                           <div className="mp-desglose-linea" key={l.concepto}>
-                            <span>{l.concepto}</span>
-                            <span>{montoLinea(l.importe)}</span>
+                            <span>{l.etiqueta}</span>
+                            <span>{l.texto ?? montoLinea(l.importe)}</span>
                           </div>
                         ))}
                       </div>

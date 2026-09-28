@@ -294,3 +294,194 @@ Este runbook no depende de correr la función localmente. Si igual querés
 iterar sin desplegar cada vez, podés usar `pnpm dlx supabase@latest functions
 serve enviar-recibo-pedido --env-file supabase/functions/.env.local`, pero eso
 es un accesorio de desarrollo, no un paso del flujo de despliegue.
+
+## `avisar-reposicion` ("Avisame cuando vuelva")
+
+La dispara el trigger `productos_aviso_reposicion` de
+`supabase/migrations/*_avisos_stock.sql` (`AFTER UPDATE OF stock ON
+productos`), vía `pg_net`, cuando un producto pasa de **0 a más de 0** y tiene
+suscripciones pendientes en `avisos_stock`. Manda un mail "¡Volvió
+&lt;producto&gt;!" a cada clienta anotada, con el link al producto y un link de
+baja (`<sitio>/aviso/baja?token=...`, también como header `List-Unsubscribe`).
+
+Reglas:
+- Para anotarse hace falta cuenta: el email sale de `auth.users` (RPC
+  `suscribir_aviso_stock`), nunca del navegador. Solo productos sin stock.
+- Cada suscripción avisa **una sola vez**: después de un envío OK la función
+  marca `avisos_stock.notificado_at`.
+- Antes de mandar, "reserva" la fila (RPC `reservar_aviso_stock`:
+  `reservado_at = now()` solo si seguía pendiente), así dos invocaciones
+  seguidas no duplican mails. Si el envío falla, borra la reserva y la fila
+  queda pendiente.
+- **Reservas vencidas**: si la función se cae o la cortan entre la reserva y el
+  envío, la reserva vence a los **15 minutos** y la fila vuelve a ser
+  pendiente. "Pendiente" = `notificado_at is null` y (`reservado_at is null` o
+  `reservado_at < now() - 15 min`), la misma regla (`aviso_stock_pendiente`)
+  en el trigger, en la lectura de pendientes (`avisos_stock_pendientes`) y en la
+  reserva. La reintenta la próxima reposición del producto o, a mano:
+  `select public.invocar_aviso_stock('<producto_id>');`. No hay reintento
+  automático programado.
+- Cada `fetch` (Google OAuth, Gmail y las llamadas a la base) tiene timeout de
+  15 s (`AbortSignal.timeout`), así una respuesta colgada no deja la
+  invocación esperando.
+- Si el mail salió pero no se pudo guardar `notificado_at`, el log lo avisa con
+  el `update` para marcarla: si no, al vencer la reserva podría salir un
+  segundo aviso.
+- Si el producto se volvió a agotar antes de que corra la función, no manda
+  nada (siguen pendientes).
+- Tandas de 200 filas, con tope de tiempo (~100 s) y corte tras 5 fallas
+  seguidas de Gmail. Si quedan pendientes, el log dice cómo reintentar:
+  `select public.invocar_aviso_stock('<producto_id>');` en el SQL Editor.
+- Misma auth que `enviar-recibo-pedido`: el Bearer tiene que ser exactamente la
+  service-role key (`401` si no).
+- Lógica pura en `logica.ts` y template en `template.ts`, con tests de Vitest al
+  lado (`pnpm test`). Reutiliza helpers de `enviar-recibo-pedido/logica.ts`
+  (el bundler de `functions deploy` incluye ese import relativo).
+
+### Secretos
+
+Usa los mismos de `enviar-recibo-pedido` (`GMAIL_*`, `BRAND_NAME`,
+`BRAND_LOGO_URL`) y uno nuevo, opcional:
+
+```
+PUBLIC_SITE_URL=https://pecora-muestrario.vercel.app
+```
+
+Es la URL pública del muestrario para armar los links. Si falta, usa
+`STORE_URL`, y si tampoco está, `https://pecora-muestrario.vercel.app`.
+
+### Vault
+
+- Token: reutiliza `pecora_email_function_token` (la service-role key).
+- URL: si ya está cargado `pecora_email_function_url` terminado en
+  `/enviar-recibo-pedido`, la migración **deriva** la URL
+  (`.../functions/v1/avisar-reposicion`) y no hace falta nada más. Para fijarla
+  a mano (por ejemplo, si la URL del mail de pedidos es otra):
+
+  ```sql
+  select vault.create_secret(
+    'https://<tu-project-ref>.supabase.co/functions/v1/avisar-reposicion',
+    'pecora_avisos_function_url'
+  );
+  ```
+
+### Despliegue (en este orden)
+
+```bash
+# 1) La función primero
+pnpm dlx supabase@latest functions deploy avisar-reposicion
+
+# 2) (Opcional) la URL pública del sitio
+pnpm dlx supabase@latest secrets set PUBLIC_SITE_URL=https://pecora-muestrario.vercel.app
+```
+
+3. Después, la migración `*_avisos_stock.sql` (se aplica sola al mergear a
+   `main`, con el workflow de deploy de la base; ver `CONTEXTO.md` §8). Si la
+   migración llega antes que la función, el trigger hace POST contra un 404:
+   no rompe nada, pero esas suscripciones quedan pendientes hasta la próxima
+   reposición (o hasta reintentar con `invocar_aviso_stock`).
+4. Probar: con una cuenta de prueba, anotarse en un producto sin stock; desde
+   el panel, cargarle stock; tiene que llegar el mail y el link de baja tiene
+   que funcionar. Diagnóstico: `net._http_response` (ver la sección 4 de
+   arriba) y los logs con prefijo `[avisar-reposicion]`.
+
+### Volver atrás
+
+- Sacar el trigger sin perder las suscripciones:
+  `drop trigger if exists productos_aviso_reposicion on public.productos;`
+- Revertir todo: ver el bloque "Cómo revertirla" al final de la migración
+  (borra la tabla y las suscripciones). El front oculta el bloque "Avisame
+  cuando vuelva" si los RPCs o la tabla no existen.
+- La función se puede borrar con
+  `pnpm dlx supabase@latest functions delete avisar-reposicion`.
+
+## `gestionar-equipo` (equipo del panel: empleados)
+
+La llama el panel (pestaña Equipo) con el JWT de la sesión. Solo una cuenta con
+rol `admin` puede usarla: el JWT se valida con `supabase.auth.getUser(token)` y
+el rol se lee de `public.profiles` con la service-role key (nunca del body).
+Cambiar `profiles.rol` solo es posible con service_role o desde el SQL Editor
+(trigger `proteger_rol_perfil`, migración 0014): por eso esto vive en una Edge
+Function y no en el front.
+
+`POST` con `{ accion, ... }`:
+
+| `accion` | Body | Respuesta OK |
+|---|---|---|
+| `listar` | — | `{ ok: true, miembros: [{ id, email, nombre, rol, ultimo_ingreso }] }` (admins primero) |
+| `invitar` | `email`, `nombre` (hasta 80) | `{ ok: true, resultado: 'invitada' \| 'promovida' \| 'sin_cambios', miembro, origen_link }` |
+| `revocar` | `user_id` | `{ ok: true }` |
+
+- `invitar`: si no hay cuenta con ese email, manda la **invitación de Supabase
+  Auth** (plantilla *Authentication → Email Templates → Invite user*) con el
+  link a `PUBLIC_ADMIN_URL` y le da rol `empleado`. Si ya existe una cuenta de
+  clienta, solo le cambia el rol (sin mail: entra con su contraseña de
+  siempre). Si ya es admin, responde `409`. `origen_link` es el origen al que
+  lleva el link del mail (solo si se mandó una invitación; si no, `null`); el
+  panel lo muestra en el aviso de "Listo".
+- Antes de invitar se valida `PUBLIC_ADMIN_URL`: tiene que ser una URL `https`
+  (`http` solo para `localhost` / `127.0.0.1`) cuyo origen sea uno de los de
+  `ADMIN_ORIGIN`. Si no, **no se manda ningún mail** y responde
+  `500 config_invalida`; el log (`[gestionar-equipo] invitación no enviada:
+  secreto X mal configurado (...)`) dice qué secreto revisar, mostrando solo
+  orígenes.
+- `revocar`: vuelve el rol a `cliente`. No se puede con una misma ni con otra
+  admin. Tiene efecto inmediato (las policies leen el rol en cada consulta).
+- Errores: `{ ok: false, error: <mensaje en español>, codigo }` con `400`
+  (datos), `401` (sesión), `403` (no admin / origen no permitido), `409`,
+  `500`/`502`.
+- Usa dos funciones SQL solo para service_role (`equipo_listar()`,
+  `usuario_id_por_email(text)`, migración `*_roles_empleados.sql`).
+- Lógica pura en `logica.ts`, tests en `logica.test.ts` (`pnpm test`).
+
+Qué puede hacer un empleado (RLS, migración `*_roles_empleados.sql`):
+productos y categorías (alta, edición, borrado), fotos del bucket `productos`,
+ver todos los pedidos, cambiarles el estado, mandarlos a la papelera /
+restaurarlos, reenviar sus mails y cargar pedidos manuales (con cupón). **No**
+puede: borrar pedidos definitivamente, tocar otras columnas del pedido
+(descuento, envío, datos de la clienta), cupones, zonas de envío,
+estadísticas, `ventas_validas` ni el equipo.
+
+### Secretos
+
+```
+ADMIN_ORIGIN=https://<url-del-panel>                 # uno o varios, separados por coma (CORS)
+PUBLIC_ADMIN_URL=https://<url-del-panel>             # a dónde lleva el link de la invitación
+```
+
+- `ADMIN_ORIGIN`: origen exacto del panel (esquema + dominio, sin barra ni
+  ruta). Para probar en local se puede agregar `http://localhost:5173`. Si
+  falta, la función rechaza a todo navegador (`403`).
+- `PUBLIC_ADMIN_URL`: dirección del panel, `https` y del mismo origen que
+  `ADMIN_ORIGIN` (si no, la función no invita y responde `config_invalida`).
+  Tiene que estar también en *Authentication → URL Configuration → Redirect
+  URLs*: eso la función no lo puede comprobar, y si falta Supabase manda el
+  link al *Site URL* (el muestrario). Después de configurarla, invitar un
+  email de prueba y confirmar que el aviso del panel ("El link del mail abre
+  ...") y el link del mail apuntan al panel.
+
+### Despliegue (en este orden)
+
+```bash
+# 1) La migración *_roles_empleados.sql (con el workflow de la base, al mergear a main).
+# 2) Los secretos
+pnpm dlx supabase@latest secrets set ADMIN_ORIGIN=https://<url-del-panel> PUBLIC_ADMIN_URL=https://<url-del-panel>
+# 3) La función (verificación JWT default: NO usar --no-verify-jwt)
+pnpm dlx supabase@latest functions deploy gestionar-equipo
+```
+
+4. Probar: desde el panel de la admin, invitar un email de prueba; tiene que
+   llegar el mail, la cuenta aparece en `listar` con rol `empleado` y, al
+   ingresar, ve Productos y Pedidos pero no Cupones / Estadísticas / Equipo.
+   Revocarla y confirmar que pierde el acceso. Logs con prefijo
+   `[gestionar-equipo]`.
+
+### Volver atrás
+
+- La función se puede borrar con
+  `pnpm dlx supabase@latest functions delete gestionar-equipo` (el panel
+  muestra "Falta desplegar la función gestionar-equipo").
+- Quitar el acceso a todos los empleados sin tocar el esquema (SQL Editor):
+  `update public.profiles set rol = 'cliente' where rol = 'empleado';`
+- Revertir el esquema: ver el bloque "Cómo revertirla" al final de
+  `*_roles_empleados.sql`.

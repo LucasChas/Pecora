@@ -31,11 +31,14 @@ export interface ProductoConCategoria extends Producto {
 }
 
 // ---- Cuentas de clientas (ver migración 0005) ----
+// 'empleado' = staff del panel sin acceso a ajustes, estadísticas ni equipo.
+export type Rol = 'cliente' | 'empleado' | 'admin'
+
 export interface Perfil {
   id: string
   nombre: string | null
   telefono: string | null
-  rol: 'cliente' | 'admin'
+  rol: Rol
   created_at: string
 }
 
@@ -87,4 +90,126 @@ export interface Pedido {
   idempotency_key?: string | null
   email_enviado_at?: string | null
   aviso_duena_enviado_at?: string | null
+
+  // ---- Cupón y zona de envío (migración de cupones / envíos) ----
+  // Opcionales por el mismo motivo: la base los completa en crear_pedido.
+  cupon_id?: string | null
+  cupon_codigo?: string | null
+  zona_id?: string | null
+  zona_nombre?: string | null
+}
+
+// ---- Cupones de descuento (migración de cupones / envíos) ----
+export type TipoCupon = 'porcentaje' | 'monto' | 'envio_gratis'
+
+export interface Cupon {
+  id: string
+  // Siempre en mayúsculas (la base lo normaliza y es único).
+  codigo: string
+  descripcion: string | null
+  tipo: TipoCupon
+  // Porcentaje (1-100) o monto fijo en pesos; 0 para envío gratis.
+  valor: number
+  // Sobre el subtotal antes del descuento. 0 = sin mínimo.
+  minimo_compra: number
+  // Vigencia (timestamptz). null = sin límite.
+  desde: string | null
+  hasta: string | null
+  // Usos totales permitidos. null = ilimitado.
+  usos_max: number | null
+  usos_por_cliente: number | null
+  solo_primera_compra: boolean
+  activo: boolean
+  created_at: string
+}
+
+// ---- Zonas de envío (migración de cupones / envíos) ----
+export interface ZonaEnvio {
+  id: string
+  nombre: string
+  provincias: string[]
+  // Prefijos de código postal (ej. "50", "5152").
+  cp_prefijos: string[]
+  precio: number
+  // Subtotal desde el que el envío es gratis. null = nunca.
+  gratis_desde: number | null
+  activo: boolean
+  orden: number
+}
+
+// ---- Carga masiva de productos (RPC importar_productos) ----
+// Una fila del CSV ya normalizada, tal como la recibe la RPC.
+export interface FilaImportacion {
+  sku: string
+  nombre: string
+  descripcion?: string | null
+  precio: number
+  stock: number
+  // Nombre de la categoría (la base la resuelve por nombre).
+  categoria: string
+  imagen_url?: string | null
+}
+
+export interface ErrorFilaImportacion {
+  // Número de fila del archivo (1 = encabezado, los datos arrancan en 2).
+  fila: number
+  mensaje: string
+}
+
+export interface ResultadoImportacion {
+  nuevos: number
+  actualizados: number
+  errores: ErrorFilaImportacion[]
+}
+
+// ---- Equipo del panel (Edge Function gestionar-equipo) ----
+export interface MiembroEquipo {
+  id: string
+  email: string
+  nombre: string | null
+  rol: Rol
+  ultimo_ingreso: string | null
+}
+
+// ---- Reseñas de compradoras verificadas (migración *_resenas.sql) ----
+// Nunca traen el email ni el id de la cuenta: solo el primer nombre.
+export interface Resena {
+  id: string
+  // 1 a 5.
+  estrellas: number
+  comentario: string | null
+  nombre_corto: string
+  created_at: string
+  updated_at: string
+  // true si es la de quien está mirando (para ofrecerle editarla).
+  es_mia: boolean
+}
+
+// La reseña propia de un producto (aunque la admin la haya ocultado).
+export interface MiResena {
+  id: string
+  estrellas: number
+  comentario: string | null
+  oculta: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ResumenResenas {
+  // null si no hay reseñas visibles.
+  promedio: number | null
+  cantidad: number
+}
+
+// Fila de la lista de moderación del panel (solo admin).
+export interface ResenaModeracion {
+  id: string
+  producto_id: string
+  producto_nombre: string
+  producto_slug: string | null
+  estrellas: number
+  comentario: string | null
+  nombre_corto: string
+  oculta: boolean
+  created_at: string
 }

@@ -38,3 +38,63 @@ export function crearCacheMonotona<T>(): CacheMonotona<T> {
     },
   }
 }
+
+// ============================================================================
+// Refrescos agrupados (debounce con espera máxima).
+//
+// Cada fila que cambia dispara un aviso de Realtime: una importación de 20
+// productos o un pedido con N ítems (que descuenta stock de N filas) generaba
+// N re-fetch de la lista completa. Los avisos se agrupan: la acción corre una
+// sola vez `espera` ms después del último aviso (trailing), pero nunca más de
+// `esperaMaxima` ms después del primero, para que una ráfaga continua no
+// posponga el refresco para siempre.
+// ============================================================================
+
+export interface OpcionesAgrupado {
+  espera?: number
+  esperaMaxima?: number
+}
+
+export interface DisparoAgrupado {
+  // Registra un aviso: (re)programa la acción.
+  pedir(): void
+  // Descarta lo pendiente (ej. al desmontar).
+  cancelar(): void
+  // ¿Hay una ejecución programada?
+  pendiente(): boolean
+}
+
+export const ESPERA_REFRESCO_MS = 800
+export const ESPERA_MAXIMA_REFRESCO_MS = 3000
+
+export function crearDisparoAgrupado(
+  accion: () => void,
+  { espera = ESPERA_REFRESCO_MS, esperaMaxima = ESPERA_MAXIMA_REFRESCO_MS }: OpcionesAgrupado = {},
+): DisparoAgrupado {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  // Momento del primer aviso de la ráfaga en curso (null = no hay ráfaga).
+  let inicioRafaga: number | null = null
+
+  const cancelar = () => {
+    if (timer !== null) clearTimeout(timer)
+    timer = null
+    inicioRafaga = null
+  }
+
+  const ejecutar = () => {
+    cancelar()
+    accion()
+  }
+
+  return {
+    pedir() {
+      const ahora = Date.now()
+      if (inicioRafaga === null) inicioRafaga = ahora
+      if (timer !== null) clearTimeout(timer)
+      const restanteMaximo = inicioRafaga + Math.max(esperaMaxima, 0) - ahora
+      timer = setTimeout(ejecutar, Math.max(0, Math.min(espera, restanteMaximo)))
+    },
+    cancelar,
+    pendiente: () => timer !== null,
+  }
+}

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { money } from '../../lib/format'
-import { lineasDesglose, montoLinea, type TotalesPedido } from '../../lib/orders'
+import { lineasDesglose, montoLinea, type DetallePedido, type TotalesPedido } from '../../lib/orders'
 import type { CartItem } from '../../context/CartContext'
 
 interface Props {
@@ -8,6 +8,8 @@ interface Props {
   entrega: 'envio' | 'coordinar'
   items: CartItem[]
   totales: TotalesPedido
+  // Cupón aplicado y zona de envío (se nombran en el desglose).
+  detalle?: DetallePedido
 }
 
 // Modal de éxito tras confirmar un pedido: check animado, agradecimiento y el
@@ -17,7 +19,7 @@ interface Props {
 // El fondo NO cierra el modal: el carrito ya se vació, y un toque accidental
 // afuera haría perder el paso de WhatsApp (que es donde se coordina el pago).
 // Solo se sale con la X o con los botones.
-export default function OrderSuccess({ waHref, entrega, items, totales }: Props) {
+export default function OrderSuccess({ waHref, entrega, items, totales, detalle }: Props) {
   const navigate = useNavigate()
   const volver = () => navigate('/')
 
@@ -66,14 +68,15 @@ export default function OrderSuccess({ waHref, entrega, items, totales }: Props)
               <span>{money(i.precio * i.cantidad)}</span>
             </div>
           ))}
-          {/* Subtotal / descuento / envío solo si algo modifica el total. */}
-          {lineasDesglose(totales).map((l, idx) => (
+          {/* Subtotal / descuento / envío solo si algo modifica el total
+              (o si el envío salió gratis por zona o cupón). */}
+          {lineasDesglose(totales, detalle).map((l, idx) => (
             <div
               className={idx === 0 ? 'success-linea success-desglose primera' : 'success-linea success-desglose'}
               key={l.concepto}
             >
-              <span>{l.concepto}</span>
-              <span>{montoLinea(l.importe)}</span>
+              <span>{l.etiqueta}</span>
+              <span>{l.texto ?? montoLinea(l.importe)}</span>
             </div>
           ))}
           <div className="success-linea total">

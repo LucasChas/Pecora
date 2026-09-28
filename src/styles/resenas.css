@@ -1,0 +1,370 @@
+/* ==========================================================================
+   Reseñas de compradoras verificadas.
+   - Tienda: sección debajo del detalle del producto (.rs-seccion).
+   - Panel: Ajustes → Reseñas (reusa .ajuste-card; acá solo lo propio).
+   Todo con prefijo rs-.
+   ========================================================================== */
+
+.rs-seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 24px;
+  padding: 20px;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+}
+
+.rs-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+}
+.rs-titulo {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.rs-resumen {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+.rs-promedio {
+  font-weight: 700;
+  font-size: 1rem;
+}
+.rs-cantidad {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Estrellas ---- */
+.rs-estrellas {
+  display: inline-flex;
+  gap: 2px;
+  color: var(--sage);
+  line-height: 0;
+}
+.rs-estrella {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.rs-estrella--vacia {
+  color: var(--line);
+}
+/* Contorno más visible para la estrella vacía (sobre fondo blanco). */
+.rs-estrella--vacia path {
+  stroke: #cdbb90;
+}
+
+/* ---- Bloque propio / formulario ---- */
+.rs-mia {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--sage-pale);
+}
+.rs-mia-titulo {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.rs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rs-selector {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+.rs-label {
+  display: block;
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.rs-opcional {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+.rs-selector-estrellas {
+  display: inline-flex;
+  gap: 2px;
+}
+.rs-opcion {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Área táctil de 44px aunque la estrella sea más chica. */
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: var(--line);
+  cursor: pointer;
+}
+.rs-opcion .rs-estrella {
+  width: 30px;
+  height: 30px;
+}
+.rs-opcion--activa {
+  color: var(--sage);
+}
+.rs-opcion .rs-estrella--vacia path {
+  stroke: #cdbb90;
+}
+/* El radio nativo queda encima de la estrella, invisible pero enfocable. */
+.rs-radio {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.rs-opcion:has(.rs-radio:focus-visible) {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 1px;
+}
+.rs-selector:disabled .rs-opcion {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.rs-campo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.rs-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 96px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  font-family: inherit;
+  /* 16px: evita el zoom automático de iOS al enfocar. */
+  font-size: 1rem;
+  line-height: 1.45;
+  color: var(--ink);
+  resize: vertical;
+}
+.rs-textarea:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 1px;
+}
+.rs-contador {
+  align-self: flex-end;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.rs-form-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.rs-confirmar {
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.rs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid var(--sage-deep);
+  border-radius: 100px;
+  background: var(--sage);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.rs-btn--secundario {
+  background: #fff;
+  color: var(--sage-deep);
+}
+.rs-btn--peligro {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+.rs-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+@media (hover: hover) {
+  .rs-btn:not(:disabled):hover {
+    background: var(--sage-deep);
+    color: #fff;
+  }
+  .rs-btn--peligro:not(:disabled):hover {
+    background: #b3544b;
+  }
+}
+.rs-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--sage-deep);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.rs-link--peligro {
+  color: var(--danger);
+}
+.rs-link:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.rs-btn:focus-visible,
+.rs-link:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+}
+
+.rs-nota {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.rs-nota a {
+  color: var(--sage-deep);
+  font-weight: 600;
+}
+.rs-ok {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--sage-deep);
+  font-weight: 600;
+}
+.rs-ok:empty {
+  display: none;
+}
+.rs-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+.rs-error .rs-link {
+  min-height: 0;
+  color: var(--danger);
+}
+
+/* ---- Lista ---- */
+.rs-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rs-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.rs-item:first-child {
+  border-top: none;
+  padding-top: 4px;
+}
+.rs-item-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.rs-autora {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.rs-verificada {
+  font-size: 0.75rem;
+  color: var(--sage-deep);
+  background: var(--sage-pale);
+  border-radius: 100px;
+  padding: 2px 8px;
+}
+.rs-comentario {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.rs-fecha {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.rs-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 721px) {
+  .rs-seccion {
+    padding: 24px 28px;
+  }
+  .rs-mia {
+    max-width: 560px;
+  }
+}
+
+/* ---- Panel (Ajustes → Reseñas) ---- */
+.admin-root .rs-admin-linea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.admin-root .rs-admin-linea .ajuste-meta {
+  margin: 0;
+}
+.admin-root .rs-admin-comentario {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}

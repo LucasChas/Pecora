@@ -1,0 +1,799 @@
+/* ============================================================
+   Pestaña "Estadísticas" del panel (EstadisticasPanel).
+   Todo va prefijado con .est- para no chocar con admin.css.
+   Celular primero; en desktop, KPIs en fila y tarjetas en grilla.
+   ============================================================ */
+
+.est-panel {
+  font-family: 'Inter', sans-serif;
+  color: var(--ink);
+  padding: 4px 0 32px;
+}
+
+.est-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+}
+.est-titulo {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.35rem;
+  margin: 0;
+}
+.est-rango {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- Selector de período (pills con scroll horizontal) ---------- */
+.est-periodos {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin: 0 0 12px;
+  scrollbar-width: none;
+}
+.est-periodos::-webkit-scrollbar {
+  display: none;
+}
+.est-periodo {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.est-periodo:hover {
+  border-color: var(--sage);
+}
+.est-periodo--activo {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: #fff;
+}
+.est-periodo:focus-visible,
+.est-btn:focus-visible,
+.est-tabla-wrap summary:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+}
+
+/* ---------- Rango personalizado ---------- */
+.est-custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.est-custom-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  flex: 1 1 140px;
+}
+.est-custom-campo input {
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+}
+.est-custom-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
+.est-btn {
+  min-height: 44px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 10px;
+  background: var(--sage);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.est-btn:hover {
+  background: var(--sage-deep);
+}
+
+/* ---------- Estados ---------- */
+.est-cargando,
+.est-error,
+.est-vacio {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px 18px;
+  text-align: center;
+  color: var(--ink-soft);
+  margin: 8px 0 0;
+}
+.est-cargando {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.est-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line);
+  border-top-color: var(--sage);
+  border-radius: 50%;
+  animation: est-gira 0.8s linear infinite;
+}
+@keyframes est-gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .est-spinner {
+    animation: none;
+  }
+}
+.est-error {
+  background: var(--danger-pale);
+  border-color: transparent;
+  color: var(--ink);
+}
+.est-error p {
+  margin: 0 0 12px;
+}
+.est-error p:last-child {
+  margin-bottom: 0;
+}
+.est-vacio--chico {
+  padding: 12px;
+  border: none;
+  background: transparent;
+}
+
+/* ---------- KPIs ---------- */
+.est-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.est-kpi {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  min-width: 0;
+}
+.est-kpi--destacado {
+  grid-column: 1 / -1;
+  background: var(--sage-pale);
+  border-color: transparent;
+}
+.est-kpi-etiqueta {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0 0 4px;
+}
+.est-kpi-valor {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.3rem;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.est-kpi--destacado .est-kpi-valor {
+  font-size: 1.7rem;
+}
+
+/* ---------- Tarjetas ---------- */
+.est-grid {
+  display: grid;
+  gap: 14px;
+}
+.est-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  min-width: 0;
+}
+.est-card-titulo {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 0 0 12px;
+}
+
+/* ---------- Gráfico de barras ---------- */
+.est-chart {
+  width: 100%;
+  overflow: hidden;
+}
+.est-chart svg {
+  display: block;
+}
+.est-barra {
+  fill: var(--sage);
+  transition: fill 0.15s;
+}
+.est-barra:hover {
+  fill: var(--sage-deep);
+}
+.est-eje-linea {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.est-eje-texto {
+  fill: var(--ink-soft);
+  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+}
+
+.est-tabla-wrap {
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+.est-tabla-wrap summary {
+  cursor: pointer;
+  color: var(--sage-deep);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.est-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.est-tabla th,
+.est-tabla td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+.est-tabla th:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+.est-tabla thead th {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.est-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Top vendidos ---------- */
+.est-top {
+  list-style: none;
+  counter-reset: est-top;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.est-top-item {
+  counter-increment: est-top;
+}
+.est-top-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.88rem;
+}
+.est-top-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.est-top-nombre::before {
+  content: counter(est-top) '. ';
+  color: var(--ink-soft);
+}
+.est-top-num {
+  flex: 0 0 auto;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.est-top-pista {
+  margin-top: 4px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--cream-deep);
+  overflow: hidden;
+}
+.est-top-barra {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sage);
+}
+
+/* ---------- Web vs. manual ---------- */
+.est-origen-barra {
+  display: flex;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--cream-deep);
+}
+.est-origen-seg {
+  height: 100%;
+}
+.est-origen-seg--web,
+.est-origen-punto--web {
+  background: var(--sage);
+}
+.est-origen-seg--manual,
+.est-origen-punto--manual {
+  background: var(--ink-soft);
+}
+.est-origen-leyenda {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.est-origen-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: center;
+  font-size: 0.88rem;
+}
+.est-origen-punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.est-origen-dato {
+  grid-column: 2;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Secciones: Ventas / Rentabilidad / Gastos ---------- */
+.est-vistas {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 12px;
+  border-radius: 12px;
+  background: var(--cream-deep);
+}
+.est-vista {
+  flex: 1 1 0;
+  min-height: 44px;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.est-vista--activa {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(59, 47, 34, 0.12);
+}
+.est-vista:focus-visible,
+.est-btn-sec:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+}
+
+/* ---------- Rentabilidad ---------- */
+.est-kpi--negativo .est-kpi-valor,
+.est-negativo {
+  color: var(--danger);
+}
+.est-grid--top {
+  margin-top: 14px;
+}
+
+.est-leyenda {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: -4px 0 8px;
+  padding: 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.est-leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.est-leyenda-punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+/* Series: dorado = ingresos, gris cálido = gastos, tinta = beneficio,
+   rojo = pérdida. También se distinguen por la luminosidad. */
+.est-serie--ingresos {
+  fill: var(--sage);
+  background: var(--sage);
+}
+.est-serie--gastos {
+  fill: var(--unavailable);
+  background: var(--unavailable);
+}
+.est-serie--beneficio {
+  fill: var(--ink);
+  background: var(--ink);
+}
+.est-serie--perdida {
+  fill: var(--danger);
+}
+.est-eje-cero {
+  stroke: var(--ink-soft);
+  stroke-width: 1;
+}
+
+.est-tabla-scroll {
+  overflow-x: auto;
+}
+
+.est-estimaciones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.est-estimacion {
+  background: var(--cream);
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 0;
+}
+.est-estimacion:last-child {
+  grid-column: 1 / -1;
+}
+.est-estimacion p {
+  margin: 0;
+}
+.est-estimacion .est-estimacion-titulo {
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.est-estimacion-nombre {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.est-estimacion .est-estimacion-detalle {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.est-estimacion-vacio {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.est-proyeccion {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0 0;
+}
+.est-proyeccion dt {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+.est-proyeccion dd {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.est-aviso {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--sage-pale);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.est-nota {
+  margin: 12px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+/* Tabla por producto: en el celular cada fila es una tarjeta con etiquetas. */
+.est-tabla--productos thead {
+  display: none;
+}
+.est-tabla--productos tr {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.est-tabla--productos tbody tr:last-child {
+  border-bottom: none;
+}
+.est-tabla--productos th,
+.est-tabla--productos td {
+  border: none;
+  padding: 0;
+  text-align: left;
+}
+.est-tabla--productos th[scope='row'] {
+  grid-column: 1 / -1;
+  font-weight: 600;
+}
+.est-tabla--productos td {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.est-tabla--productos td::before {
+  content: attr(data-etiqueta);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+.est-fila-sub {
+  display: block;
+  font-weight: 400;
+  font-size: 0.76rem;
+  color: var(--ink-soft);
+}
+.est-fila-sin-costo td:nth-of-type(4) {
+  color: var(--clay);
+  font-style: italic;
+}
+
+.est-top--categorias .est-top-nombre::before {
+  content: none;
+}
+.est-top-barra--gasto {
+  background: var(--unavailable);
+}
+
+/* ---------- Gastos ---------- */
+.est-gastos-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+.est-gastos-head > div {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.est-gastos-head .est-btn {
+  flex: 0 0 auto;
+}
+.est-gastos-total {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.45rem;
+  font-variant-numeric: tabular-nums;
+}
+.est-gastos-total span {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.est-gastos-ayuda {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.est-gastos-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.est-gasto {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  min-width: 0;
+}
+.est-gasto-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.est-gasto-concepto {
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.est-gasto-monto {
+  flex: 0 0 auto;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.est-gasto-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.est-gasto-notas {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.est-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  background: var(--cream-deep);
+  color: var(--ink);
+}
+.est-chip--materiales {
+  background: var(--sage-pale);
+}
+.est-chip--otros {
+  background: var(--cream);
+  border: 1px solid var(--line);
+}
+.est-gasto-acciones {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.est-btn-sec {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.est-btn-sec--peligro {
+  margin-left: auto;
+  border-color: transparent;
+  color: var(--danger);
+}
+.est-campo-ayuda {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- Desktop ---------- */
+@media (min-width: 721px) {
+  .est-kpis {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .est-kpi--destacado {
+    grid-column: auto;
+  }
+  .est-kpi--destacado .est-kpi-valor {
+    font-size: 1.3rem;
+  }
+  .est-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .est-card--ancha {
+    grid-column: 1 / -1;
+  }
+  .est-card {
+    padding: 18px;
+  }
+  .est-kpis--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .est-estimaciones {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .est-estimacion:last-child {
+    grid-column: auto;
+  }
+  /* Tabla por producto: tabla de verdad desde tablet. */
+  .est-tabla--productos thead {
+    display: table-header-group;
+  }
+  .est-tabla--productos tr {
+    display: table-row;
+  }
+  .est-tabla--productos th,
+  .est-tabla--productos td {
+    display: table-cell;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--line);
+    text-align: right;
+  }
+  .est-tabla--productos th:first-child {
+    text-align: left;
+  }
+  .est-tabla--productos td::before {
+    content: none;
+  }
+  .est-gastos-lista {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+@media (min-width: 768px) and (pointer: fine) {
+  .est-btn-sec {
+    min-height: 36px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .est-btn-sec:hover {
+    border-color: var(--sage);
+  }
+  .est-vista:not(.est-vista--activa):hover {
+    color: var(--ink);
+  }
+}
+@media (min-width: 1024px) {
+  .est-kpi-valor,
+  .est-kpi--destacado .est-kpi-valor {
+    font-size: 1.45rem;
+  }
+}
