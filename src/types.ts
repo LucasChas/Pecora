@@ -44,6 +44,8 @@ export type EstadoPedido = 'nuevo' | 'confirmado' | 'entregado' | 'cancelado'
 
 export type OrigenPedido = 'checkout' | 'admin'
 
+export type EntregaPedido = 'envio' | 'coordinar'
+
 export interface PedidoItem {
   id: string
   nombre: string
@@ -57,7 +59,7 @@ export interface Pedido {
   nombre: string
   telefono: string
   email: string | null
-  entrega: 'envio' | 'coordinar'
+  entrega: EntregaPedido
   direccion: string | null
   localidad: string | null
   cp: string | null
@@ -66,7 +68,23 @@ export interface Pedido {
   subtotal: number
   estado: EstadoPedido
   origen: OrigenPedido
+  // Cuenta de la clienta (migración 0005). Opcional en el tipo: no todos los
+  // lugares que arman un Pedido lo completan.
+  user_id?: string | null
   created_at: string
   // Papelera: si tiene fecha, la admin lo mandó a la papelera (ver migración 0009).
   eliminado_at: string | null
+
+  // ---- Totales, provincia e idempotencia (migración de totales del pedido) ----
+  // Opcionales: el frontend puede llegar a producción antes que la migración, y
+  // en ese caso las filas no traen estas columnas. Para leer los montos usar
+  // totalesDe() (lib/orders), que completa lo que falte.
+  descuento?: number | null
+  costo_envio?: number | null
+  // Columna generada en la base: subtotal - descuento + costo_envio.
+  total?: number | null
+  provincia?: string | null
+  idempotency_key?: string | null
+  email_enviado_at?: string | null
+  aviso_duena_enviado_at?: string | null
 }

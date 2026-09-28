@@ -1,0 +1,577 @@
+/* ============================================================
+   Estilos de la LISTA DE PRECIOS exportable (panel admin →
+   "Exportar catálogo"). Portan la plantilla de la lista impresa:
+   hoja A4, header grande/chico, festón, bandas de 5 columnas.
+   En el celular suma una lista legible con el mismo diseño (solo
+   pantalla: al imprimir siempre salen las hojas).
+
+   Todo va bajo .catalog-export y con prefijo "ce-": catalog.css del
+   muestrario ya define .card, .badge, .scallop, .logo-img... y esas
+   reglas son globales, así que acá no se reusa ningún nombre.
+   La regla @page vive en el componente (ver CatalogExport.tsx).
+   ============================================================ */
+
+/* ---------- Pantalla: vista previa ---------- */
+
+/* Mientras la vista está montada, <html> lleva .ce-activo (fondo propio,
+   sin heredar nada del panel). */
+html.ce-activo,
+html.ce-activo body {
+  background: #D9CCB0;
+}
+
+.catalog-export {
+  min-height: 100vh;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: #3B2F22;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.catalog-export * {
+  margin: 0;
+}
+
+/* Barra de acciones (no se imprime) */
+.catalog-export .ce-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--ink);
+  color: var(--cream);
+}
+.catalog-export .ce-toolbar-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 180px;
+}
+.catalog-export .ce-toolbar-info strong {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.catalog-export .ce-toolbar-info span {
+  font-size: 0.72rem;
+  color: #C9B48A;
+}
+.catalog-export .ce-btn {
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 10px 16px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+.catalog-export .ce-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.catalog-export .ce-btn--primary {
+  background: var(--sage);
+  color: #fff;
+  /* El contador "Preparando fotos… 12/34" no hace saltar el botón. */
+  font-variant-numeric: tabular-nums;
+}
+.catalog-export .ce-btn--primary:not(:disabled):active {
+  background: var(--sage-deep);
+}
+.catalog-export .ce-btn--ghost {
+  background: transparent;
+  color: var(--cream);
+  border-color: rgba(248, 241, 225, 0.35);
+}
+
+/* Hojas apiladas. --ce-escala achica la vista previa en pantallas angostas
+   (se calcula en el componente); al imprimir vuelve a 1. */
+.catalog-export .ce-hojas {
+  zoom: var(--ce-escala, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 12px 48px;
+}
+.catalog-export .ce-hojas .ce-page {
+  box-shadow: 0 6px 24px rgba(59, 47, 34, 0.18);
+}
+
+/* Celular con la vista "Lista": las hojas siguen en el DOM (se miden, cargan
+   sus fotos y se imprimen) pero no se ven. Solo en pantalla: al imprimir esta
+   regla no aplica y salen las hojas. */
+@media screen {
+  .catalog-export.ce-vista-lista .ce-hojas {
+    display: none;
+  }
+}
+
+/* Pasada de medición: fuera de pantalla, mismo ancho y estilos que la hoja real. */
+.catalog-export .ce-medicion {
+  position: absolute;
+  top: 0;
+  left: -10000px;
+  visibility: hidden;
+  pointer-events: none;
+}
+.catalog-export .ce-page--medir {
+  height: auto;
+  overflow: visible;
+}
+
+/* ---------- Hoja A4 (plantilla) ---------- */
+.catalog-export .ce-page {
+  width: 210mm;
+  height: 297mm;
+  overflow: hidden;
+  background: #F8F1E1;
+  display: flex;
+  flex-direction: column;
+  page-break-after: always;
+  break-after: page;
+}
+.catalog-export .ce-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+.catalog-export .ce-header {
+  background: #EEE1C4;
+  text-align: center;
+}
+.catalog-export .ce-header--big {
+  padding: 34px 0 20px;
+}
+.catalog-export .ce-header--small {
+  padding: 18px 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+.catalog-export .ce-logo {
+  height: 62px;
+  width: auto;
+  display: block;
+  margin: 0 auto;
+}
+.catalog-export .ce-header--small .ce-logo {
+  height: 34px;
+  margin: 0;
+}
+.catalog-export .ce-tag {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  font-size: 22px;
+  color: #8E7040;
+  margin-top: 12px;
+  letter-spacing: 0.01em;
+}
+.catalog-export .ce-header--small .ce-tag {
+  margin: 0;
+  font-size: 17px;
+  padding-left: 18px;
+  border-left: 1.5px solid #CDB27E;
+}
+.catalog-export .ce-tag2 {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #9A8260;
+  margin-top: 6px;
+}
+
+/* Festón bajo el header */
+.catalog-export .ce-scallop {
+  display: block;
+  width: 100%;
+  height: 14px;
+  flex-shrink: 0;
+  background: linear-gradient(#EEE1C4 0 2px, transparent 2px);
+}
+
+/* Cuerpo: bandas apiladas. La primera hoja respira más. */
+.catalog-export .ce-main {
+  flex: 1;
+  padding: 12px 34px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.catalog-export .ce-page--primera .ce-main {
+  gap: 26px;
+  padding-top: 22px;
+}
+
+.catalog-export .ce-band {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0 12px;
+  flex-shrink: 0;
+}
+/* Título de categoría. La plantilla llevaba una bajada (<small>) al lado;
+   las categorías no tienen descripción en la base, así que va solo el nombre
+   (en bloque, para que un nombre largo termine en "…" en vez de cortarse). */
+.catalog-export .ce-grp-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 17px;
+  color: #3B2F22;
+  display: block;
+  border-bottom: 1.5px solid #B08F55;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.catalog-export .ce-cards {
+  display: grid;
+  gap: 12px;
+}
+
+/* Card de producto */
+.catalog-export .ce-card {
+  background: #FFFBF2;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 #E6D9BD, 0 4px 12px rgba(120, 90, 40, 0.08);
+}
+.catalog-export .ce-ph {
+  position: relative;
+}
+/* height: auto pisa el atributo height del <img> (va para reservar la
+   proporción): el alto sale del ancho de la card con aspect-ratio. */
+.catalog-export .ce-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+/* Producto sin foto: cuadrado con los colores de la plantilla. */
+.catalog-export .ce-img--vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #EEE1C4;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  font-size: 15px;
+  color: #B08F55;
+  letter-spacing: 0.02em;
+}
+.catalog-export .ce-cap {
+  padding: 6px 9px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Nombre: hasta 3 renglones, para que un nombre muy largo no estire la fila. */
+.catalog-export .ce-nm {
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: #5A4935;
+  min-height: 2.5em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.catalog-export .ce-pr {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: #8E7040;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Sin stock: mismo criterio que el muestrario (se muestra con aviso), pero
+   discreto, con la pastilla de la plantilla. */
+.catalog-export .ce-badge {
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5A4935;
+  background: rgba(255, 251, 242, 0.92);
+  border-radius: 999px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(60, 40, 10, 0.15);
+}
+.catalog-export .ce-card--agotado .ce-img {
+  filter: grayscale(0.6);
+  opacity: 0.7;
+}
+.catalog-export .ce-card--agotado .ce-pr {
+  color: #A79A82;
+}
+
+/* Pie de cada hoja */
+.catalog-export .ce-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 16px;
+  margin: 0 34px;
+  font-size: 9.5px;
+  color: #8E7A5C;
+  border-top: 1px solid #E6D9BD;
+}
+.catalog-export .ce-footer b {
+  color: #8E7040;
+  font-weight: 600;
+}
+
+/* ---------- Celular: barra compacta, selector de vista y lista ----------
+   .ce-angosta la pone el componente con el mismo corte que decide si hay
+   lista (ver CONSULTA_ANGOSTA en CatalogExport.tsx). */
+
+/* Barra en una sola fila: volver (ícono), título que se corta con "…" y
+   el botón de descarga. Respeta el notch (viewport-fit=cover). */
+.catalog-export.ce-angosta .ce-toolbar {
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: calc(6px + env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px))
+    6px max(10px, env(safe-area-inset-left, 0px));
+}
+.catalog-export.ce-angosta .ce-toolbar-info {
+  flex: 1 1 0;
+  min-width: 0;
+  gap: 1px;
+}
+.catalog-export.ce-angosta .ce-toolbar-info strong,
+.catalog-export.ce-angosta .ce-toolbar-info span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.catalog-export.ce-angosta .ce-toolbar-info strong {
+  font-size: 15px;
+  line-height: 1.25;
+}
+.catalog-export.ce-angosta .ce-toolbar-info span {
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+/* Botones de 44 px de alto como mínimo (área táctil) y letra de 16 px. */
+.catalog-export.ce-angosta .ce-btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 16px;
+}
+.catalog-export.ce-angosta .ce-btn--icono {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.catalog-export .ce-btn--icono svg {
+  display: block;
+}
+
+/* Selector "Lista | Hojas A4" y la pista del PDF. No se imprime. */
+.catalog-export .ce-subbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px max(12px, env(safe-area-inset-right, 0px)) 10px
+    max(12px, env(safe-area-inset-left, 0px));
+}
+.catalog-export .ce-vistas {
+  display: inline-flex;
+  flex-shrink: 0;
+  background: #EEE1C4;
+  border: 1px solid #CDB27E;
+  border-radius: 999px;
+}
+.catalog-export .ce-vista {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #5A4935;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.catalog-export .ce-vista[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--cream);
+}
+.catalog-export .ce-vista:focus-visible {
+  outline: 2px solid #8E7040;
+  outline-offset: 2px;
+}
+.catalog-export .ce-pista {
+  flex: 1 1 140px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #5A4935;
+}
+
+/* Lista legible: mismo lenguaje que la hoja (crema, header con logo,
+   festón, títulos y precios en Fraunces), en 2 columnas (3 desde ~560 px). */
+.catalog-export .ce-lista {
+  background: #F8F1E1;
+  margin-bottom: 24px;
+}
+.catalog-export .ce-lista-header {
+  background: #EEE1C4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) 12px
+    max(16px, env(safe-area-inset-left, 0px));
+}
+.catalog-export .ce-lista-logo {
+  height: 40px;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+}
+.catalog-export .ce-lista-marca {
+  padding-left: 14px;
+  border-left: 1.5px solid #CDB27E;
+  min-width: 0;
+}
+.catalog-export .ce-lista-tag {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  font-size: 19px;
+  line-height: 1.2;
+  color: #8E7040;
+}
+.catalog-export .ce-lista-mes {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9A8260;
+  margin-top: 3px;
+}
+.catalog-export .ce-lista-main {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) 8px
+    max(16px, env(safe-area-inset-left, 0px));
+}
+/* En pantalla el título puede bajar de renglón: no hace falta cortarlo. */
+.catalog-export .ce-lista-titulo {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1.25;
+  color: #3B2F22;
+  border-bottom: 1.5px solid #B08F55;
+  padding-bottom: 5px;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+.catalog-export .ce-lista-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 560px) {
+  .catalog-export .ce-lista-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+/* Las cards son las de la hoja (PriceListCard): acá solo se agranda la letra. */
+.catalog-export .ce-lista .ce-cap {
+  padding: 8px 10px 10px;
+  gap: 4px;
+}
+.catalog-export .ce-lista .ce-nm {
+  font-size: 13.5px;
+  line-height: 1.3;
+}
+.catalog-export .ce-lista .ce-pr {
+  font-size: 17px;
+}
+.catalog-export .ce-lista .ce-badge {
+  left: 8px;
+  top: 8px;
+  font-size: 10.5px;
+  padding: 4px 9px;
+}
+.catalog-export .ce-lista .ce-img--vacia {
+  font-size: 18px;
+}
+.catalog-export .ce-lista-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px max(16px, env(safe-area-inset-right, 0px)) 0
+    max(16px, env(safe-area-inset-left, 0px));
+  padding: 12px 0 calc(20px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #E6D9BD;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #8E7A5C;
+  text-align: center;
+}
+.catalog-export .ce-lista-footer b {
+  color: #8E7040;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Impresión: solo las hojas ---------- */
+@media print {
+  html.ce-activo,
+  html.ce-activo body {
+    background: #F8F1E1;
+    height: auto;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* Cualquier cosa fuera de la app (extensiones, overlays) no se imprime. */
+  html.ce-activo body > :not(#root) {
+    display: none !important;
+  }
+  .catalog-export {
+    min-height: 0;
+  }
+  .catalog-export .ce-toolbar,
+  .catalog-export .ce-medicion {
+    display: none;
+  }
+  /* La lista del celular y su selector nunca se imprimen, esté elegida la
+     vista que esté: el PDF son siempre las hojas A4. */
+  .catalog-export .ce-subbar,
+  .catalog-export .ce-lista {
+    display: none !important;
+  }
+  .catalog-export .ce-hojas {
+    zoom: 1;
+    display: block;
+    padding: 0;
+  }
+  .catalog-export .ce-hojas .ce-page {
+    box-shadow: none;
+  }
+}

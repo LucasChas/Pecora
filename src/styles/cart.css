@@ -16,19 +16,28 @@
   background: var(--sage);
   color: #fff;
 }
-.btn-primary:hover {
-  background: var(--sage-deep);
+/* Hover prefijado con .shop (no se filtra al panel admin, que carga esta hoja)
+   y solo con mouse, para que en táctil no quede "pegado" tras el toque. */
+@media (hover: hover) {
+  .shop .btn-primary:not(:disabled):hover {
+    background: var(--sage-deep);
+  }
 }
 
 /* Header con ícono de carrito arriba a la derecha */
 .cart-header {
   position: relative;
 }
-/* Acciones del header (cuenta + carrito) */
+/* Acciones del header (cuenta + carrito). En pantallas anchas se alinean con
+   el borde del contenido (--shop-max + gutter), no con el borde de la ventana. */
 .header-actions {
   position: absolute;
   top: 50%;
-  right: 24px;
+  right: max(
+    24px,
+    env(safe-area-inset-right),
+    calc((100% - var(--shop-max, 1100px)) / 2 + var(--shop-gutter, 24px))
+  );
   transform: translateY(-50%);
   display: flex;
   align-items: center;
@@ -47,6 +56,16 @@
   box-shadow: 0 1px 3px rgba(51, 48, 42, 0.12);
   border: none;
   cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+.cart-icon:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .cart-icon:hover {
+    box-shadow: 0 4px 12px rgba(51, 48, 42, 0.18);
+  }
 }
 .cart-icon svg {
   width: 22px;
@@ -112,8 +131,12 @@
   /* Los mails largos no deben ensanchar el menú. */
   overflow-wrap: anywhere;
 }
+/* Ítems del menú con 44px de alto: área de toque cómoda en mobile. */
 .account-menu a,
 .account-menu button {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   text-align: left;
   background: none;
   border: none;
@@ -138,7 +161,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+    max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   animation: success-fade 0.2s ease;
 }
 .success-card {
@@ -158,15 +182,17 @@
   /* El overlay tiene padding:20px; con pedidos largos el contenido no debe
      desbordar la pantalla — mismo patrón que .sheet en admin.css. */
   max-height: calc(100vh - 40px);
+  /* dvh: en mobile descuenta las barras del navegador (fallback: la de arriba). */
+  max-height: calc(100dvh - 40px);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 .success-close {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 32px;
-  height: 32px;
+  top: 10px;
+  right: 10px;
+  width: 44px;
+  height: 44px;
   border: none;
   border-radius: 100px;
   background: rgba(51, 48, 42, 0.06);
@@ -355,6 +381,9 @@
   background: var(--cream);
   display: flex;
   flex-direction: column;
+  /* Fuera del notch / barra de estado en teléfonos con safe areas. */
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
   transform: translateX(100%);
   transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
   box-shadow: -12px 0 30px rgba(51, 48, 42, 0.18);
@@ -379,6 +408,8 @@
   color: var(--ink-soft);
   font-weight: 500;
 }
+/* 44x44 de área de toque; los márgenes negativos absorben el tamaño extra
+   (el header no crece y el ícono queda alineado con el borde del contenido). */
 .drawer-close {
   border: none;
   background: none;
@@ -387,7 +418,15 @@
   justify-content: center;
   cursor: pointer;
   color: var(--ink-soft);
-  padding: 4px 8px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: -9px -12px -9px 0;
+  border-radius: 100px;
+}
+.drawer-close:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: -2px;
 }
 .drawer-close svg {
   width: 18px;
@@ -411,6 +450,8 @@
 .drawer-items {
   flex: 1;
   overflow-y: auto;
+  /* El scroll de la lista no se encadena a la página de fondo. */
+  overscroll-behavior: contain;
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
@@ -456,6 +497,7 @@
   font-weight: 700;
   font-size: 0.9rem;
 }
+/* "Quitar": texto chico, pero con 44px de alto tocable. */
 .drawer-remove {
   border: none;
   background: none;
@@ -463,7 +505,10 @@
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0 0 12px;
 }
 .drawer-foot {
   border-top: 1px solid var(--line);
@@ -493,7 +538,8 @@
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
-  padding: 2px;
+  min-height: 44px;
+  padding: 10px 16px;
 }
 
 /* variante compacta del selector de cantidad (drawer) */
@@ -534,6 +580,14 @@
   font-weight: 600;
   font-size: 0.95rem;
 }
+/* En pantallas táctiles, botones −/+ con área de toque de 44px de ancho. */
+@media (pointer: coarse) {
+  .qty button,
+  .qty-sm button {
+    width: 44px;
+    height: 42px;
+  }
+}
 
 /* Estado "Agregado" del botón: mismo glyph de check que el resto de la app,
    como SVG en vez de texto plano (ver .success-check-mark). */
@@ -552,18 +606,24 @@
 /* CTA "Agregar al carrito" en la ficha */
 .add-cart {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
   margin-top: 8px;
 }
+/* Si la columna es angosta (tablet), el botón baja de renglón en vez de
+   cortar el texto en dos líneas. */
 .add-cart-btn {
   width: auto;
-  flex: 1;
+  flex: 1 0 auto;
   max-width: 300px;
+  white-space: nowrap;
 }
 
 /* ---------- Página del carrito ---------- */
-.cart-page {
+/* Calificado con main para igualar la especificidad de `.catalog-root main`
+   (catalog.css), que si no le ganaba y dejaba el carrito a 1100px. */
+.catalog-root main.cart-page {
   max-width: 760px;
 }
 .cart-title {
@@ -627,7 +687,10 @@
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
 }
 
 /* Resumen y acciones */
@@ -674,12 +737,36 @@
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+  min-height: 44px;
+  padding: 0 4px;
 }
 
+/* Desktop: lista a la izquierda y resumen fijo (sticky) a la derecha.
+   Solo cuando hay ítems (el estado vacío sigue en una columna). */
+@media (min-width: 1024px) {
+  .catalog-root main.cart-page:has(.cart-list) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    column-gap: 24px;
+    align-items: start;
+    max-width: 1000px;
+  }
+  .cart-page .cart-title {
+    grid-column: 1 / -1;
+  }
+  .cart-page .cart-summary {
+    margin-top: 0;
+    position: sticky;
+    top: 24px;
+  }
+}
 
 /* ---------- Checkout (rediseño tipo pasarela) ---------- */
-.checkout {
-  max-width: 940px;
+/* Hasta 1023px el checkout va en una columna (resumen arriba): 680px es un
+   ancho de formulario cómodo. En desktop se ensancha (ver media query abajo).
+   Calificado con main para ganarle a `.catalog-root main` (catalog.css). */
+.catalog-root main.checkout {
+  max-width: 680px;
 }
 .checkout-grid {
   display: grid;
@@ -787,7 +874,7 @@
 /* Resumen (columna derecha) */
 .summary-card {
   position: sticky;
-  top: 16px;
+  top: 24px;
 }
 .summary-items {
   display: flex;
@@ -856,13 +943,35 @@
   font-size: 1.2rem;
 }
 
-@media (max-width: 720px) {
+/* Teléfono y tablet: una columna, con el resumen arriba del formulario. */
+@media (max-width: 1023px) {
   .checkout-grid {
     grid-template-columns: 1fr;
     grid-template-areas: 'summary' 'form';
   }
   .summary-card {
     position: static;
+  }
+}
+/* Desktop: formulario + resumen. La columna del resumen se estira al alto de
+   la grilla (align-self: stretch) para que la card sticky tenga recorrido; si
+   el pedido es largo, la card scrollea por dentro en vez de salirse de pantalla. */
+@media (min-width: 1024px) {
+  .catalog-root main.checkout {
+    max-width: 1000px;
+  }
+  .checkout-grid {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 28px;
+  }
+  .checkout-col-summary {
+    align-self: stretch;
+  }
+  .summary-card {
+    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 
@@ -884,7 +993,8 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 11px 12px;
-  font-size: 0.95rem;
+  /* 1rem (16px): con menos, iOS Safari hace zoom al enfocar el campo. */
+  font-size: 1rem;
   background: #fff;
   color: var(--ink);
 }
@@ -912,28 +1022,6 @@
 .checkout-form .pp-back {
   display: table;
   margin: 24px auto 0;
-}
-
-/* Resumen compacto del pedido */
-.checkout-resumen {
-  background: #fff;
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
-  margin-bottom: 18px;
-}
-.checkout-linea {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 0.9rem;
-  padding: 4px 0;
-}
-.checkout-linea.total {
-  border-top: 1px solid var(--line);
-  margin-top: 6px;
-  padding-top: 10px;
-  font-size: 1rem;
 }
 
 /* Opciones de entrega (radios como chips) */
@@ -977,17 +1065,6 @@
   margin: 0 0 12px;
 }
 
-/* Pantalla de éxito */
-.checkout-ok {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  max-width: 480px;
-}
-.checkout-ok .pp-back {
-  align-self: center;
-}
-
 /* Mobile: el wordmark centrado y grande no convive con los botones absolutos
    (se pisaban). Achicamos el logo y ponemos las acciones AL COSTADO, en la misma
    línea; el subtítulo baja a un renglón propio. */
@@ -1021,15 +1098,52 @@
     margin: 0;
     font-size: 0.72rem;
   }
-  /* Botones un poco más compactos para ganar aire en pantallas muy angostas. */
-  .cart-icon {
-    width: 40px;
-    height: 40px;
-  }
+  /* Los íconos mantienen 44px (área de toque): a 360px entran logo (~175px) +
+     gap + dos íconos (98px) dentro de los 328px disponibles. */
 }
 
 @media (max-width: 480px) {
   .add-cart-btn {
     max-width: none;
   }
+}
+
+/* ============================================================
+   Totales del pedido + provincia (Fase 0 F1).
+   Selector de provincia del checkout, nota del resumen y líneas
+   de desglose (subtotal / descuento / envío) del modal de éxito.
+   ============================================================ */
+.checkout-form .field select {
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 36px 11px 12px;
+  /* 1rem (16px): con menos, iOS Safari hace zoom al enfocar el campo. */
+  font-size: 1rem;
+  background-color: #fff;
+  color: var(--ink);
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237C6E54' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+.checkout-form .field select:focus {
+  outline: 2px solid var(--sage);
+  outline-offset: 1px;
+}
+/* Aclaración bajo el total cuando el envío todavía no tiene costo. */
+.summary-nota {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.success-linea.success-desglose {
+  font-size: 0.82rem;
+}
+.success-linea.success-desglose.primera {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
 }

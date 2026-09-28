@@ -41,11 +41,13 @@ export default function Footer() {
           )}
         </div>
 
-        <div className="site-footer-legal" style={{ display: 'flex', gap: '12px', justifyContent: 'center', fontSize: '0.8125rem', margin: '8px 0' }}>
+        <div className="site-footer-legal">
           <Link to="/privacidad" className="site-footer-link">
             Política de Privacidad
           </Link>
-          <span>•</span>
+          <span className="site-footer-sep" aria-hidden="true">
+            •
+          </span>
           <Link to="/terminos" className="site-footer-link">
             Condiciones del Servicio
           </Link>

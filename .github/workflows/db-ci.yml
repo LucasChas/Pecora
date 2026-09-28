@@ -1,0 +1,67 @@
+name: DB CI
+
+on:
+  pull_request:
+    paths:
+      - "supabase/**"
+      - ".github/scripts/**"
+      - ".github/workflows/db-ci.yml"
+  push:
+    branches: [develop]
+    paths:
+      - "supabase/**"
+      - ".github/scripts/**"
+      - ".github/workflows/db-ci.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: Push guard tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check script syntax
+        run: |
+          for script in .github/scripts/*.sh; do
+            bash -n "$script"
+          done
+
+      # Stubbed Supabase CLI: no database and no credentials involved.
+      - name: Test db-push-guard.sh
+        run: bash .github/scripts/db-push-guard.test.sh
+
+  migrations:
+    name: Migrations, pgTAP and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.106.0
+
+      - name: Start local database (applies every migration from scratch)
+        run: supabase db start
+
+      # Includes privilegios_base.test.sql: fails if the table privileges the
+      # app relies on drift (e.g. when auto_expose_new_tables goes away).
+      - name: Run pgTAP tests
+        run: supabase test db
+
+      # Warnings are printed but do not fail the job (the baseline has one:
+      # unused parameter p_subtotal in crear_pedido). Errors fail it.
+      - name: Lint database
+        run: supabase db lint --level warning --fail-on error
+
+      - name: Stop local database
+        if: always()
+        run: supabase stop --no-backup

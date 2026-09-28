@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
@@ -7,6 +7,15 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
 import { waPedidoConfirmadoLink, type DatosPedido } from '../lib/config'
+import {
+  PROVINCIAS_AR,
+  calcularSubtotal,
+  crearPedido,
+  nuevaClaveIdempotencia,
+  textoEnvio,
+  totalesDe,
+  type TotalesPedido,
+} from '../lib/orders'
 import OrderSuccess from '../components/cart/OrderSuccess'
 import '../styles/catalog.css'
 import '../styles/cart.css'
@@ -14,7 +23,7 @@ import '../styles/cart.css'
 interface PedidoConfirmado {
   numero: number
   items: CartItem[]
-  subtotal: number
+  totales: TotalesPedido
   datos: DatosPedido
 }
 
@@ -33,6 +42,7 @@ export default function CheckoutPage() {
   const [direccion, setDireccion] = useState('')
   const [localidad, setLocalidad] = useState('')
   const [cp, setCp] = useState('')
+  const [provincia, setProvincia] = useState('')
   const [notas, setNotas] = useState('')
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('whatsapp')
 
@@ -40,6 +50,24 @@ export default function CheckoutPage() {
   const [aviso, setAviso] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmado, setConfirmado] = useState<PedidoConfirmado | null>(null)
+
+  // Clave de idempotencia del intento de compra: se mantiene en los reintentos
+  // (ej. tras un corte de red, si la base ya registró el pedido devuelve el
+  // mismo número en vez de duplicarlo) y se renueva cuando cambia el carrito o
+  // después de un pedido confirmado.
+  const claveRef = useRef<string | null>(null)
+  const firmaCarrito = items.map((i) => `${i.id}:${i.cantidad}:${i.precio}`).join('|')
+  useEffect(() => {
+    claveRef.current = null
+  }, [firmaCarrito])
+
+  function claveIdempotencia(): string {
+    if (!claveRef.current) claveRef.current = nuevaClaveIdempotencia()
+    return claveRef.current
+  }
+
+  // En el checkout todavía no hay descuento ni costo de envío cargados.
+  const totales = totalesDe({ subtotal })
 
   // Prefill de nombre/teléfono con los datos de la cuenta (si están cargados).
   useEffect(() => {
@@ -105,39 +133,33 @@ export default function CheckoutPage() {
         return
       }
 
+      const envio = entrega === 'envio'
       const datos: DatosPedido = {
         nombre,
         entrega,
-        direccion: entrega === 'envio' ? direccion : undefined,
-        localidad: entrega === 'envio' ? localidad : undefined,
-        cp: entrega === 'envio' ? cp : undefined,
+        direccion: envio ? direccion : undefined,
+        localidad: envio ? localidad : undefined,
+        cp: envio ? cp : undefined,
+        provincia: envio && provincia ? provincia : undefined,
         notas: notas || undefined,
       }
-      const subtotalFinal = corregidos.reduce((n, i) => n + i.precio * i.cantidad, 0)
-      // Usamos la función crear_pedido (SECURITY DEFINER): registra el pedido y
-      // nos devuelve el número de orden, sin exponer la lectura de pedidos.
-      const { data: numero, error } = await supabase.rpc('crear_pedido', {
-        p_nombre: nombre,
-        p_telefono: telefono,
-        p_email: email || null,
-        p_entrega: entrega,
-        p_direccion: datos.direccion ?? null,
-        p_localidad: datos.localidad ?? null,
-        p_cp: datos.cp ?? null,
-        p_notas: datos.notas ?? null,
-        p_items: corregidos.map((i) => ({
-          id: i.id,
-          nombre: i.nombre,
-          precio: i.precio,
-          cantidad: i.cantidad,
-        })),
-        p_subtotal: subtotalFinal,
+      // crear_pedido (SECURITY DEFINER) registra el pedido y devuelve el número
+      // de orden, sin exponer la lectura de pedidos (ver lib/orders).
+      const numero = await crearPedido({
+        datos: { ...datos, telefono, email },
+        items: corregidos,
+        idempotencyKey: claveIdempotencia(),
       })
-      if (error) throw new Error(error.message)
+      claveRef.current = null
 
       // TODO (fase MercadoPago): si metodoPago === 'mercadopago', acá se llama a
       // la Edge Function que crea la preferencia y se redirige al checkout de MP.
-      setConfirmado({ numero: numero as number, items: corregidos, subtotal: subtotalFinal, datos })
+      setConfirmado({
+        numero,
+        items: corregidos,
+        totales: totalesDe({ subtotal: calcularSubtotal(corregidos) }),
+        datos,
+      })
       vaciar()
     } catch (err) {
       // crear_pedido devuelve mensajes ya redactados para la clienta (falta de
@@ -187,15 +209,15 @@ export default function CheckoutPage() {
                   </h2>
                   <div className="field">
                     <label>Nombre y apellido</label>
-                    <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" />
+                    <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" autoComplete="name" />
                   </div>
                   <div className="field">
                     <label>Teléfono (WhatsApp)</label>
-                    <input type="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" />
+                    <input type="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" autoComplete="tel" />
                   </div>
                   <div className="field">
                     <label>Email (opcional)</label>
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" autoComplete="email" />
                   </div>
                 </section>
 
@@ -218,17 +240,28 @@ export default function CheckoutPage() {
                     <div className="entrega-datos">
                       <div className="field">
                         <label>Dirección</label>
-                        <input type="text" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" />
+                        <input type="text" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" autoComplete="street-address" />
                       </div>
                       <div className="row2">
                         <div className="field">
                           <label>Localidad</label>
-                          <input type="text" required value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Ciudad" />
+                          <input type="text" required value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Ciudad" autoComplete="address-level2" />
                         </div>
                         <div className="field">
                           <label>Código postal</label>
-                          <input type="text" required value={cp} onChange={(e) => setCp(e.target.value)} placeholder="CP" />
+                          <input type="text" required value={cp} onChange={(e) => setCp(e.target.value)} placeholder="CP" autoComplete="postal-code" inputMode="numeric" />
                         </div>
+                      </div>
+                      <div className="field">
+                        <label htmlFor="checkout-provincia">Provincia (opcional)</label>
+                        <select id="checkout-provincia" value={provincia} onChange={(e) => setProvincia(e.target.value)} autoComplete="address-level1">
+                          <option value="">Elegí una provincia</option>
+                          {PROVINCIAS_AR.map((p) => (
+                            <option key={p} value={p}>
+                              {p}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <p className="cart-note">El costo del envío se coordina al confirmar el pedido.</p>
                     </div>
@@ -293,16 +326,19 @@ export default function CheckoutPage() {
                   </div>
                   <div className="summary-linea">
                     <span>Subtotal</span>
-                    <span>{money(subtotal)}</span>
+                    <span>{money(totales.subtotal)}</span>
                   </div>
                   <div className="summary-linea muted">
                     <span>Envío</span>
-                    <span>a coordinar</span>
+                    <span>{textoEnvio(totales, entrega)}</span>
                   </div>
                   <div className="summary-linea total">
                     <span>Total</span>
-                    <strong>{money(subtotal)}</strong>
+                    <strong>{money(totales.total)}</strong>
                   </div>
+                  {entrega === 'envio' && (
+                    <p className="summary-nota">El costo del envío se suma al coordinarlo.</p>
+                  )}
                 </div>
               </aside>
             </div>
@@ -314,12 +350,12 @@ export default function CheckoutPage() {
       {confirmado && (
         <OrderSuccess
           items={confirmado.items}
-          subtotal={confirmado.subtotal}
+          totales={confirmado.totales}
           entrega={confirmado.datos.entrega}
           waHref={waPedidoConfirmadoLink(
             confirmado.numero,
             confirmado.items,
-            confirmado.subtotal,
+            confirmado.totales,
             confirmado.datos,
           )}
         />

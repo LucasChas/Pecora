@@ -150,8 +150,131 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `0006_stock_y_precios.sql` | `crear_pedido` descuenta stock de forma atómica y recalcula precios/subtotal contra la base; `check (stock >= 0)`. **Idempotente.** |
 | `0007_borrar_pedidos.sql` | Policy de **delete** de pedidos (solo admin) + índices por `estado` y `numero`. **Idempotente.** |
 | `0008_devolver_stock.sql` | Triggers: cancelar o borrar un pedido **devuelve el stock**; reactivar uno cancelado lo vuelve a descontar. **Idempotente.** |
+| `0009_papelera_pedidos.sql` | Papelera de pedidos (borrar / restaurar) y regla única de stock: reserva si no está cancelado ni en la papelera. |
+| `0010_pedido_eliminado_visible.sql` | La clienta sigue viendo (como cancelados) sus pedidos enviados a la papelera. |
+| `0011_slug_productos.sql` | Slug único por producto, generado por trigger. |
+| `0012_email_pedido.sql` | Trigger con `pg_net` que llama a la Edge Function del mail de pedido. Los secretos de Vault se cargan a mano (ver el archivo). |
+| `0013_origen_pedido.sql` | Columna `pedidos.origen` (`checkout` / `admin`). |
+| `0014_proteger_rol.sql` | Una clienta no puede cambiar `profiles.rol` (permisos por columna + trigger). Tests en `supabase/tests/`. |
+| `20260928010451_pedido_totales.sql` | `pedidos`: `descuento`, `costo_envio` (≥ 0), `total` generada (`subtotal - descuento + costo_envio`), `provincia`, `idempotency_key` (única), `email_enviado_at`, `aviso_duena_enviado_at`. `productos`: `check (precio >= 0)`. `crear_pedido` con firma nueva de 13 parámetros (`p_provincia`, `p_idempotency_key`): idempotente por clave, `origen = 'admin'` solo si llama una admin, sin EXECUTE para `public`/`anon`. Tests: `supabase/tests/pedido_totales.test.sql`. |
+| `20260928010452_ventas_validas.sql` | Vista `ventas_validas` (`security_invoker`): una fila por ítem de pedidos no cancelados y fuera de la papelera; respeta el RLS de `pedidos`. Tests: `supabase/tests/ventas_validas.test.sql`. |
+| `20260928022104_reenviar_emails_pedido.sql` | Reenvío de mails de pedido. `invocar_email_pedido(uuid)`: llamada `pg_net` a la Edge Function con URL/token de Vault, compartida por el trigger y el RPC; sin EXECUTE para `anon`/`authenticated`. `pedido_creado_email()` la usa (mismo comportamiento: nunca bloquea el insert). `reenviar_emails_pedido(uuid)`: RPC solo admin (42501), devuelve el id de la request; la función solo manda lo que falta. Tests: `supabase/tests/reenviar_emails_pedido.test.sql`. |
 
-**Todas se corren a mano** pegándolas en el **SQL Editor** de Supabase (no se usa Supabase CLI todavía).
+### Cómo se aplican
+
+Las 0001→0013 se aplicaron **a mano** en producción (SQL Editor), así que la historia de migraciones del proyecto remoto está vacía. **Desde la 0014 se aplican con Supabase CLI y GitHub Actions**:
+
+- **CI** (`.github/workflows/db-ci.yml`): en cada PR (y push a `develop`) que toque `supabase/**` o `.github/scripts/**`: corre los tests del guard (`.github/scripts/db-push-guard.test.sh`, con la CLI simulada), levanta una base local, aplica todas las migraciones desde cero, corre los tests pgTAP (`supabase/tests/`, incluido `privilegios_base.test.sql`) y el lint (falla solo con errores; los warnings son informativos).
+- **Deploy** (`.github/workflows/db-deploy.yml`): en cada push a `main` que toque `supabase/migrations/**`, o a mano con *Run workflow* sobre `main`.
+  - `plan` (entorno `production-plan`): corre el guard (`.github/scripts/db-push-guard.sh`, un `supabase db push --dry-run`), deja la lista en el resumen del job y **se detiene** si fuera a aplicar alguna de las 0001→0013 o si no entiende la salida.
+  - `apply` (entorno `production`, **espera aprobación**): repite el guard, guarda el **esquema** `public` (sin datos, cifrado) como artifact `public-schema-before-run-<id>` por 7 días, ejecuta `supabase db push`, **verifica** que todas las migraciones quedaron aplicadas (`db-push-guard.sh --verify`) y hace un **smoke check**: `GET /rest/v1/productos` con la anon key debe dar HTTP 200. Resultados en el resumen del job.
+
+> **Atención:** con el repo linkeado (`supabase link`, deja `supabase/.temp/`), **todo comando de la CLI sin `--local` apunta a producción** (`db push`, `migration list`, `migration repair`, `db dump`, ...). Para la base local, pasar siempre `--local`.
+
+**Antes de aprobar `production`**
+
+- [ ] La lista del resumen de `plan` es exactamente la de migraciones esperadas.
+- [ ] *Dashboard → Database → Backups* muestra un backup reciente o un punto de PITR. El workflow **solo guarda el esquema**: los datos se recuperan únicamente desde ese backup. Si el plan de Supabase no tiene backups, hacer antes un dump de datos (`supabase db dump --linked --data-only -f <archivo>`) y guardarlo **fuera del repo** (tiene datos personales).
+
+**Configuración de GitHub (una sola vez)**
+
+*Settings → Environments*: crear los dos entornos, ambos con *Deployment branches → Selected branches* = `main`.
+
+| Entorno | Reviewers | Environment secrets | Environment variables |
+|---|---|---|---|
+| `production-plan` | ninguno | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_ID` | — |
+| `production` | *Required reviewers* | los mismos tres + `SCHEMA_BACKUP_PASSPHRASE` | `SUPABASE_URL`, `SUPABASE_ANON_KEY` |
+
+- Los secretos van como **Environment secrets** en cada entorno, **no** como *Repository secrets*: esos los puede leer cualquier workflow de cualquier rama. Si ya existen como Repository secrets, borrarlos.
+- `SUPABASE_ACCESS_TOKEN`: token personal (supabase.com → *Account → Access Tokens*). `SUPABASE_DB_PASSWORD`: contraseña de la base (*Project Settings → Database*). `SUPABASE_PROJECT_ID`: `nmjwuxupovkqrxmttgrw`.
+- `SCHEMA_BACKUP_PASSPHRASE`: una frase larga al azar. Guardarla también en el gestor de contraseñas: sin ella el backup del esquema no se puede abrir.
+- `SUPABASE_URL` (`https://nmjwuxupovkqrxmttgrw.supabase.co`) y `SUPABASE_ANON_KEY` (la misma que `VITE_SUPABASE_ANON_KEY`) son valores públicos: van como *variables*, no como secretos.
+
+**Primera vez (bootstrap, desde la laptop; en Windows, con Git Bash)**
+
+Hacerlo **antes** de mergear a `main` la primera migración. Si se mergea antes, `plan` se frena solo (baseline) y se vuelve a correr después del paso 2.
+
+```bash
+supabase login
+supabase link --project-ref nmjwuxupovkqrxmttgrw      # desde acá, sin --local = PRODUCCIÓN
+# 1. Marca 0001→0013 como aplicadas. Solo escribe la tabla de historia, no ejecuta SQL.
+supabase migration repair --linked --status applied 0001 0002 0003 0004 0005 0006 0007 0008 0009 0010 0011 0012 0013
+# 2. Guard (solo dry-run, no aplica nada). Debe terminar sin ERROR y listar solo
+#    migraciones posteriores a la 0013 (0014 y las de timestamp).
+bash .github/scripts/db-push-guard.sh --linked
+```
+
+3. Si el guard muestra `ERROR`, **no seguir**: el mensaje dice qué pasó.
+4. Aplicar **con el workflow** (merge a `main` o *Run workflow*) y aprobar con el checklist de arriba: así quedan el backup del esquema, la verificación y el smoke check. Solo si el workflow no se puede usar, desde la laptop y después de confirmar el backup en el Dashboard:
+   ```bash
+   bash .github/scripts/db-push-guard.sh --linked && supabase db push --linked
+   bash .github/scripts/db-push-guard.sh --verify --linked
+   ```
+5. `supabase unlink`, para que la laptop deje de apuntar a producción por defecto.
+
+**Si algo sale mal**
+
+- El paso *Verify* del job dice qué migraciones quedaron aplicadas; el *smoke check* en rojo significa que el catálogo público puede estar caído: revisar el sitio en el momento.
+- **Esquema**: nunca editar una migración aplicada; crear una migración nueva que deshaga el cambio. El esquema previo está en el artifact del run: `gpg --decrypt --output esquema.sql public-schema-before-run-<id>.sql.gpg` (pide `SCHEMA_BACKUP_PASSPHRASE`; `gpg` viene con Git for Windows).
+- **Datos**: solo se recuperan desde los backups / PITR de Supabase (*Dashboard → Database → Backups*).
+
+**Permisos de tablas — tarea con fecha: antes del 2026-10-30**
+
+Las 0001→0014 nunca hacen `GRANT` de tablas a `anon`/`authenticated`: dependen de los permisos automáticos ("auto expose") con los que se creó el proyecto, que en local reproduce `auto_expose_new_tables = true` de `supabase/config.toml`. Ese campo se elimina el **2026-10-30**. `supabase/tests/privilegios_base.test.sql` fija los permisos que necesita la app y falla si cambian.
+
+- [ ] **Antes del 2026-10-30**: crear una migración con `GRANT`s explícitos y quitar `auto_expose_new_tables` de `supabase/config.toml`. `privilegios_base.test.sql` tiene que seguir pasando sin tocarlo.
+- [ ] Antes de escribirla, comparar producción con lo que espera el test (SQL Editor). Resultado esperado: **0 filas**. `falta` = producción no tiene un permiso que la app necesita; `sobra` = permiso que tiene que estar revocado. Los permisos por columna de `profiles` se revisan con la consulta (a) al final de `0014_proteger_rol.sql`.
+
+```sql
+with requerido(rol, tabla, privilegio) as (values
+  ('anon', 'categorias', 'SELECT'), ('anon', 'productos', 'SELECT'),
+  ('authenticated', 'categorias', 'SELECT'), ('authenticated', 'categorias', 'INSERT'),
+  ('authenticated', 'categorias', 'UPDATE'), ('authenticated', 'categorias', 'DELETE'),
+  ('authenticated', 'productos', 'SELECT'), ('authenticated', 'productos', 'INSERT'),
+  ('authenticated', 'productos', 'UPDATE'), ('authenticated', 'productos', 'DELETE'),
+  ('authenticated', 'pedidos', 'SELECT'), ('authenticated', 'pedidos', 'UPDATE'), ('authenticated', 'pedidos', 'DELETE'),
+  ('authenticated', 'profiles', 'SELECT'), ('authenticated', 'ventas_validas', 'SELECT'),
+  ('service_role', 'pedidos', 'SELECT'), ('service_role', 'pedidos', 'UPDATE')
+), prohibido(rol, tabla, privilegio) as (values
+  ('anon', 'profiles', 'UPDATE'), ('authenticated', 'profiles', 'UPDATE'), ('anon', 'ventas_validas', 'SELECT'),
+  ('authenticated', 'ventas_validas', 'INSERT'), ('authenticated', 'ventas_validas', 'UPDATE'), ('authenticated', 'ventas_validas', 'DELETE')
+), otorgado as (
+  select grantee::text as rol, table_name::text as tabla, privilege_type::text as privilegio
+  from information_schema.role_table_grants where table_schema = 'public'
+)
+select 'falta' as problema, * from (select * from requerido except select * from otorgado) f
+union all
+select 'sobra', * from (select * from prohibido intersect select * from otorgado) s
+order by 1, 2, 3, 4;
+```
+
+Si cambia el acceso de una tabla, actualizar juntas esta consulta y las listas del test.
+
+**Crear una migración nueva**
+
+```bash
+supabase migration new nombre_descriptivo   # crea supabase/migrations/<timestamp>_nombre_descriptivo.sql
+```
+
+Usar siempre este comando. El timestamp ordena el archivo después de 0001→0014; numerar a mano (`0015_...`) falla en cuanto exista una migración con timestamp ya aplicada, porque el archivo quedaría antes y `db push` lo rechaza.
+
+**Probar en local** (requiere Docker)
+
+```bash
+supabase db start                              # base local nueva con todas las migraciones aplicadas
+supabase test db --local                       # tests pgTAP de supabase/tests/
+supabase db lint --local
+bash .github/scripts/db-push-guard.test.sh     # tests del guard (CLI simulada, sin base ni credenciales)
+supabase stop --no-backup
+```
+
+Siempre con `--local` (ver la advertencia de arriba). Si otro proyecto de Supabase local ya ocupa los puertos 54322/54320, se pueden usar otros sin tocar `config.toml`: exportar `SUPABASE_DB_PORT=55322 SUPABASE_DB_SHADOW_PORT=55320` antes de esos comandos.
+
+**Reglas**
+- **Nunca editar ni renombrar una migración ya aplicada**: para corregir algo, crear una migración nueva.
+- Migraciones idempotentes (ver §12.2). Si tocan permisos o RLS, agregar un test en `supabase/tests/` (y actualizar `privilegios_base.test.sql` si cambia el acceso a una tabla).
+- `supabase/config.toml` tiene `auto_expose_new_tables = true` para que la base local tenga los mismos permisos que producción (ver el comentario en el archivo). Hay que reemplazarlo antes del 2026-10-30 (ver *Permisos de tablas*).
+- Siguen siendo manuales: los secretos de Vault de la 0012 y el deploy de Edge Functions (`supabase functions deploy`).
 
 ---
 

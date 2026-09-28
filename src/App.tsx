@@ -9,6 +9,7 @@ import MyOrdersPage from './pages/MyOrdersPage'
 import AdminPage from './pages/AdminPage'
 import CartDrawer from './components/cart/CartDrawer'
 import Footer from './components/catalog/Footer'
+import ScrollManager from './components/ScrollManager'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
 // El "modo" define qué expone cada deploy (ver VITE_APP_MODE en .env):
@@ -22,13 +23,17 @@ const mode = import.meta.env.VITE_APP_MODE
 
 // Layout del catálogo: monta el carrito lateral (drawer) una sola vez, disponible
 // en todas las vistas públicas (muestrario, producto, carrito, checkout).
+// `.shop` es la raíz de la tienda pública: define los tokens de ancho
+// (--shop-max / --shop-gutter) y es una columna flex de alto mínimo 100dvh
+// para que el footer quede abajo incluso en páginas cortas.
 function CatalogLayout() {
   return (
-    <>
+    <div className="shop">
+      <ScrollManager />
       <Outlet />
       <Footer />
       <CartDrawer />
-    </>
+    </div>
   )
 }
 

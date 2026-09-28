@@ -108,11 +108,11 @@ export default function AccountPage() {
               <>
                 <div className="field">
                   <label>Nombre y apellido</label>
-                  <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" />
+                  <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" autoComplete="name" />
                 </div>
                 <div className="field">
                   <label>Teléfono (WhatsApp)</label>
-                  <input type="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" />
+                  <input type="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" autoComplete="tel" />
                 </div>
               </>
             )}

@@ -1,0 +1,553 @@
+/* ============================================================
+   Vista de impresión de pedidos (panel admin → card del pedido →
+   "Imprimir"): nota de entrega A4 y etiqueta de envío 10×15.
+
+   Todo va con prefijo "op-". La vista se monta en un portal sobre
+   document.body (fuera de .admin-root): no hereda nada del panel.
+   La regla @page vive en el componente (ver OrderPrintView.tsx) y
+   solo existe mientras la vista está abierta.
+
+   Al final del archivo: totales y menú "Imprimir" de la card.
+   ============================================================ */
+
+/* ---------- Pantalla: vista previa a pantalla completa ---------- */
+
+/* Con la vista abierta, la página de atrás no scrollea. */
+@media screen {
+  html.op-activo,
+  html.op-activo body {
+    overflow: hidden;
+  }
+}
+
+.op-portal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: #E6DBC3;
+  color: #2A2118;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+.op-portal:focus {
+  outline: none;
+}
+.op-portal * {
+  box-sizing: border-box;
+}
+
+/* Barra de acciones (no se imprime) */
+.op-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 10px 16px;
+  background: var(--ink);
+  color: var(--cream);
+}
+.op-toolbar-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.op-toolbar-info strong {
+  font-size: 0.92rem;
+}
+.op-toolbar-info span {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+.op-toolbar-acciones {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.op-btn {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid transparent;
+  border-radius: 100px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.op-btn--primary {
+  background: var(--sage);
+  color: #fff;
+}
+.op-btn--primary:hover:not(:disabled) {
+  background: var(--sage-deep);
+}
+.op-btn--primary:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.op-btn--ghost {
+  background: transparent;
+  color: var(--cream);
+  border-color: rgba(248, 241, 225, 0.45);
+}
+.op-btn--ghost:hover {
+  background: rgba(248, 241, 225, 0.12);
+}
+.op-btn:focus-visible {
+  outline: 2px solid var(--cream);
+  outline-offset: 2px;
+}
+
+/* Lienzo: la hoja centrada, como en papel. */
+.op-lienzo {
+  flex: 1 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px 16px 48px;
+}
+.op-hoja {
+  background: #fff;
+  color: #2A2118;
+  box-shadow: 0 10px 30px rgba(59, 47, 34, 0.18);
+}
+.op-hoja h1,
+.op-hoja h2,
+.op-hoja p,
+.op-hoja dl,
+.op-hoja dd {
+  margin: 0;
+}
+
+/* ---------- Nota de entrega (A4) ---------- */
+.op-nota {
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  padding: 12mm;
+  display: flex;
+  flex-direction: column;
+  gap: 7mm;
+  font-size: 10pt;
+  line-height: 1.4;
+}
+.op-nota-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8mm;
+  padding-bottom: 5mm;
+  border-bottom: 1.5pt solid #3B2F22;
+}
+.op-nota-logo {
+  display: block;
+  height: 13mm;
+  width: auto;
+  max-width: 55%;
+  object-fit: contain;
+  object-position: left center;
+}
+.op-nota-titulo {
+  text-align: right;
+}
+.op-nota-titulo h1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 20pt;
+  line-height: 1.1;
+}
+.op-nota-numero {
+  margin-top: 1mm;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  font-size: 14pt;
+}
+.op-nota-meta {
+  margin-top: 1mm;
+  font-size: 8.5pt;
+  color: #6B5D45;
+}
+
+/* Remitente / destinatario */
+.op-nota-partes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6mm;
+}
+.op-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8mm;
+  padding: 4mm 5mm;
+  border: 0.75pt solid #CDBB94;
+  border-radius: 3mm;
+  overflow-wrap: anywhere;
+}
+.op-bloque h2,
+.op-notas h2 {
+  margin-bottom: 1.5mm;
+  font-size: 7.5pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8E7040;
+}
+.op-bloque-nombre {
+  font-size: 11pt;
+  font-weight: 600;
+}
+
+/* Ítems */
+.op-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+}
+/* Si la tabla pasa de hoja, el encabezado se repite. */
+.op-tabla thead {
+  display: table-header-group;
+}
+.op-tabla tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.op-tabla th {
+  padding: 2mm;
+  border-bottom: 1pt solid #3B2F22;
+  text-align: left;
+  font-size: 7.5pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6B5D45;
+}
+.op-tabla td {
+  padding: 2.2mm 2mm;
+  border-bottom: 0.5pt solid #E0D3B4;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.op-tabla .op-num {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Notas + totales */
+.op-nota-resumen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70mm;
+  gap: 6mm;
+  align-items: start;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.op-notas {
+  padding: 1mm 0 1mm 4mm;
+  border-left: 2pt solid #CDBB94;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.op-totales {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2mm;
+}
+.op-totales > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 4mm;
+}
+.op-totales dt {
+  color: #6B5D45;
+}
+.op-totales dd {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.op-totales .op-totales-total {
+  margin-top: 1mm;
+  padding-top: 2mm;
+  border-top: 1pt solid #3B2F22;
+  font-size: 12pt;
+  font-weight: 700;
+}
+.op-totales .op-totales-total dt {
+  color: inherit;
+}
+
+/* Firmas: al pie de la hoja si el pedido es corto. */
+.op-firmas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8mm;
+  margin-top: auto;
+  padding-top: 14mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.op-firma {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5mm;
+  font-size: 8.5pt;
+  color: #6B5D45;
+}
+.op-firma-linea {
+  display: block;
+  border-top: 0.75pt solid #3B2F22;
+}
+.op-nota-footer {
+  padding-top: 3mm;
+  border-top: 0.5pt solid #E0D3B4;
+  text-align: center;
+  font-size: 8pt;
+  color: #6B5D45;
+}
+
+/* Vista previa en el celular: la hoja se adapta al ancho. No cambia el papel. */
+@media screen and (max-width: 640px) {
+  .op-lienzo {
+    padding: 12px 8px 32px;
+  }
+  .op-nota {
+    min-height: 0;
+    padding: 16px;
+    gap: 18px;
+  }
+  .op-nota-partes,
+  .op-nota-resumen {
+    grid-template-columns: 1fr;
+  }
+  .op-firmas {
+    gap: 12px;
+  }
+}
+
+/* ---------- Etiqueta de envío (10 × 15 cm) ----------
+   Alto contraste: negro sobre blanco, bordes gruesos, sin fondos. */
+.op-etiqueta-hoja {
+  width: 100mm;
+  max-width: 100%;
+  padding: 4mm;
+  flex-shrink: 0;
+}
+.op-etiqueta {
+  display: flex;
+  flex-direction: column;
+  height: 141mm;
+  border: 0.8mm solid #000;
+  color: #000;
+  background: #fff;
+  overflow: hidden;
+}
+.op-etq-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 3mm;
+  padding: 2.5mm 3.5mm;
+  border-bottom: 0.8mm solid #000;
+}
+.op-etq-marca {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 13pt;
+  letter-spacing: 0.08em;
+}
+.op-etq-numero {
+  font-size: 22pt;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.op-etq-destino {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2mm;
+  padding: 4mm 3.5mm;
+  overflow-wrap: anywhere;
+}
+.op-etq-rotulo {
+  font-size: 7.5pt;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.op-etq-nombre {
+  margin-top: 1mm;
+  font-size: 17pt;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.op-etq-dir {
+  font-size: 13pt;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.op-etq-tel {
+  margin-top: auto;
+  padding-top: 2mm;
+  font-size: 12pt;
+  font-weight: 600;
+}
+.op-etq-remitente {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5mm;
+  padding: 2.5mm 3.5mm;
+  border-top: 0.8mm solid #000;
+  font-size: 8.5pt;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.op-etq-pie {
+  display: flex;
+  justify-content: space-between;
+  gap: 3mm;
+  padding: 1.5mm 3.5mm;
+  border-top: 0.4mm solid #000;
+  font-size: 8pt;
+}
+
+/* ---------- Impresión: solo el portal ---------- */
+@media print {
+  html.op-activo,
+  html.op-activo body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  /* Todo lo que no sea la vista (la app, overlays, extensiones) no se imprime. */
+  html.op-activo body > :not(.op-portal) {
+    display: none !important;
+  }
+  .op-portal {
+    position: static;
+    inset: auto;
+    display: block;
+    overflow: visible;
+    background: #fff;
+  }
+  .op-toolbar {
+    display: none !important;
+  }
+  .op-lienzo {
+    display: block;
+    padding: 0;
+  }
+  .op-hoja {
+    box-shadow: none;
+  }
+  /* El margen lo pone @page (12 mm). Alto mínimo un poco menor que el área
+     útil (273 mm) para que las firmas vayan al pie sin generar hoja en blanco. */
+  .op-nota {
+    width: auto;
+    max-width: none;
+    min-height: 265mm;
+    padding: 0;
+  }
+  .op-etiqueta-hoja {
+    width: auto;
+    max-width: none;
+    padding: 0;
+  }
+}
+
+/* ============================================================
+   Card del pedido en el panel: totales compactos y menú "Imprimir".
+   ============================================================ */
+.op-card-totales {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.op-card-linea {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.op-card-linea.op-card-total {
+  margin-top: 2px;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+
+.op-menu {
+  position: relative;
+  margin-right: auto;
+}
+.op-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.op-menu-btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.op-menu-btn:hover,
+.op-menu-btn[aria-expanded='true'] {
+  background: var(--sage-pale);
+  border-color: var(--sage);
+}
+/* Abre hacia arriba: el botón está al pie de la card. */
+.op-menu-lista {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(59, 47, 34, 0.14);
+}
+.op-menu-lista button {
+  min-height: 40px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.op-menu-lista button:hover,
+.op-menu-lista button:focus-visible {
+  background: var(--sage-pale);
+  outline: none;
+}

@@ -1,0 +1,182 @@
+name: DB deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Two deploys never overlap and a running one is never cancelled. If several
+# runs queue up behind it, GitHub keeps only the newest (latest main) pending.
+concurrency:
+  group: db-deploy-production
+  cancel-in-progress: false
+
+# Credentials are ENVIRONMENT secrets, never repository secrets: repository
+# secrets can be read by any workflow on any branch. Both environments allow
+# only the `main` branch (Settings -> Environments -> Deployment branches).
+#   production-plan  no reviewers. Used by `plan`.
+#     Secrets: SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD, SUPABASE_PROJECT_ID.
+#   production       required reviewers. Used by `apply`.
+#     Secrets: the same three plus SCHEMA_BACKUP_PASSPHRASE.
+#     Variables (public values): SUPABASE_URL, SUPABASE_ANON_KEY.
+# Setup and approval checklist: CONTEXTO.md, section 8 (Migraciones).
+
+jobs:
+  plan:
+    name: Plan (dry-run)
+    # Manual runs from any other branch would push that branch's migrations.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-plan
+    outputs:
+      has_changes: ${{ steps.guard.outputs.has_changes }}
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      # Also masks the percent-encoded password, which the CLI may print
+      # inside a connection string; GitHub only masks the literal value.
+      - name: Check configuration
+        env:
+          REQUIRED: SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_ID
+        run: |
+          missing=()
+          for name in $REQUIRED; do
+            [[ -n ${!name} ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error title=Missing configuration::Environment production-plan lacks: ${missing[*]}. Add them as environment secrets (CONTEXTO.md, Migraciones)."
+            exit 1
+          fi
+          echo "::add-mask::$(jq -rn --arg v "$SUPABASE_DB_PASSWORD" '$v | @uri')"
+
+      - uses: actions/checkout@v5
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.106.0
+
+      - name: Link production project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      # Fails if the dry-run fails, if it would re-apply any baseline
+      # migration 0001-0013, or if its output cannot be parsed.
+      - name: Dry-run and guard
+        id: guard
+        run: bash .github/scripts/db-push-guard.sh --linked
+
+      - name: Approver checklist
+        if: steps.guard.outputs.has_changes == 'true'
+        run: |
+          {
+            echo "### Before approving the \`production\` environment"
+            echo ""
+            echo "- The list above is exactly the set of migrations you expect."
+            echo "- Supabase Dashboard -> Database -> Backups shows a recent backup or PITR point."
+            echo "  The workflow only saves the schema (no data): recovering data depends on that backup."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    name: Apply to production
+    needs: plan
+    if: needs.plan.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SCHEMA_BACKUP_PASSPHRASE: ${{ secrets.SCHEMA_BACKUP_PASSPHRASE }}
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+    steps:
+      - name: Check configuration
+        env:
+          REQUIRED: >-
+            SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_ID
+            SCHEMA_BACKUP_PASSPHRASE SUPABASE_URL SUPABASE_ANON_KEY
+        run: |
+          missing=()
+          for name in $REQUIRED; do
+            [[ -n ${!name} ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error title=Missing configuration::Environment production lacks: ${missing[*]}. Add the secrets and variables listed in CONTEXTO.md, Migraciones. Nothing was pushed."
+            exit 1
+          fi
+          echo "::add-mask::$(jq -rn --arg v "$SUPABASE_DB_PASSWORD" '$v | @uri')"
+
+      - uses: actions/checkout@v5
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.106.0
+
+      - name: Link production project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      # The remote history may have changed while waiting for approval.
+      - name: Re-check plan
+        run: bash .github/scripts/db-push-guard.sh --linked
+
+      # Schema only: the tables hold customer data (PII), which must never end
+      # up in an artifact. Encrypted because anyone can download the artifacts
+      # of a public repository. Restoring it: CONTEXTO.md, Migraciones.
+      - name: Back up the public schema (no data)
+        run: |
+          mkdir -p backup
+          file="backup/public-schema-before-run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.sql"
+          supabase db dump --linked --schema public --file "$file"
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 \
+            --symmetric --cipher-algo AES256 --output "$file.gpg" "$file" 3<<< "$SCHEMA_BACKUP_PASSPHRASE"
+          rm -f "$file"
+          test -s "$file.gpg"
+
+      - name: Upload schema backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-schema-before-run-${{ github.run_id }}-${{ github.run_attempt }}
+          path: backup/*.sql.gpg
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Push migrations
+        id: push
+        run: supabase db push --linked --yes
+
+      # The two checks below also run after a failed push: they tell how far
+      # it got and whether the site still serves the catalog.
+      - name: Verify every migration is applied
+        if: ${{ !cancelled() && (steps.push.outcome == 'success' || steps.push.outcome == 'failure') }}
+        run: bash .github/scripts/db-push-guard.sh --verify --linked
+
+      - name: Smoke check the public API
+        if: ${{ !cancelled() && (steps.push.outcome == 'success' || steps.push.outcome == 'failure') }}
+        run: |
+          code=$(curl --silent --show-error --output smoke-body.json --write-out '%{http_code}' \
+            --max-time 20 --retry 5 --retry-delay 5 --retry-connrefused \
+            --header "apikey: ${SUPABASE_ANON_KEY}" \
+            "${SUPABASE_URL%/}/rest/v1/productos?select=id&limit=1") || true
+          body=""
+          if [[ -f smoke-body.json ]]; then
+            body=$(<smoke-body.json)
+          fi
+          {
+            echo "### Post-deploy smoke check"
+            echo ""
+            echo "\`GET /rest/v1/productos?select=id&limit=1\` with the anon key: HTTP ${code:-000}."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ ${code:-000} != 200 || $body != \[* ]]; then
+            echo "**Failed:** expected HTTP 200 and a JSON array." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Smoke check failed::GET /rest/v1/productos as anon returned HTTP ${code:-000}. The public catalog may be broken: check the site now (rollback steps in CONTEXTO.md, Migraciones)."
+            exit 1
+          fi
+          echo "OK: the public catalog API answers as anon." >> "$GITHUB_STEP_SUMMARY"

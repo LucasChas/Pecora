@@ -1,24 +1,34 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { money } from '../../lib/format'
+import { lineasDesglose, montoLinea, type TotalesPedido } from '../../lib/orders'
 import type { CartItem } from '../../context/CartContext'
 
 interface Props {
   waHref: string
   entrega: 'envio' | 'coordinar'
   items: CartItem[]
-  subtotal: number
+  totales: TotalesPedido
 }
 
 // Modal de éxito tras confirmar un pedido: check animado, agradecimiento y el
 // desglose de lo comprado. El número de orden no se muestra acá (le sirve a la
 // marca, no a la clienta): viaja en el mensaje de WhatsApp y está en /mis-pedidos.
-export default function OrderSuccess({ waHref, entrega, items, subtotal }: Props) {
+//
+// El fondo NO cierra el modal: el carrito ya se vació, y un toque accidental
+// afuera haría perder el paso de WhatsApp (que es donde se coordina el pago).
+// Solo se sale con la X o con los botones.
+export default function OrderSuccess({ waHref, entrega, items, totales }: Props) {
   const navigate = useNavigate()
   const volver = () => navigate('/')
 
   return (
-    <div className="success-overlay" onClick={volver}>
-      <div className="success-card" onClick={(e) => e.stopPropagation()}>
+    <div className="success-overlay">
+      <div
+        className="success-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="success-title"
+      >
         <button
           type="button"
           className="success-close"
@@ -38,7 +48,9 @@ export default function OrderSuccess({ waHref, entrega, items, subtotal }: Props
           </svg>
         </div>
 
-        <h2 className="success-title">¡Gracias por tu compra!</h2>
+        <h2 className="success-title" id="success-title">
+          ¡Gracias por tu compra!
+        </h2>
         <p className="success-text">
           Gracias por confiar en Pecora. Ya tenemos tu pedido y lo estamos preparando con mucho
           cariño.
@@ -54,9 +66,19 @@ export default function OrderSuccess({ waHref, entrega, items, subtotal }: Props
               <span>{money(i.precio * i.cantidad)}</span>
             </div>
           ))}
+          {/* Subtotal / descuento / envío solo si algo modifica el total. */}
+          {lineasDesglose(totales).map((l, idx) => (
+            <div
+              className={idx === 0 ? 'success-linea success-desglose primera' : 'success-linea success-desglose'}
+              key={l.concepto}
+            >
+              <span>{l.concepto}</span>
+              <span>{montoLinea(l.importe)}</span>
+            </div>
+          ))}
           <div className="success-linea total">
             <span>Total</span>
-            <strong>{money(subtotal)}</strong>
+            <strong>{money(totales.total)}</strong>
           </div>
           <div className="success-entrega">
             {entrega === 'envio' ? (

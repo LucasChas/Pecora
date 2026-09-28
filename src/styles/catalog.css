@@ -9,6 +9,34 @@
   min-height: 100vh;
 }
 
+/* ---------- Raíz de la tienda pública (CatalogLayout en App.tsx) ----------
+   Tokens de ancho compartidos por header, contenido y footer, y columna flex
+   de alto mínimo de pantalla: la página crece y el footer queda abajo aunque
+   el contenido sea corto. Los tokens viven acá (no en :root) para no tocar
+   el panel admin. */
+.shop {
+  --shop-max: 1100px;
+  --shop-gutter: 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--cream);
+}
+.shop > .catalog-root {
+  flex: 1 0 auto;
+  min-height: 0;
+}
+.shop > .site-footer {
+  margin-top: auto;
+}
+@media (min-width: 1440px) {
+  .shop {
+    --shop-max: 1240px;
+    --shop-gutter: 32px;
+  }
+}
+
 /* ---------- Borde festoneado: elemento de marca (no decoración) ---------- */
 .scallop {
   height: 20px;
@@ -26,7 +54,7 @@
 /* ---------- Header ---------- */
 .catalog-root header {
   background: var(--cream-deep);
-  padding: 34px 24px 26px;
+  padding: 34px max(24px, env(safe-area-inset-right)) 26px max(24px, env(safe-area-inset-left));
   text-align: center;
 }
 .logo-img {
@@ -46,7 +74,7 @@
 
 /* ---------- Buscador ---------- */
 .search-wrap {
-  max-width: 1100px;
+  max-width: var(--shop-max, 1100px);
   margin: 34px auto 0;
   padding: 0 24px;
 }
@@ -68,7 +96,11 @@
 .search-box input {
   width: 100%;
   font-family: 'Inter', sans-serif;
-  font-size: 0.9rem;
+  /* 1rem (16px): con menos, iOS Safari hace zoom al enfocar el campo. */
+  font-size: 1rem;
+  /* type="search": sin el estilo nativo, que en Safari pisa radio y padding. */
+  -webkit-appearance: none;
+  appearance: none;
   padding: 12px 16px 12px 42px;
   border-radius: 100px;
   border: 1px solid var(--cream-deep);
@@ -82,6 +114,9 @@
 }
 .search-box input::placeholder {
   color: #B0A283;
+}
+.search-box input::-webkit-search-decoration {
+  -webkit-appearance: none;
 }
 
 /* ---------- Filtros por categoría (chips) ---------- */
@@ -106,15 +141,27 @@
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.filters button.active,
-.filters button:hover {
+.filters button.active {
   background: var(--sage);
   color: var(--cream);
+}
+/* Hover solo con mouse: en táctil el :hover queda "pegado" tras el toque. */
+@media (hover: hover) {
+  .filters button:hover {
+    background: var(--sage);
+    color: var(--cream);
+  }
+}
+/* Chips con área de toque de 44px en pantallas táctiles. */
+@media (pointer: coarse) {
+  .filters button {
+    min-height: 44px;
+  }
 }
 
 /* ---------- Grilla ---------- */
 .catalog-root main {
-  max-width: 1100px;
+  max-width: var(--shop-max, 1100px);
   margin: 0 auto;
   padding: 30px 24px 80px;
 }
@@ -152,6 +199,37 @@
     gap: 10px;
   }
 }
+
+/* Tablet (721–1023): 3 columnas; desktop (≥1024): 4; wide (≥1440): más aire.
+   El padding lateral del contenido usa el gutter de .shop y respeta el notch. */
+@media (min-width: 721px) {
+  .catalog-root main,
+  .search-wrap {
+    padding-left: max(var(--shop-gutter, 24px), env(safe-area-inset-left));
+    padding-right: max(var(--shop-gutter, 24px), env(safe-area-inset-right));
+  }
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .card-body .desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+}
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+  }
+}
+@media (min-width: 1440px) {
+  .grid {
+    gap: 28px;
+  }
+}
 .card {
   background: #fff;
   border-radius: var(--radius);
@@ -161,9 +239,11 @@
   flex-direction: column;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-.card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 20px rgba(51, 48, 42, 0.10);
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(51, 48, 42, 0.10);
+  }
 }
 .card-img {
   aspect-ratio: 1 / 1;
@@ -300,12 +380,15 @@
 .site-footer {
   background: var(--cream-deep);
   text-align: center;
-  padding: 28px 24px;
+  padding: 28px max(24px, env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
   font-size: 0.78rem;
   color: var(--ink-soft);
 }
+/* Mismo ancho útil que el contenido (--shop-max menos el gutter de cada lado),
+   así en desktop las columnas del footer quedan alineadas con la grilla. */
 .site-footer-inner {
-  max-width: 1100px;
+  max-width: calc(var(--shop-max, 1100px) - 2 * var(--shop-gutter, 24px));
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -333,27 +416,46 @@
 .site-footer-link:hover {
   color: var(--ink);
 }
-/* Badges de medios de pago: placeholder de texto hasta contar con los
-   logos reales de Abril y Mercado Pago (ver TODO(owner-assets) en Footer.tsx). */
-.site-footer-payments {
+/* Links legales: centrados y con salto de línea en pantallas angostas. */
+.site-footer-legal {
   display: flex;
-  align-items: center;
-  gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
-}
-.payment-badge {
-  padding: 5px 12px;
-  border-radius: 100px;
-  border: 1px solid var(--cream-deep, #E5DFCF);
-  background: #fff;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--ink-soft);
+  align-items: center;
+  gap: 2px 12px;
+  font-size: 0.8125rem;
+  margin: 8px 0;
 }
 .site-footer-copy {
   margin: 0;
+}
+/* En teléfonos los links pueden pasar a dos renglones y el separador quedaría
+   colgando al final de uno: se oculta y alcanza con el gap. */
+@media (max-width: 480px) {
+  .site-footer-sep {
+    display: none;
+  }
+}
+/* Desktop: tres columnas (redes | legales | ©) alineadas al ancho del contenido. */
+@media (min-width: 1024px) {
+  .site-footer {
+    text-align: left;
+  }
+  .site-footer-inner {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 24px;
+  }
+  .site-footer-social {
+    justify-content: flex-start;
+  }
+  .site-footer-legal {
+    margin: 0;
+  }
+  .site-footer-copy {
+    justify-self: end;
+  }
 }
 
 /* ---------- Card clickeable + CTA ---------- */
@@ -387,6 +489,22 @@
 .card:not(:has(.card-cta)) .card-body {
   padding-bottom: 18px;
 }
+/* CTA de "sin stock" en cards angostas (2 columnas a 360px): pills más
+   compactas y con salto de línea para que el texto no desborde. Va después
+   de la regla base de .card-cta para ganarle en el orden. */
+@media (max-width: 720px) {
+  .card-cta {
+    padding: 4px 10px 12px;
+  }
+  .card-cta .wa-btn,
+  .card-cta .ig-btn {
+    padding: 9px 8px;
+    gap: 6px;
+    font-size: 0.76rem;
+    line-height: 1.2;
+    text-align: center;
+  }
+}
 /* Contador de fotos (esquina de la imagen, cuando hay más de una) */
 .photo-count {
   position: absolute;
@@ -401,8 +519,10 @@
 }
 
 /* ---------- Detalle de producto (página /producto/:id) ---------- */
-.product-page {
-  max-width: 1000px;
+/* Calificado con main para igualar la especificidad de `.catalog-root main`
+   (si no, esa regla ganaba y el ancho declarado acá no se aplicaba). */
+.catalog-root main.product-page {
+  max-width: 1100px;
 }
 .pp-breadcrumb {
   margin-bottom: 16px;
@@ -425,9 +545,11 @@
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
 }
-.pp-back:hover {
-  background: var(--sage);
-  color: #fff;
+@media (hover: hover) {
+  .pp-back:hover {
+    background: var(--sage);
+    color: #fff;
+  }
 }
 /* Contenedor galería + info (card blanca) */
 .pd-content {
@@ -476,6 +598,66 @@
   filter: grayscale(1);
   opacity: 0.6;
 }
+/* Cada foto es un botón que abre el zoom (ImageZoom). */
+.pd-zoom-btn {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+.pd-zoom-btn:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: -4px;
+}
+/* Flechas anterior/siguiente: solo con mouse (en táctil se usa el swipe). */
+.pd-nav {
+  display: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(51, 48, 42, 0.18);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.pd-nav.prev {
+  left: 12px;
+}
+.pd-nav.next {
+  right: 12px;
+}
+.pd-nav svg {
+  width: 20px;
+  height: 20px;
+}
+.pd-nav:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+.pd-nav:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pd-nav {
+    display: flex;
+  }
+  .pd-nav:hover {
+    background: #fff;
+  }
+}
 .pd-thumbs {
   display: flex;
   flex-wrap: wrap;
@@ -499,6 +681,10 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+.pd-thumb:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
 }
 
 /* Información */
@@ -615,6 +801,67 @@
     align-self: stretch;
     min-width: 0;
   }
+  /* Miniaturas en una sola fila con scroll horizontal (sin saltos de línea).
+     Los márgenes negativos la llevan hasta el borde de la card (padding 20px). */
+  .pd-thumbs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin: -4px -20px;
+    padding: 4px 20px;
+    scroll-padding-inline: 20px;
+  }
+  .pd-thumbs::-webkit-scrollbar {
+    display: none;
+  }
+  .pd-thumb {
+    flex: 0 0 58px;
+  }
+}
+
+/* Tablet: galería e info lado a lado en dos columnas iguales. */
+@media (min-width: 721px) {
+  .pd-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+}
+/* Desktop: la galería gana ancho y las dos columnas quedan fijas (sticky) al
+   scrollear, así la foto y el botón de compra siguen a la vista. */
+@media (min-width: 1024px) {
+  .pd-content {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 36px;
+    padding: 28px;
+  }
+  .pd-gallery,
+  .pd-info {
+    position: sticky;
+    top: 24px;
+  }
+  .pd-name {
+    font-size: 1.85rem;
+  }
+  .pd-price {
+    font-size: 1.45rem;
+  }
+  .pd-thumb {
+    width: 64px;
+    height: 64px;
+  }
+}
+
+/* Botón de cerrar del zoom (ImageZoom, que se renderiza dentro de la tienda):
+   área de toque de 44px y fuera del notch. Prefijado con .shop para no
+   cambiar el zoom del panel admin. */
+.shop .image-zoom-close {
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  width: 44px;
+  height: 44px;
 }
 
 /* ---------- Páginas legales (privacidad / términos) ---------- */
@@ -699,5 +946,291 @@
 @media (max-width: 480px) {
   .legal-card {
     padding: 20px;
+  }
+}
+/* Tablet/desktop: columna de lectura más angosta y texto más grande
+   (renglones de ~70 caracteres, más cómodos para textos largos). */
+@media (min-width: 721px) {
+  .catalog-root main.legal-page {
+    max-width: 700px;
+  }
+  .legal-card {
+    padding: 40px 44px;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .legal-card h2 {
+    font-size: 1.15rem;
+  }
+}
+
+/* ============================================================
+   Fase 1: compartir producto, productos relacionados y errores
+   de carga. Bloque agregado al final a propósito: no pisa reglas
+   anteriores y se puede quitar entero.
+   ============================================================ */
+
+/* ---------- Compartir producto (ficha, debajo del precio) ----------
+   Acciones secundarias (outline chico) para no competir con "Agregar al
+   carrito" ni con los botones de consulta. */
+.pd-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -2px 0 4px;
+}
+.pd-share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: #fff;
+  color: var(--sage-deep);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.pd-share-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+@media (hover: hover) {
+  .pd-share-btn:hover {
+    background: var(--sage-pale);
+    border-color: var(--sage);
+  }
+}
+.pd-share-btn:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+}
+/* Solo para lectores de pantalla: la confirmación visual es el botón. */
+.pd-share-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.pd-share-error {
+  margin: -4px 0 0;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+/* Táctil: área de toque de 44px. En celulares los dos botones reparten el ancho. */
+@media (pointer: coarse) {
+  .pd-share-btn {
+    min-height: 44px;
+  }
+}
+@media (max-width: 720px) {
+  .pd-share-btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+}
+
+/* ---------- Productos relacionados (ficha) ----------
+   Reusa .grid y las cards del muestrario: 2 columnas en celular, 3 en
+   tablet y 4 en desktop. */
+.related {
+  margin-top: 48px;
+}
+.related-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.35rem;
+  margin: 0;
+  color: var(--ink);
+}
+.related-grid.grid {
+  margin-top: 18px;
+}
+/* Tablet (3 columnas): se muestran 3 para no dejar una card sola abajo. */
+@media (min-width: 721px) and (max-width: 1023px) {
+  .related-grid > :nth-child(n + 4) {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .related {
+    margin-top: 36px;
+  }
+  .related-title {
+    font-size: 1.15rem;
+  }
+  .related-grid.grid {
+    margin-top: 14px;
+  }
+}
+
+/* ---------- Errores de carga (muestrario y ficha) ----------
+   .load-error: no hay datos para mostrar (panel con "Reintentar").
+   .load-notice: falló un refresco pero la lista en caché sigue a la vista. */
+.load-error {
+  max-width: 440px;
+  margin: 34px auto 0;
+  padding: 28px 22px;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+  text-align: center;
+}
+.load-error-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+.load-error-text {
+  margin: 0 0 18px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.load-error-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.load-error-actions .pp-back {
+  margin-top: 0;
+}
+.load-error-btn {
+  min-height: 44px;
+  padding: 11px 28px;
+  border: none;
+  border-radius: 100px;
+  background: var(--sage);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.load-error-btn:disabled,
+.load-notice-retry:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.load-error-btn:focus-visible,
+.load-notice-retry:focus-visible,
+.load-notice-close:focus-visible {
+  outline: 2px solid var(--sage-deep);
+  outline-offset: 2px;
+}
+
+.load-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 10px 10px 10px 16px;
+  background: var(--sage-pale);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+}
+.load-notice-text {
+  flex: 1;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.load-notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.load-notice-retry {
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid var(--sage);
+  border-radius: 100px;
+  background: #fff;
+  color: var(--sage-deep);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.load-notice-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.load-notice-close svg {
+  width: 18px;
+  height: 18px;
+}
+@media (hover: hover) {
+  .load-error-btn:hover:not(:disabled) {
+    background: var(--sage-deep);
+  }
+  .load-notice-retry:hover:not(:disabled) {
+    background: var(--sage);
+    color: #fff;
+  }
+  .load-notice-close:hover {
+    background: rgba(59, 47, 34, 0.06);
+    color: var(--ink);
+  }
+}
+@media (pointer: coarse) {
+  .load-notice-retry {
+    min-height: 44px;
+  }
+  .load-notice-close {
+    width: 44px;
+    height: 44px;
+  }
+}
+/* Celular: el texto ocupa todo el ancho y las acciones van abajo a la derecha. */
+@media (max-width: 720px) {
+  .load-notice {
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 18px;
+    padding: 12px 8px 8px 14px;
+  }
+  .load-notice-text {
+    flex-basis: 100%;
+  }
+  .load-notice-actions {
+    margin-left: auto;
+  }
+  .load-notice-retry {
+    min-height: 44px;
+  }
+  .load-notice-close {
+    width: 44px;
+    height: 44px;
   }
 }

@@ -1,4 +1,5 @@
 import type { ProductoConCategoria } from '../types'
+import type { TotalesPedido } from './orders'
 import { money } from './format'
 
 // ============================================================================
@@ -14,6 +15,11 @@ const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '5490000000000'
 // Usuario de Instagram (sin @). Viene del .env. Si queda vacío, no se muestra
 // el botón de Instagram en la UI.
 const INSTAGRAM_USER = import.meta.env.VITE_INSTAGRAM_USER || ''
+
+// URL pública del muestrario (el deploy "catalog"). Se imprime en la lista de
+// precios que se exporta desde el panel, que vive en OTRO dominio: por eso no
+// sirve window.location. Viene del .env; si falta, usa el dominio de producción.
+const CATALOG_URL = import.meta.env.VITE_CATALOG_URL || 'https://pecora-muestrario.vercel.app'
 
 // Mensajes prellenados de WhatsApp. Cambiá el texto acá si querés otro tono.
 function mensajeWhatsApp(producto: ProductoConCategoria): string {
@@ -43,28 +49,46 @@ export interface DatosPedido {
   direccion?: string
   localidad?: string
   cp?: string
+  provincia?: string
   notas?: string
 }
 
+// Bloque de montos del mensaje: subtotal, descuento y envío (si corresponden)
+// y el total. Si el envío todavía no tiene costo, se aclara que se coordina.
+function resumenMontos(totales: TotalesPedido, entrega: DatosPedido['entrega']): string {
+  const lineas = [`Subtotal: ${money(totales.subtotal)}`]
+  if (totales.descuento > 0) lineas.push(`Descuento: − ${money(totales.descuento)}`)
+  if (totales.costoEnvio > 0) lineas.push(`Envío: ${money(totales.costoEnvio)}`)
+  else if (entrega === 'envio') lineas.push('Envío: a coordinar')
+  lineas.push(`Total: ${money(totales.total)}`)
+  return lineas.join('\n')
+}
+
 // Link de WhatsApp para un pedido YA REGISTRADO en la base (checkout):
-// incluye el número de orden, el detalle y los datos de entrega.
+// incluye el número de orden, el detalle, los montos y los datos de entrega.
 export function waPedidoConfirmadoLink(
   numero: number,
   items: ItemPedido[],
-  subtotal: number,
+  totales: TotalesPedido,
   datos: DatosPedido,
 ): string {
   const lineas = items
     .map((i) => `• ${i.cantidad}x ${i.nombre} — ${money(i.precio * i.cantidad)}`)
     .join('\n')
+  const destino = [
+    datos.direccion,
+    datos.localidad,
+    datos.cp ? `CP ${datos.cp}` : undefined,
+    datos.provincia,
+  ]
+    .filter(Boolean)
+    .join(', ')
   const entrega =
-    datos.entrega === 'envio'
-      ? `Envío a domicilio: ${datos.direccion ?? ''}, ${datos.localidad ?? ''} (CP ${datos.cp ?? ''})`
-      : 'Entrega: a coordinar / retiro'
+    datos.entrega === 'envio' ? `Envío a domicilio: ${destino}` : 'Entrega: a coordinar / retiro'
   const partes = [
     `Hola! Soy ${datos.nombre}. Acabo de hacer el pedido #${numero} en la web de Pecora:`,
     lineas,
-    `Subtotal: ${money(subtotal)}`,
+    resumenMontos(totales, datos.entrega),
     entrega,
   ]
   if (datos.notas) partes.push(`Notas: ${datos.notas}`)
@@ -72,12 +96,20 @@ export function waPedidoConfirmadoLink(
 }
 
 // Link de WhatsApp para preguntar por qué se canceló un pedido. Lo usa la
-// clienta desde "Mis pedidos": es su única vía para entender qué pasó.
-export function waConsultaCancelacionLink(numero: number): string {
+// clienta desde "Mis pedidos": es su única vía para entender qué pasó. El
+// total (si se pasa) ayuda a ubicar el pedido del otro lado.
+export function waConsultaCancelacionLink(numero: number, total?: number): string {
+  const monto = total !== undefined && total > 0 ? ` (total ${money(total)})` : ''
   const msg =
-    `Hola! Vi que mi pedido #${numero} en Pecora figura como cancelado. ` +
+    `Hola! Vi que mi pedido #${numero}${monto} en Pecora figura como cancelado. ` +
     '¿Me podrías decir qué pasó?'
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`
+}
+
+// Número de WhatsApp de la marca para mostrarlo impreso (nota de entrega y
+// etiqueta), con el + del formato internacional.
+export function whatsappVisible(): string {
+  return `+${WHATSAPP_NUMBER}`
 }
 
 // ¿Está configurado Instagram? (para mostrar u ocultar el botón)
@@ -98,4 +130,18 @@ export function waPerfilLink(): string {
 // lo escribe la clienta (a diferencia de WhatsApp).
 export function instagramDmLink(): string {
   return `https://ig.me/m/${INSTAGRAM_USER}`
+}
+
+// Dominio del muestrario sin protocolo ni barra final, para mostrarlo impreso
+// (ej. "pecora-muestrario.vercel.app").
+export function catalogoHost(): string {
+  return CATALOG_URL.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+}
+
+// URL pública completa del muestrario, con protocolo y sin barra final
+// (ej. "https://pecora-muestrario.vercel.app"). Es la base de los links que se
+// comparten: siempre apunta al deploy público, se esté en el que se esté.
+export function catalogoUrl(): string {
+  const base = CATALOG_URL.trim().replace(/\/+$/, '')
+  return /^https?:\/\//i.test(base) ? base : `https://${base}`
 }

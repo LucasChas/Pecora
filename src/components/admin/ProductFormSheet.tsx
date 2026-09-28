@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { Categoria, ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { comprimirImagen } from '../../lib/imageCompress'
+import { BUCKET_PRODUCTOS } from '../../lib/images'
+import { subirOriginalConMiniatura } from '../../lib/thumbnails'
 import { useDialog } from '../../context/DialogContext'
 import ImagePicker, { type ImagenItem } from './ImagePicker'
 
@@ -16,15 +18,15 @@ interface Props {
   onChanged: () => void
 }
 
-// Comprime y sube un archivo al bucket "productos" de Storage; devuelve su URL.
+// Comprime y sube un archivo al bucket "productos" de Storage y, en paralelo,
+// su miniatura (thumbs/<uuid>.jpg, ver lib/images); devuelve la URL del
+// original. Solo se espera al original: si falla, el error sale en el acto; la
+// miniatura nunca demora ni impide guardar (ver subirOriginalConMiniatura).
 async function subirImagen(file: File): Promise<string> {
   const blob = await comprimirImagen(file) // se sube liviana (JPEG)
   const nombre = `${crypto.randomUUID()}.jpg`
-  const { error } = await supabase.storage
-    .from('productos')
-    .upload(nombre, blob, { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' })
-  if (error) throw error
-  const { data } = supabase.storage.from('productos').getPublicUrl(nombre)
+  await subirOriginalConMiniatura(nombre, blob)
+  const { data } = supabase.storage.from(BUCKET_PRODUCTOS).getPublicUrl(nombre)
   return data.publicUrl
 }
 
@@ -225,7 +227,7 @@ export default function ProductFormSheet({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="sheet">
+      <div className="sheet sheet--producto">
         <div className="handle" />
         <h2>{producto ? 'Editar producto' : 'Nuevo producto'}</h2>
 

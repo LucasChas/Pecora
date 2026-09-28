@@ -36,6 +36,7 @@
   color: var(--ink-soft);
   font-weight: 700;
   font-size: 0.9rem;
+  min-height: 44px;
   padding: 10px;
   border-radius: 100px;
   cursor: pointer;
@@ -64,16 +65,18 @@
   display: table;
   margin: 24px auto 0;
 }
+/* Área de toque más alta (padding vertical de 14px) compensada con el margen:
+   el texto queda en la misma posición que con padding 0 / margin -4px 0 14px. */
 .account-link-btn {
   display: block;
   background: none;
   border: none;
-  padding: 0;
+  padding: 14px 0;
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--sage-deep);
   cursor: pointer;
-  margin: -4px 0 14px;
+  margin: -18px 0 0;
   text-align: right;
 }
 .account-link-btn:hover {
@@ -104,7 +107,8 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 11px 12px;
-  font-size: 0.95rem;
+  /* 1rem (16px): con menos, iOS Safari hace zoom al enfocar el campo. */
+  font-size: 1rem;
   background: #fff;
   color: var(--ink);
 }
@@ -135,9 +139,11 @@
   gap: 14px;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-.mp-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(51, 48, 42, 0.12);
+@media (hover: hover) {
+  .mp-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(51, 48, 42, 0.12);
+  }
 }
 /* Mismo color por estado que la pastilla `.mp-estado`, para que se lea de
    un vistazo incluso sin leer el texto (igual criterio que .order-card del
@@ -281,4 +287,38 @@
 .mp-consultar:hover {
   color: var(--ink);
   text-decoration: underline;
+}
+
+/* ---------- Campo de contraseña (PasswordInput) en formularios de cuenta ----------
+   `.account-form .field input` (arriba) pisaba el padding-right de `.pw-wrap input`
+   (password-input.css) y el texto quedaba debajo del botón del ojo. Misma
+   especificidad + después en la hoja = gana. Botón de 40px para tocarlo mejor. */
+.account-form .pw-wrap input {
+  padding-right: 46px;
+}
+.account-form .pw-toggle {
+  width: 40px;
+  height: 40px;
+  right: 2px;
+}
+
+/* ============================================================
+   Totales del pedido en "Mis pedidos" (Fase 0 F1).
+   Desglose subtotal / descuento / envío: solo aparece si algo
+   modifica el total (ver lineasDesglose en lib/orders).
+   ============================================================ */
+.mp-desglose {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 10px;
+}
+.mp-desglose-linea {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
 }
