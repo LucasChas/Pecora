@@ -87,4 +87,49 @@ export interface Pedido {
   idempotency_key?: string | null
   email_enviado_at?: string | null
   aviso_duena_enviado_at?: string | null
+
+  // ---- Cupón y zona de envío (migración de cupones / envíos) ----
+  // Opcionales por el mismo motivo: la base los completa en crear_pedido.
+  cupon_id?: string | null
+  cupon_codigo?: string | null
+  zona_id?: string | null
+  zona_nombre?: string | null
+}
+
+// ---- Cupones de descuento (migración de cupones / envíos) ----
+export type TipoCupon = 'porcentaje' | 'monto' | 'envio_gratis'
+
+export interface Cupon {
+  id: string
+  // Siempre en mayúsculas (la base lo normaliza y es único).
+  codigo: string
+  descripcion: string | null
+  tipo: TipoCupon
+  // Porcentaje (1-100) o monto fijo en pesos; 0 para envío gratis.
+  valor: number
+  // Sobre el subtotal antes del descuento. 0 = sin mínimo.
+  minimo_compra: number
+  // Vigencia (timestamptz). null = sin límite.
+  desde: string | null
+  hasta: string | null
+  // Usos totales permitidos. null = ilimitado.
+  usos_max: number | null
+  usos_por_cliente: number | null
+  solo_primera_compra: boolean
+  activo: boolean
+  created_at: string
+}
+
+// ---- Zonas de envío (migración de cupones / envíos) ----
+export interface ZonaEnvio {
+  id: string
+  nombre: string
+  provincias: string[]
+  // Prefijos de código postal (ej. "50", "5152").
+  cp_prefijos: string[]
+  precio: number
+  // Subtotal desde el que el envío es gratis. null = nunca.
+  gratis_desde: number | null
+  activo: boolean
+  orden: number
 }

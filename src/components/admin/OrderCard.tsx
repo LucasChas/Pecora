@@ -3,7 +3,7 @@ import type { EstadoPedido, Pedido } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
 import { money } from '../../lib/format'
-import { textoEnvio, totalesDe } from '../../lib/orders'
+import { detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
 import OrderPrintView, { type TipoImpresion } from './OrderPrintView'
 
 interface Props {
@@ -72,6 +72,7 @@ export default function OrderCard({ pedido, onChanged, ahora }: Props) {
   const { confirmar, avisar } = useDialog()
   const enPapelera = pedido.eliminado_at !== null
   const totales = totalesDe(pedido)
+  const detalle = detalleDe(pedido)
   const esEnvio = pedido.entrega === 'envio'
   const mails = mailsPendientes(pedido, ahora ?? Date.now())
 
@@ -291,14 +292,21 @@ export default function OrderCard({ pedido, onChanged, ahora }: Props) {
           </div>
           {totales.descuento > 0 && (
             <div className="op-card-linea">
-              <span>Descuento</span>
+              <span>Descuento{detalle.cupon ? ` (${detalle.cupon})` : ''}</span>
               <span>− {money(totales.descuento)}</span>
+            </div>
+          )}
+          {/* Cupón sin descuento en pesos (envío gratis): igual se nombra. */}
+          {detalle.cupon && totales.descuento <= 0 && (
+            <div className="op-card-linea">
+              <span>Cupón</span>
+              <span>{detalle.cupon}</span>
             </div>
           )}
           {(esEnvio || totales.costoEnvio > 0) && (
             <div className="op-card-linea">
-              <span>Envío</span>
-              <span>{textoEnvio(totales, pedido.entrega)}</span>
+              <span>Envío{detalle.zona ? ` (${detalle.zona})` : ''}</span>
+              <span>{textoEnvio(totales, pedido.entrega, detalle)}</span>
             </div>
           )}
           <div className="op-card-linea op-card-total">

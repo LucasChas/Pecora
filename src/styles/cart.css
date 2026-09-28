@@ -1147,3 +1147,127 @@
   border-top: 1px solid var(--line);
   padding-top: 8px;
 }
+
+/* ============================================================
+   Cupón del checkout + cotización del envío por zona.
+   ============================================================ */
+.cupon-box {
+  border-top: 1px solid var(--line);
+  padding: 12px 0 10px;
+  margin-bottom: 6px;
+}
+.cupon-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+.cupon-fila,
+.cupon-aplicado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cupon-fila input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  font-family: 'Inter', sans-serif;
+  /* 1rem (16px): con menos, iOS Safari hace zoom al enfocar el campo. */
+  font-size: 1rem;
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--ink);
+}
+.cupon-fila input::placeholder {
+  text-transform: none;
+}
+.cupon-fila input:focus {
+  outline: 2px solid var(--sage);
+  outline-offset: 1px;
+}
+.cupon-fila input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.cupon-aplicar,
+.cupon-quitar {
+  flex-shrink: 0;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cupon-aplicar {
+  border: none;
+  background: var(--sage);
+  color: #fff;
+}
+.cupon-aplicar:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.cupon-quitar {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+}
+.cupon-chip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+  border: 1px dashed var(--sage);
+  border-radius: 100px;
+  padding: 5px 11px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cupon-desc {
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cupon-msg {
+  margin: 6px 2px 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+/* Mensaje con el campo a la vista = el cupón no se pudo aplicar. */
+.cupon-fila + .cupon-msg {
+  color: var(--danger);
+}
+.cupon-msg:empty {
+  display: none;
+}
+.summary-descuento {
+  color: var(--sage-deep);
+  font-weight: 600;
+}
+.envio-cotizacion {
+  margin: 4px 0 0;
+}
+.envio-cotizacion--ok {
+  color: var(--sage-deep);
+  font-weight: 600;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cupon-aplicar:not(:disabled):hover {
+    background: var(--sage-deep);
+  }
+  .cupon-quitar:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+}

@@ -4,7 +4,7 @@ import logoUrl from '../../assets/logo.png'
 import type { Pedido } from '../../types'
 import { money } from '../../lib/format'
 import { catalogoHost, whatsappVisible } from '../../lib/config'
-import { textoEnvio, totalesDe } from '../../lib/orders'
+import { detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
 import '../../styles/order-print.css'
 
 export type TipoImpresion = 'nota' | 'etiqueta'
@@ -206,6 +206,7 @@ const FIRMAS = ['Recibí conforme', 'Aclaración', 'Fecha']
 
 function NotaEntrega({ pedido }: { pedido: Pedido }) {
   const t = totalesDe(pedido)
+  const detalle = detalleDe(pedido)
   const esEnvio = pedido.entrega === 'envio'
 
   return (
@@ -282,13 +283,19 @@ function NotaEntrega({ pedido }: { pedido: Pedido }) {
           </div>
           {t.descuento > 0 && (
             <div>
-              <dt>Descuento</dt>
+              <dt>Descuento{detalle.cupon ? ` (${detalle.cupon})` : ''}</dt>
               <dd>− {money(t.descuento)}</dd>
             </div>
           )}
+          {detalle.cupon && t.descuento <= 0 && (
+            <div>
+              <dt>Cupón</dt>
+              <dd>{detalle.cupon}</dd>
+            </div>
+          )}
           <div>
-            <dt>Envío</dt>
-            <dd>{textoEnvio(t, pedido.entrega)}</dd>
+            <dt>Envío{detalle.zona ? ` (${detalle.zona})` : ''}</dt>
+            <dd>{textoEnvio(t, pedido.entrega, detalle)}</dd>
           </div>
           <div className="op-totales-total">
             <dt>Total</dt>

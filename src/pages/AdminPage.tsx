@@ -18,10 +18,12 @@ import CategoryManagerSheet from '../components/admin/CategoryManagerSheet'
 import ManualOrderSheet from '../components/admin/ManualOrderSheet'
 import OrdersList from '../components/admin/OrdersList'
 import CatalogExport from '../components/admin/CatalogExport'
+import AjustesPanel from '../components/admin/AjustesPanel'
 import '../styles/admin.css'
 
 // 'exportar' = lista de precios para imprimir/PDF (pantalla completa, sin pestañas).
-type Vista = 'productos' | 'pedidos' | 'exportar'
+// 'ajustes' = cupones de descuento y zonas de envío.
+type Vista = 'productos' | 'pedidos' | 'ajustes' | 'exportar'
 
 // Chips de filtro de la pestaña Pedidos. El texto es el que usa la clienta en
 // "Mis pedidos", para hablar el mismo idioma en las dos puntas.
@@ -194,7 +196,7 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* Pestañas: Productos / Pedidos */}
+        {/* Pestañas: Productos / Pedidos / Ajustes */}
         <div className="admin-tabs">
           <button
             className={vista === 'productos' ? 'active' : ''}
@@ -208,6 +210,12 @@ export default function AdminPage() {
           >
             Pedidos
             {pedidosNuevos > 0 && <span className="tab-badge">{pedidosNuevos}</span>}
+          </button>
+          <button
+            className={vista === 'ajustes' ? 'active' : ''}
+            onClick={() => setVista('ajustes')}
+          >
+            Ajustes
           </button>
         </div>
 
@@ -287,6 +295,8 @@ export default function AdminPage() {
               +<span className="fab-label">Nuevo producto</span>
             </button>
           </>
+        ) : vista === 'ajustes' ? (
+          <AjustesPanel />
         ) : (
           <>
             <div className="list-head">

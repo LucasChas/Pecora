@@ -8,6 +8,7 @@ import {
   crearPedido,
   nuevaClaveIdempotencia,
 } from '../../lib/orders'
+import { validarCupon, type ResultadoCupon } from '../../lib/cupones'
 
 interface Props {
   open: boolean
@@ -41,14 +42,22 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Cupón opcional: se valida con la misma función que el checkout; la base lo
+  // vuelve a validar al crear el pedido.
+  const [cuponInput, setCuponInput] = useState('')
+  const [cupon, setCupon] = useState<ResultadoCupon | null>(null)
+  const [validandoCupon, setValidandoCupon] = useState(false)
+  const [mensajeCupon, setMensajeCupon] = useState<string | null>(null)
+
   // Clave de idempotencia del alta: un reintento (ej. tras un corte de red) no
-  // duplica el pedido. Se renueva al abrir la hoja, al cambiar los productos y
-  // después de crear el pedido.
+  // duplica el pedido. Se renueva al abrir la hoja, al cambiar los productos,
+  // el cupón o la entrega, y después de crear el pedido.
   const claveRef = useRef<string | null>(null)
   const firmaItems = items.map((i) => `${i.id}:${i.cantidad}`).join('|')
+  const firmaIntento = [firmaItems, cupon?.codigo ?? '', entrega, provincia, cp.trim()].join('#')
   useEffect(() => {
     claveRef.current = null
-  }, [open, firmaItems])
+  }, [open, firmaIntento])
 
   function claveIdempotencia(): string {
     if (!claveRef.current) claveRef.current = nuevaClaveIdempotencia()
@@ -69,6 +78,9 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     setPickerAbierto(false)
     setItems([])
     setError(null)
+    setCuponInput('')
+    setCupon(null)
+    setMensajeCupon(null)
   }, [open])
 
   useEffect(() => {
@@ -97,7 +109,17 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     }
   }, [open])
 
+  // Si cambian los productos, el descuento validado ya no corresponde: se
+  // quita el cupón (el código queda en el campo para aplicarlo de nuevo).
+  function invalidarCupon() {
+    if (!cupon) return
+    setCuponInput(cupon.codigo)
+    setCupon(null)
+    setMensajeCupon('Cambiaron los productos: aplicá el cupón de nuevo.')
+  }
+
   function agregarProducto(p: ProductoConCategoria) {
+    invalidarCupon()
     setItems((prev) => {
       const existente = prev.find((i) => i.id === p.id)
       if (existente) {
@@ -118,6 +140,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   })
 
   function cambiarCantidad(id: string, delta: number) {
+    invalidarCupon()
     setItems((prev) =>
       prev.map((i) => {
         if (i.id !== id) return i
@@ -128,17 +151,37 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   }
 
   function quitarItem(id: string) {
+    invalidarCupon()
     setItems((prev) => prev.filter((i) => i.id !== id))
   }
 
   const subtotal = calcularSubtotal(items)
+
+  async function aplicarCupon() {
+    if (validandoCupon || cuponInput.trim() === '') return
+    setValidandoCupon(true)
+    setMensajeCupon(null)
+    const r = await validarCupon(cuponInput, subtotal, { pedidoManual: true })
+    setValidandoCupon(false)
+    if (r.valido) {
+      setCupon(r)
+      setCuponInput('')
+    } else {
+      setMensajeCupon(r.mensaje)
+    }
+  }
   const nombreValido = nombre.trim().length >= 2
   const telefonoValido = telefono.replace(/\D/g, '').length >= 8
   // Para envío hace falta al menos dirección y localidad (CP y provincia opcionales).
   const entregaValida =
     entrega === 'coordinar' || (direccion.trim() !== '' && localidad.trim() !== '')
   const puedeConfirmar =
-    nombreValido && telefonoValido && entregaValida && items.length > 0 && !guardando
+    nombreValido &&
+    telefonoValido &&
+    entregaValida &&
+    items.length > 0 &&
+    !guardando &&
+    !validandoCupon
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -151,6 +194,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
         items,
         origen: 'admin',
         idempotencyKey: claveIdempotencia(),
+        cupon: cupon?.codigo ?? null,
       })
       claveRef.current = null
       onChanged()
@@ -311,6 +355,71 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
                 <span>Subtotal</span>
                 <span>{money(subtotal)}</span>
               </div>
+            </div>
+          )}
+
+          {items.length > 0 && (
+            <div className="field manual-cupon">
+              <label htmlFor="manual-cupon">Cupón (opcional)</label>
+              {cupon ? (
+                <div className="manual-cupon-aplicado">
+                  <span className="manual-cupon-chip">{cupon.codigo}</span>
+                  <span className="manual-cupon-desc">
+                    {cupon.envioGratis && cupon.descuento <= 0
+                      ? 'Envío gratis'
+                      : `− ${money(cupon.descuento)}`}
+                  </span>
+                  <button
+                    type="button"
+                    className="manual-cupon-btn manual-cupon-btn--ghost"
+                    onClick={() => setCupon(null)}
+                    aria-label={`Quitar el cupón ${cupon.codigo}`}
+                  >
+                    Quitar
+                  </button>
+                </div>
+              ) : (
+                <div className="manual-cupon-fila">
+                  <input
+                    id="manual-cupon"
+                    type="text"
+                    value={cuponInput}
+                    onChange={(e) => {
+                      setCuponInput(e.target.value)
+                      setMensajeCupon(null)
+                    }}
+                    onKeyDown={(e) => {
+                      // Enter aplica el cupón en vez de crear el pedido.
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        aplicarCupon()
+                      }
+                    }}
+                    placeholder="Código"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    aria-invalid={mensajeCupon ? true : undefined}
+                    aria-describedby="manual-cupon-msg"
+                  />
+                  <button
+                    type="button"
+                    className="manual-cupon-btn"
+                    onClick={aplicarCupon}
+                    disabled={validandoCupon || cuponInput.trim() === ''}
+                  >
+                    {validandoCupon ? 'Validando…' : 'Aplicar'}
+                  </button>
+                </div>
+              )}
+              <p id="manual-cupon-msg" className="manual-cupon-msg" role="status">
+                {mensajeCupon ?? ''}
+              </p>
+              {cupon && (
+                <p className="manual-cupon-nota">
+                  El descuento y el envío los calcula la base al crear el pedido.
+                </p>
+              )}
             </div>
           )}
 

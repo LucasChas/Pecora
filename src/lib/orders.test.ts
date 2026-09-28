@@ -3,12 +3,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // El cliente real exige variables de entorno y habla con la red: se reemplaza
 // por un rpc simulado (vi.hoisted para que exista cuando corre vi.mock).
 const rpc = vi.hoisted(() => vi.fn())
-vi.mock('./supabaseClient', () => ({ supabase: { rpc } }))
+// Consulta encadenable (from().select().eq().eq().maybeSingle()).
+const consulta = vi.hoisted(() => ({
+  select: vi.fn(),
+  eq: vi.fn(),
+  maybeSingle: vi.fn(),
+}))
+const from = vi.hoisted(() => vi.fn())
+vi.mock('./supabaseClient', () => ({ supabase: { rpc, from } }))
 
 import {
+  MENSAJE_CUPON_NO_DISPONIBLE,
   PROVINCIAS_AR,
   calcularSubtotal,
   crearPedido,
+  detalleDe,
+  leerPedidoCreado,
   esFirmaInexistente,
   lineasDesglose,
   montoLinea,
@@ -80,10 +90,29 @@ describe('lineasDesglose / montoLinea / textoEnvio', () => {
   it('con descuento y envío: subtotal, descuento (negativo) y envío', () => {
     const t = totalesDe({ subtotal: 3000, descuento: 300, costo_envio: 900 })
     expect(lineasDesglose(t)).toEqual([
-      { concepto: 'Subtotal', importe: 3000 },
-      { concepto: 'Descuento', importe: -300 },
-      { concepto: 'Envío', importe: 900 },
+      { concepto: 'Subtotal', etiqueta: 'Subtotal', importe: 3000 },
+      { concepto: 'Descuento', etiqueta: 'Descuento', importe: -300 },
+      { concepto: 'Envío', etiqueta: 'Envío', importe: 900 },
     ])
+  })
+
+  it('nombra el cupón en el descuento y la zona en el envío', () => {
+    const t = totalesDe({ subtotal: 3000, descuento: 300, costo_envio: 900 })
+    const lineas = lineasDesglose(t, { cupon: 'VERANO10', zona: 'AMBA' })
+    expect(lineas.map((l) => l.etiqueta)).toEqual(['Subtotal', 'Descuento (VERANO10)', 'Envío (AMBA)'])
+  })
+
+  it('envío gratis por zona: línea "Gratis" aunque no haya descuento', () => {
+    const lineas = lineasDesglose(totalesDe({ subtotal: 3000 }), { zona: 'Córdoba Capital' })
+    expect(lineas).toEqual([
+      { concepto: 'Subtotal', etiqueta: 'Subtotal', importe: 3000 },
+      { concepto: 'Envío', etiqueta: 'Envío (Córdoba Capital)', importe: 0, texto: 'Gratis' },
+    ])
+  })
+
+  it('cupón de envío gratis (sin descuento): se nombra en la línea de envío', () => {
+    const lineas = lineasDesglose(totalesDe({ subtotal: 3000 }), { cupon: 'ENVIOGRATIS', zona: 'AMBA' })
+    expect(lineas[1]).toMatchObject({ etiqueta: 'Envío (AMBA · cupón ENVIOGRATIS)', texto: 'Gratis' })
   })
 
   it('el descuento lleva el signo menos tipográfico', () => {
@@ -95,6 +124,16 @@ describe('lineasDesglose / montoLinea / textoEnvio', () => {
     expect(textoEnvio(totalesDe({ subtotal: 1, costo_envio: 0 }), 'envio')).toBe('A coordinar')
     expect(textoEnvio(totalesDe({ subtotal: 1 }), 'coordinar')).toBe('Sin costo')
     expect(plano(textoEnvio(totalesDe({ subtotal: 1, costo_envio: 1500 }), 'envio'))).toBe('$ 1.500')
+  })
+
+  it('envío con zona y sin costo es "Gratis"; retiro sigue "Sin costo"', () => {
+    expect(textoEnvio(totalesDe({ subtotal: 1 }), 'envio', { zona: 'AMBA' })).toBe('Gratis')
+    expect(textoEnvio(totalesDe({ subtotal: 1 }), 'coordinar', { zona: 'AMBA' })).toBe('Sin costo')
+  })
+
+  it('detalleDe tolera filas sin las columnas de cupón / zona', () => {
+    expect(detalleDe({})).toEqual({ cupon: null, zona: null })
+    expect(detalleDe({ cupon_codigo: 'X10', zona_nombre: ' AMBA ' })).toEqual({ cupon: 'X10', zona: 'AMBA' })
   })
 })
 
@@ -267,5 +306,65 @@ describe('crearPedido', () => {
   it('si la base no devuelve un número válido, no lo da por confirmado', async () => {
     rpc.mockResolvedValueOnce({ data: null, error: null })
     await expect(crearPedido(base)).rejects.toThrow(/Mis pedidos/)
+  })
+
+  it('sin cupón no manda p_cupon (13 parámetros, sirve con y sin la migración)', async () => {
+    rpc.mockResolvedValueOnce({ data: 5, error: null })
+    await crearPedido({ ...base, cupon: '   ' })
+    const args = rpc.mock.calls[0][1] as Record<string, unknown>
+    expect(Object.keys(args)).toHaveLength(13)
+    expect(args).not.toHaveProperty('p_cupon')
+  })
+
+  it('con cupón manda p_cupon normalizado (14 parámetros)', async () => {
+    rpc.mockResolvedValueOnce({ data: 8, error: null })
+    await expect(crearPedido({ ...base, cupon: ' verano10 ' })).resolves.toBe(8)
+    expect(rpc).toHaveBeenCalledTimes(1)
+    const args = rpc.mock.calls[0][1] as Record<string, unknown>
+    expect(Object.keys(args)).toHaveLength(14)
+    expect(args).toMatchObject({ p_cupon: 'VERANO10', p_provincia: 'Córdoba' })
+  })
+
+  it('con cupón y sin la migración de cupones: corta, no cobra sin el descuento', async () => {
+    const aviso = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    rpc.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'no existe' } })
+    await expect(crearPedido({ ...base, cupon: 'VERANO10' })).rejects.toThrow(MENSAJE_CUPON_NO_DISPONIBLE)
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(aviso).toHaveBeenCalledTimes(1)
+    aviso.mockRestore()
+  })
+
+  it('un cupón inválido para la base se muestra tal cual', async () => {
+    rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code: 'P0001', message: 'El cupón VERANO10 venció.' },
+    })
+    await expect(crearPedido({ ...base, cupon: 'VERANO10' })).rejects.toThrow('El cupón VERANO10 venció.')
+    expect(rpc).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('leerPedidoCreado', () => {
+  beforeEach(() => {
+    from.mockReset().mockReturnValue(consulta)
+    consulta.select.mockReset().mockReturnValue(consulta)
+    consulta.eq.mockReset().mockReturnValue(consulta)
+    consulta.maybeSingle.mockReset()
+  })
+
+  it('lee el pedido propio por número', async () => {
+    const fila = { numero: 12, subtotal: 5000, descuento: 500, costo_envio: 1200, total: 5700 }
+    consulta.maybeSingle.mockResolvedValueOnce({ data: fila, error: null })
+    await expect(leerPedidoCreado(12, 'u1')).resolves.toEqual(fila)
+    expect(from).toHaveBeenCalledWith('pedidos')
+    expect(consulta.eq).toHaveBeenCalledWith('numero', 12)
+    expect(consulta.eq).toHaveBeenCalledWith('user_id', 'u1')
+  })
+
+  it('si no se puede leer devuelve null (no rompe el checkout)', async () => {
+    consulta.maybeSingle.mockResolvedValueOnce({ data: null, error: { message: 'x' } })
+    await expect(leerPedidoCreado(12, 'u1')).resolves.toBeNull()
+    consulta.maybeSingle.mockRejectedValueOnce(new Error('red'))
+    await expect(leerPedidoCreado(12, 'u1')).resolves.toBeNull()
   })
 })

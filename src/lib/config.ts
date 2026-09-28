@@ -1,5 +1,5 @@
 import type { ProductoConCategoria } from '../types'
-import type { TotalesPedido } from './orders'
+import { textoEnvio, type TotalesPedido } from './orders'
 import { money } from './format'
 
 // ============================================================================
@@ -51,15 +51,28 @@ export interface DatosPedido {
   cp?: string
   provincia?: string
   notas?: string
+  // Cupón aplicado y zona de envío que asignó la base (si hay).
+  cupon?: string
+  zona?: string
 }
 
-// Bloque de montos del mensaje: subtotal, descuento y envío (si corresponden)
-// y el total. Si el envío todavía no tiene costo, se aclara que se coordina.
-function resumenMontos(totales: TotalesPedido, entrega: DatosPedido['entrega']): string {
+// Bloque de montos del mensaje: subtotal, descuento (con el cupón) y envío
+// (con la zona) si corresponden, y el total. Si el envío todavía no tiene
+// costo ni zona, se aclara que se coordina.
+function resumenMontos(totales: TotalesPedido, datos: DatosPedido): string {
   const lineas = [`Subtotal: ${money(totales.subtotal)}`]
-  if (totales.descuento > 0) lineas.push(`Descuento: − ${money(totales.descuento)}`)
-  if (totales.costoEnvio > 0) lineas.push(`Envío: ${money(totales.costoEnvio)}`)
-  else if (entrega === 'envio') lineas.push('Envío: a coordinar')
+  if (totales.descuento > 0) {
+    const cupon = datos.cupon ? ` (cupón ${datos.cupon})` : ''
+    lineas.push(`Descuento${cupon}: − ${money(totales.descuento)}`)
+  } else if (datos.cupon) {
+    lineas.push(`Cupón: ${datos.cupon}`)
+  }
+  const detalle = { cupon: datos.cupon, zona: datos.zona }
+  const zona = datos.zona ? ` (${datos.zona})` : ''
+  if (totales.costoEnvio > 0 || datos.entrega === 'envio') {
+    const envio = textoEnvio(totales, datos.entrega, detalle)
+    lineas.push(`Envío${zona}: ${envio === 'A coordinar' ? 'a coordinar' : envio}`)
+  }
   lineas.push(`Total: ${money(totales.total)}`)
   return lineas.join('\n')
 }
@@ -88,7 +101,7 @@ export function waPedidoConfirmadoLink(
   const partes = [
     `Hola! Soy ${datos.nombre}. Acabo de hacer el pedido #${numero} en la web de Pecora:`,
     lineas,
-    resumenMontos(totales, datos.entrega),
+    resumenMontos(totales, datos),
     entrega,
   ]
   if (datos.notas) partes.push(`Notas: ${datos.notas}`)

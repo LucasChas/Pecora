@@ -1594,3 +1594,365 @@
     color: var(--ink);
   }
 }
+
+/* ============================================================
+   Ajustes: cupones de descuento y zonas de envío (pestaña Ajustes)
+   + cupón del alta manual de pedido. Todo prefijado con .admin-root.
+   ============================================================ */
+.admin-root .ajustes-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 0 16px 10px;
+}
+.admin-root .ajustes-subhead p {
+  flex: 1 1 220px;
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.admin-root .ajustes-subhead .head-action {
+  flex-shrink: 0;
+  min-height: 44px;
+  border: 1px solid var(--sage);
+  background: var(--sage);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0 16px;
+  border-radius: 100px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.admin-root .ajustes-subhead .head-action:active {
+  background: var(--sage-deep);
+}
+
+.admin-root .ajuste-card {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.06);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.admin-root .ajuste-card--off {
+  background: #fbf9f4;
+}
+.admin-root .ajuste-card--off .ajuste-titulo,
+.admin-root .ajuste-card--off .ajuste-valor {
+  color: var(--ink-soft);
+}
+.admin-root .ajuste-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.admin-root .ajuste-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.admin-root .ajuste-codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+.admin-root .ajuste-orden {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--cream-deep);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+.admin-root .ajuste-estado {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+.admin-root .ajuste-estado--activo {
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+}
+.admin-root .ajuste-estado--programado {
+  background: #e4ecf2;
+  color: var(--clay);
+}
+.admin-root .ajuste-estado--inactivo {
+  background: var(--cream-deep);
+  color: var(--ink-soft);
+}
+.admin-root .ajuste-estado--vencido,
+.admin-root .ajuste-estado--agotado {
+  background: var(--danger-pale);
+  color: var(--danger);
+}
+.admin-root .ajuste-valor {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+.admin-root .ajuste-meta {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.admin-root .ajuste-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+.admin-root .ajuste-datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-root .ajuste-datos li {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--cream);
+  border-radius: 100px;
+  padding: 3px 9px;
+}
+.admin-root .ajuste-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.admin-root .ajuste-btn {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: #fff;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-root .ajuste-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.admin-root .ajuste-btn--icono {
+  padding: 0;
+  font-size: 1rem;
+}
+.admin-root .ajuste-btn--peligro {
+  margin-left: auto;
+  border-color: transparent;
+  color: var(--danger);
+}
+
+/* Formularios de Ajustes: 16px en los campos (iOS no hace zoom al enfocar). */
+.admin-root .sheet--ajustes .field input,
+.admin-root .sheet--ajustes .field select {
+  font-size: 1rem;
+  min-height: 44px;
+}
+.admin-root .ajuste-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.admin-root .ajuste-check input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--sage);
+}
+.admin-root .ajuste-provincias {
+  border: none;
+  padding: 0;
+  min-width: 0;
+}
+.admin-root .ajuste-provincias legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.admin-root .ajuste-contador {
+  font-weight: 500;
+}
+.admin-root .ajuste-prov-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.admin-root .ajuste-prov {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.admin-root .ajuste-prov.activa {
+  border-color: var(--sage);
+  background: var(--sage-pale);
+  color: var(--ink);
+}
+.admin-root .field .ajuste-prov input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  flex-shrink: 0;
+  accent-color: var(--sage);
+}
+.admin-root .ajuste-ayuda {
+  margin: 6px 2px 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+/* Cupón en el alta manual de pedido. */
+.admin-root .manual-cupon-fila,
+.admin-root .manual-cupon-aplicado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-root .manual-cupon-fila input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+.admin-root .manual-cupon-fila input::placeholder {
+  text-transform: none;
+}
+.admin-root .manual-cupon-btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
+  background: var(--sage);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-root .manual-cupon-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.admin-root .manual-cupon-btn--ghost {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+}
+.admin-root .manual-cupon-chip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+  border-radius: 100px;
+  padding: 5px 11px;
+}
+.admin-root .manual-cupon-desc {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.admin-root .manual-cupon-msg {
+  margin: 6px 2px 0;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+.admin-root .manual-cupon-msg:empty {
+  display: none;
+}
+.admin-root .manual-cupon-nota {
+  margin: 6px 2px 0;
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+@media (min-width: 768px) {
+  .admin-root .ajustes-subhead {
+    padding: 0 var(--admin-gutter) 12px;
+  }
+  .admin-root .list--ajustes {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+  .admin-root .sheet--ajustes {
+    max-width: 640px;
+  }
+}
+/* Con mouse los botones de las cards pueden ser más compactos. */
+@media (min-width: 768px) and (pointer: fine) {
+  .admin-root .ajuste-btn {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .admin-root .ajuste-btn:not(:disabled):hover {
+    border-color: var(--sage);
+    background: var(--sage-pale);
+  }
+  .admin-root .ajuste-btn--peligro:not(:disabled):hover {
+    border-color: transparent;
+    background: var(--danger-pale);
+  }
+  .admin-root .ajustes-subhead .head-action:hover,
+  .admin-root .manual-cupon-btn:not(:disabled):not(.manual-cupon-btn--ghost):hover {
+    background: var(--sage-deep);
+  }
+  .admin-root .ajuste-prov:hover {
+    border-color: var(--sage);
+  }
+}
