@@ -12,6 +12,8 @@ interface Props {
   // Si hay filtro o búsqueda activos, el mensaje de "vacío" es distinto.
   filtrando: boolean
   papelera: boolean
+  // Solo admin: "Eliminar para siempre" en la papelera (empleados no).
+  puedeBorrarDefinitivo?: boolean
 }
 
 // Lista de pedidos del panel. Contempla el estado de carga, error (típico si
@@ -25,6 +27,7 @@ export default function OrdersList({
   onVerMas,
   filtrando,
   papelera,
+  puedeBorrarDefinitivo = false,
 }: Props) {
   // Aviso de mails sin enviar: se descarta para el conjunto de pedidos que había
   // al cerrarlo; si aparece otro pedido con el mismo problema, vuelve.
@@ -128,7 +131,13 @@ export default function OrdersList({
         </div>
       )}
       {pedidos.map((p) => (
-        <OrderCard key={p.id} pedido={p} onChanged={onChanged} ahora={ahora} />
+        <OrderCard
+          key={p.id}
+          pedido={p}
+          onChanged={onChanged}
+          ahora={ahora}
+          puedeBorrarDefinitivo={puedeBorrarDefinitivo}
+        />
       ))}
       {hayMas && (
         <button type="button" className="orders-mas" onClick={onVerMas}>

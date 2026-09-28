@@ -31,11 +31,14 @@ export interface ProductoConCategoria extends Producto {
 }
 
 // ---- Cuentas de clientas (ver migración 0005) ----
+// 'empleado' = staff del panel sin acceso a ajustes, estadísticas ni equipo.
+export type Rol = 'cliente' | 'empleado' | 'admin'
+
 export interface Perfil {
   id: string
   nombre: string | null
   telefono: string | null
-  rol: 'cliente' | 'admin'
+  rol: Rol
   created_at: string
 }
 
@@ -132,4 +135,38 @@ export interface ZonaEnvio {
   gratis_desde: number | null
   activo: boolean
   orden: number
+}
+
+// ---- Carga masiva de productos (RPC importar_productos) ----
+// Una fila del CSV ya normalizada, tal como la recibe la RPC.
+export interface FilaImportacion {
+  sku: string
+  nombre: string
+  descripcion?: string | null
+  precio: number
+  stock: number
+  // Nombre de la categoría (la base la resuelve por nombre).
+  categoria: string
+  imagen_url?: string | null
+}
+
+export interface ErrorFilaImportacion {
+  // Número de fila del archivo (1 = encabezado, los datos arrancan en 2).
+  fila: number
+  mensaje: string
+}
+
+export interface ResultadoImportacion {
+  nuevos: number
+  actualizados: number
+  errores: ErrorFilaImportacion[]
+}
+
+// ---- Equipo del panel (Edge Function gestionar-equipo) ----
+export interface MiembroEquipo {
+  id: string
+  email: string
+  nombre: string | null
+  rol: Rol
+  ultimo_ingreso: string | null
 }

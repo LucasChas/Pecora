@@ -12,6 +12,8 @@ interface Props {
   // Hora de referencia para el aviso de mails (la pasa la lista, así todas las
   // cards y el banner usan la misma). Si falta, la hora actual.
   ahora?: number
+  // Solo admin: borrado definitivo desde la papelera. Por defecto oculto.
+  puedeBorrarDefinitivo?: boolean
 }
 
 const ESTADOS: EstadoPedido[] = ['nuevo', 'confirmado', 'entregado', 'cancelado']
@@ -68,7 +70,7 @@ function fecha(iso: string): string {
 // Card de un pedido en el panel: datos de la clienta, entrega, ítems, totales,
 // un selector para cambiar el estado y el menú "Imprimir" (nota de entrega y,
 // si es envío, etiqueta).
-export default function OrderCard({ pedido, onChanged, ahora }: Props) {
+export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinitivo = false }: Props) {
   const { confirmar, avisar } = useDialog()
   const enPapelera = pedido.eliminado_at !== null
   const totales = totalesDe(pedido)
@@ -346,9 +348,11 @@ export default function OrderCard({ pedido, onChanged, ahora }: Props) {
             <button type="button" className="order-restaurar" onClick={restaurar}>
               ↩ Restaurar
             </button>
-            <button type="button" className="order-borrar" onClick={borrarDefinitivo}>
-              Eliminar para siempre
-            </button>
+            {puedeBorrarDefinitivo && (
+              <button type="button" className="order-borrar" onClick={borrarDefinitivo}>
+                Eliminar para siempre
+              </button>
+            )}
           </>
         ) : (
           <>

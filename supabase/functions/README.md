@@ -394,3 +394,94 @@ pnpm dlx supabase@latest secrets set PUBLIC_SITE_URL=https://pecora-muestrario.v
   cuando vuelva" si los RPCs o la tabla no existen.
 - La función se puede borrar con
   `pnpm dlx supabase@latest functions delete avisar-reposicion`.
+
+## `gestionar-equipo` (equipo del panel: empleados)
+
+La llama el panel (pestaña Equipo) con el JWT de la sesión. Solo una cuenta con
+rol `admin` puede usarla: el JWT se valida con `supabase.auth.getUser(token)` y
+el rol se lee de `public.profiles` con la service-role key (nunca del body).
+Cambiar `profiles.rol` solo es posible con service_role o desde el SQL Editor
+(trigger `proteger_rol_perfil`, migración 0014): por eso esto vive en una Edge
+Function y no en el front.
+
+`POST` con `{ accion, ... }`:
+
+| `accion` | Body | Respuesta OK |
+|---|---|---|
+| `listar` | — | `{ ok: true, miembros: [{ id, email, nombre, rol, ultimo_ingreso }] }` (admins primero) |
+| `invitar` | `email`, `nombre` (hasta 80) | `{ ok: true, resultado: 'invitada' \| 'promovida' \| 'sin_cambios', miembro, origen_link }` |
+| `revocar` | `user_id` | `{ ok: true }` |
+
+- `invitar`: si no hay cuenta con ese email, manda la **invitación de Supabase
+  Auth** (plantilla *Authentication → Email Templates → Invite user*) con el
+  link a `PUBLIC_ADMIN_URL` y le da rol `empleado`. Si ya existe una cuenta de
+  clienta, solo le cambia el rol (sin mail: entra con su contraseña de
+  siempre). Si ya es admin, responde `409`. `origen_link` es el origen al que
+  lleva el link del mail (solo si se mandó una invitación; si no, `null`); el
+  panel lo muestra en el aviso de "Listo".
+- Antes de invitar se valida `PUBLIC_ADMIN_URL`: tiene que ser una URL `https`
+  (`http` solo para `localhost` / `127.0.0.1`) cuyo origen sea uno de los de
+  `ADMIN_ORIGIN`. Si no, **no se manda ningún mail** y responde
+  `500 config_invalida`; el log (`[gestionar-equipo] invitación no enviada:
+  secreto X mal configurado (...)`) dice qué secreto revisar, mostrando solo
+  orígenes.
+- `revocar`: vuelve el rol a `cliente`. No se puede con una misma ni con otra
+  admin. Tiene efecto inmediato (las policies leen el rol en cada consulta).
+- Errores: `{ ok: false, error: <mensaje en español>, codigo }` con `400`
+  (datos), `401` (sesión), `403` (no admin / origen no permitido), `409`,
+  `500`/`502`.
+- Usa dos funciones SQL solo para service_role (`equipo_listar()`,
+  `usuario_id_por_email(text)`, migración `*_roles_empleados.sql`).
+- Lógica pura en `logica.ts`, tests en `logica.test.ts` (`pnpm test`).
+
+Qué puede hacer un empleado (RLS, migración `*_roles_empleados.sql`):
+productos y categorías (alta, edición, borrado), fotos del bucket `productos`,
+ver todos los pedidos, cambiarles el estado, mandarlos a la papelera /
+restaurarlos, reenviar sus mails y cargar pedidos manuales (con cupón). **No**
+puede: borrar pedidos definitivamente, tocar otras columnas del pedido
+(descuento, envío, datos de la clienta), cupones, zonas de envío,
+estadísticas, `ventas_validas` ni el equipo.
+
+### Secretos
+
+```
+ADMIN_ORIGIN=https://<url-del-panel>                 # uno o varios, separados por coma (CORS)
+PUBLIC_ADMIN_URL=https://<url-del-panel>             # a dónde lleva el link de la invitación
+```
+
+- `ADMIN_ORIGIN`: origen exacto del panel (esquema + dominio, sin barra ni
+  ruta). Para probar en local se puede agregar `http://localhost:5173`. Si
+  falta, la función rechaza a todo navegador (`403`).
+- `PUBLIC_ADMIN_URL`: dirección del panel, `https` y del mismo origen que
+  `ADMIN_ORIGIN` (si no, la función no invita y responde `config_invalida`).
+  Tiene que estar también en *Authentication → URL Configuration → Redirect
+  URLs*: eso la función no lo puede comprobar, y si falta Supabase manda el
+  link al *Site URL* (el muestrario). Después de configurarla, invitar un
+  email de prueba y confirmar que el aviso del panel ("El link del mail abre
+  ...") y el link del mail apuntan al panel.
+
+### Despliegue (en este orden)
+
+```bash
+# 1) La migración *_roles_empleados.sql (con el workflow de la base, al mergear a main).
+# 2) Los secretos
+pnpm dlx supabase@latest secrets set ADMIN_ORIGIN=https://<url-del-panel> PUBLIC_ADMIN_URL=https://<url-del-panel>
+# 3) La función (verificación JWT default: NO usar --no-verify-jwt)
+pnpm dlx supabase@latest functions deploy gestionar-equipo
+```
+
+4. Probar: desde el panel de la admin, invitar un email de prueba; tiene que
+   llegar el mail, la cuenta aparece en `listar` con rol `empleado` y, al
+   ingresar, ve Productos y Pedidos pero no Cupones / Estadísticas / Equipo.
+   Revocarla y confirmar que pierde el acceso. Logs con prefijo
+   `[gestionar-equipo]`.
+
+### Volver atrás
+
+- La función se puede borrar con
+  `pnpm dlx supabase@latest functions delete gestionar-equipo` (el panel
+  muestra "Falta desplegar la función gestionar-equipo").
+- Quitar el acceso a todos los empleados sin tocar el esquema (SQL Editor):
+  `update public.profiles set rol = 'cliente' where rol = 'empleado';`
+- Revertir el esquema: ver el bloque "Cómo revertirla" al final de
+  `*_roles_empleados.sql`.
