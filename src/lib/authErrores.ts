@@ -49,8 +49,10 @@ export function traducirErrorAuth(error: ErrorAuth | null | undefined): string |
   if (/invalid login credentials/i.test(msg)) return POR_CODIGO.invalid_credentials
   if (esSinConfirmar(error)) return MENSAJE_SIN_CONFIRMAR
   if (/already (been )?registered/i.test(msg)) return POR_CODIGO.user_already_exists
-  if (/password should be|password is too weak/i.test(msg)) return POR_CODIGO.weak_password
+  // Antes que "password should be": "New password should be different..."
+  // también empieza así.
   if (/different from the old password/i.test(msg)) return POR_CODIGO.same_password
+  if (/password should be|password is too weak/i.test(msg)) return POR_CODIGO.weak_password
   if (/rate limit/i.test(msg) || error.status === 429) return POR_CODIGO.over_request_rate_limit
   if (/failed to fetch|network|load failed/i.test(msg) || error.status === 0) return MENSAJE_SIN_CONEXION
   return MENSAJE_GENERICO
