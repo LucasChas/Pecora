@@ -23,15 +23,20 @@ export default function ResetPasswordPage() {
   const [linkInvalido, setLinkInvalido] = useState(false)
 
   // Le damos un margen a Supabase para procesar el token del hash antes de
-  // asumir que el link es inválido o ya venció.
+  // asumir que el link es inválido o ya venció. Si la sesión llega tarde
+  // (conexión lenta), se corrige: el link era válido. Si Supabase ya marcó el
+  // link como vencido en la URL (#error_code=otp_expired), se avisa al toque.
   useEffect(() => {
     if (session) {
+      setLinkInvalido(false)
       setListo(true)
       return
     }
-    const timer = setTimeout(() => {
-      if (!session) setLinkInvalido(true)
-    }, 2500)
+    if (/error_code=|error=access_denied/.test(window.location.hash + window.location.search)) {
+      setLinkInvalido(true)
+      return
+    }
+    const timer = setTimeout(() => setLinkInvalido(true), 4000)
     return () => clearTimeout(timer)
   }, [session])
 

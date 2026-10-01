@@ -38,6 +38,9 @@ export default function MyOrdersPage() {
   const { session, loading: cargandoSesion } = useAuth()
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [cargando, setCargando] = useState(true)
+  // Si la carga falla no decimos "todavía no hiciste pedidos" (falso y
+  // alarmante justo después de comprar): mostramos el error con reintento.
+  const [errorCarga, setErrorCarga] = useState(false)
   // Miniatura por producto (id -> url). El pedido solo guarda nombre/precio,
   // no imagen (foto "de época"), así que la traemos del producto actual —
   // igual que "por categoría" en las estadísticas, es una aproximación: si
@@ -51,12 +54,22 @@ export default function MyOrdersPage() {
     // política permite leer "los propios O todos si sos admin", así que la
     // administradora vería acá los pedidos de todas las clientas como si fueran
     // suyos. "Mis pedidos" siempre son los de la cuenta logueada.
-    const { data } = await supabase
-      .from('pedidos')
-      .select('*')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false })
-    const lista = (data ?? []) as Pedido[]
+    let lista: Pedido[]
+    try {
+      const { data, error } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      lista = (data ?? []) as Pedido[]
+    } catch (e) {
+      console.error('No se pudieron cargar los pedidos:', e)
+      setErrorCarga(true)
+      setCargando(false)
+      return
+    }
+    setErrorCarga(false)
     setPedidos(lista)
     setCargando(false)
 
@@ -76,7 +89,7 @@ export default function MyOrdersPage() {
     const uid = session.user.id
     fetchPedidos(uid)
     const canal = supabase
-      .channel('mis-pedidos')
+      .channel(`mis-pedidos-${uid}-${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, () =>
         fetchPedidos(uid),
       )
@@ -87,8 +100,22 @@ export default function MyOrdersPage() {
   }, [session, fetchPedidos])
 
   // Requiere estar logueada.
-  if (cargandoSesion) return null
+  if (cargandoSesion) {
+    return (
+      <div className="catalog-root">
+        <div className="loading-state">
+          <span className="loading-spinner" aria-hidden="true" />
+          Cargando…
+        </div>
+      </div>
+    )
+  }
   if (!session) return <Navigate to="/cuenta?next=/mis-pedidos" replace />
+
+  const reintentar = () => {
+    setCargando(true)
+    fetchPedidos(session.user.id)
+  }
 
   return (
     <div className="catalog-root">
@@ -107,6 +134,18 @@ export default function MyOrdersPage() {
           <div className="loading-state">
             <span className="loading-spinner" aria-hidden="true" />
             Cargando tus pedidos…
+          </div>
+        ) : errorCarga && pedidos.length === 0 ? (
+          <div className="load-error" role="alert">
+            <p className="load-error-title">No pudimos cargar tus pedidos</p>
+            <p className="load-error-text">
+              Puede ser un problema de conexión. Tus pedidos están guardados: volvé a intentar.
+            </p>
+            <div className="load-error-actions">
+              <button type="button" className="load-error-btn" onClick={reintentar}>
+                Reintentar
+              </button>
+            </div>
           </div>
         ) : pedidos.length === 0 ? (
           <div className="no-results">
@@ -128,10 +167,12 @@ export default function MyOrdersPage() {
                 <div className={`mp-card ${est.clase}`} key={p.id}>
                   <div className="mp-top">
                     <div>
-                      {/* El número de pedido es un dato interno del admin
-                          (lo usa para ubicarlo en el panel); a la clienta le
-                          alcanza con la fecha para reconocer cuál es cuál. */}
-                      <span className="mp-num">Pedido del {fecha(p.created_at)}</span>
+                      {/* El número va en segundo plano: sirve para nombrar el
+                          pedido al escribir por WhatsApp (el mensaje del
+                          checkout ya lo usa) o si hay dos el mismo día. */}
+                      <span className="mp-num">
+                        Pedido del {fecha(p.created_at)} <small>· N.º {p.numero}</small>
+                      </span>
                     </div>
                     <span className={`mp-estado ${est.clase}`}>{est.texto}</span>
                   </div>

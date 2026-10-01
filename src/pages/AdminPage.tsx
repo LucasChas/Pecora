@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useDialog } from '../context/DialogContext'
@@ -6,7 +6,7 @@ import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
 import { useOrders, type FiltroEstado } from '../hooks/useOrders'
 import { useMiniaturasAutomaticas } from '../hooks/useMiniaturasAutomaticas'
-import type { ProductoConCategoria } from '../types'
+import type { Pedido, ProductoConCategoria } from '../types'
 import Logo from '../components/Logo'
 import LoginForm from '../components/admin/LoginForm'
 import StatsStrip from '../components/admin/StatsStrip'
@@ -56,7 +56,7 @@ export default function AdminPage() {
     error: errorCategorias,
     refetch: refetchCategorias,
   } = useCategories()
-  const { confirmar } = useDialog()
+  const { confirmar, notificar } = useDialog()
   const [vistaElegida, setVista] = useState<Vista>('productos')
   // Si el rol no alcanza para la vista elegida (ej. cambió el perfil), Productos.
   const vista: Vista =
@@ -114,7 +114,29 @@ export default function AdminPage() {
     hayMas,
     verMas,
     refetch: refetchPedidos,
-  } = useOrders(filtroEstado, busqueda)
+  } = useOrders(filtroEstado, busqueda, avisarPedidoNuevo)
+
+  // Pedido nuevo con el panel abierto: aviso con atajo, y vibración en el
+  // celular. Antes solo cambiaba el número del badge.
+  function avisarPedidoNuevo(pedido: Pedido) {
+    if (pedido.origen === 'admin') return // lo acaba de cargar alguien del panel
+    navigator.vibrate?.(200)
+    notificar(`Nuevo pedido #${pedido.numero} de ${pedido.nombre.split(' ')[0]}`, {
+      accion: {
+        texto: 'Ver',
+        onClick: () => {
+          setVista('pedidos')
+          setFiltroEstado('nuevo')
+        },
+      },
+    })
+  }
+
+  // Pedidos por atender en el título de la pestaña: "(2) Pecora · Panel".
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\) /, '')
+    document.title = conteos.nuevo > 0 ? `(${conteos.nuevo}) ${base}` : base
+  }, [conteos.nuevo])
 
   // Control de las dos hojas (bottom sheets).
   const [sheetAbierta, setSheetAbierta] = useState(false)

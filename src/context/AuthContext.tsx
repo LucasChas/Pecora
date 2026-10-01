@@ -2,25 +2,44 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import type { Perfil } from '../types'
+import { esSinConfirmar, traducirErrorAuth } from '../lib/authErrores'
 
 interface AuthContextValue {
   session: Session | null
   perfil: Perfil | null
   loading: boolean
   esAdmin: boolean
-  registrar: (datos: {
-    email: string
-    password: string
-    nombre: string
-    telefono: string
-  }) => Promise<{ error: string | null; necesitaConfirmar: boolean; yaRegistrado: boolean }>
-  ingresar: (email: string, password: string) => Promise<{ error: string | null }>
+  // `volverA`: ruta de la app a la que vuelve después de confirmar el email
+  // (ej. /checkout), para no perder la compra en el camino.
+  registrar: (
+    datos: {
+      email: string
+      password: string
+      nombre: string
+      telefono: string
+    },
+    volverA?: string,
+  ) => Promise<{ error: string | null; necesitaConfirmar: boolean; yaRegistrado: boolean }>
+  ingresar: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null; sinConfirmar: boolean }>
+  reenviarConfirmacion: (email: string, volverA?: string) => Promise<{ error: string | null }>
   recuperarPassword: (email: string) => Promise<{ error: string | null }>
   actualizarPassword: (password: string) => Promise<{ error: string | null }>
   salir: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+// URL a la que lleva el link del mail de confirmación: /cuenta con el destino
+// en `next`; AccountPage ve la sesión nueva y redirige. Tiene que estar en
+// Supabase → Authentication → URL Configuration → Redirect URLs; si no, Supabase
+// usa la Site URL (la clienta queda logueada en el inicio, como antes).
+function urlConfirmacion(volverA?: string): string {
+  const destino = volverA && volverA.startsWith('/') ? volverA : '/'
+  return `${window.location.origin}/cuenta?next=${encodeURIComponent(destino)}`
+}
 
 // Espera antes del único reintento cuando la lectura del perfil falla.
 const ESPERA_REINTENTO_PERFIL_MS = 1500
@@ -134,14 +153,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe()
   }, [cargarPerfil])
 
-  const registrar: AuthContextValue['registrar'] = useCallback(async (datos) => {
+  const registrar: AuthContextValue['registrar'] = useCallback(async (datos, volverA) => {
     const { data, error } = await supabase.auth.signUp({
       email: datos.email,
       password: datos.password,
-      // Estos datos los toma el trigger handle_new_user para armar el perfil.
-      options: { data: { nombre: datos.nombre, telefono: datos.telefono } },
+      options: {
+        // Estos datos los toma el trigger handle_new_user para armar el perfil.
+        data: { nombre: datos.nombre, telefono: datos.telefono },
+        emailRedirectTo: urlConfirmacion(volverA),
+      },
     })
-    if (error) return { error: error.message, necesitaConfirmar: false, yaRegistrado: false }
+    if (error) return { error: traducirErrorAuth(error), necesitaConfirmar: false, yaRegistrado: false }
 
     // Supabase no avisa con un error si el email ya tiene una cuenta
     // confirmada (para no revelar qué emails existen): responde "OK" pero
@@ -159,10 +181,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null, necesitaConfirmar, yaRegistrado: false }
   }, [])
 
+  // "Email sin confirmar" se distingue de "contraseña incorrecta": antes las
+  // dos decían lo mismo y una clienta sin confirmar no tenía cómo salir.
   const ingresar: AuthContextValue['ingresar'] = useCallback(async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error: error ? 'Email o contraseña incorrectos.' : null }
+    return { error: traducirErrorAuth(error), sinConfirmar: esSinConfirmar(error) }
   }, [])
+
+  const reenviarConfirmacion: AuthContextValue['reenviarConfirmacion'] = useCallback(
+    async (email, volverA) => {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: urlConfirmacion(volverA) },
+      })
+      return { error: traducirErrorAuth(error) }
+    },
+    [],
+  )
 
   // Manda el mail de recuperación. Igual que en signUp, Supabase no distingue
   // por error si el email existe o no (para no revelar cuentas registradas),
@@ -171,14 +207,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/restablecer-contrasena`,
     })
-    return { error: error ? error.message : null }
+    return { error: traducirErrorAuth(error) }
   }, [])
 
   // Se usa ya con la sesión temporal que crea Supabase al abrir el link del
   // mail de recuperación (evento PASSWORD_RECOVERY), no con la sesión normal.
   const actualizarPassword: AuthContextValue['actualizarPassword'] = useCallback(async (password) => {
     const { error } = await supabase.auth.updateUser({ password })
-    return { error: error ? error.message : null }
+    return { error: traducirErrorAuth(error) }
   }, [])
 
   const salir = useCallback(async () => {
@@ -192,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     esAdmin: perfil?.rol === 'admin',
     registrar,
     ingresar,
+    reenviarConfirmacion,
     recuperarPassword,
     actualizarPassword,
     salir,

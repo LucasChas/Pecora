@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import type { EstadoPedido, Pedido } from '../types'
@@ -34,13 +34,33 @@ function limpiarBusqueda(texto: string): string {
   return texto.trim().replace(/[,()*]/g, '')
 }
 
+// Espera desde la última tecla antes de buscar: sin esto cada letra disparaba
+// 7 consultas y la lista parpadeaba en "Cargando…".
+const ESPERA_BUSQUEDA_MS = 300
+
+// Nombre único por suscripción: con un nombre fijo, supabase.channel()
+// devuelve el canal anterior si todavía se está cerrando y la suscripción
+// nueva queda muerta (mismo problema que resuelve useProducts).
+let secuenciaCanal = 0
+
 // Trae los pedidos del panel: filtrados por estado, con búsqueda y paginados.
 // Se mantiene al día en tiempo real (pedido nuevo o cambio de estado).
 //
 // Depende de la sesión a propósito: quien consulta define qué devuelve RLS. Sin
 // esto, el fetch salía antes del login (como anónimo, 0 filas) y no se repetía al
 // ingresar, así que la admin abría el panel y veía la lista vacía o incompleta.
-export function useOrders(estado: FiltroEstado = 'todos', busqueda = '') {
+//
+// El canal de Realtime se abre una sola vez por sesión (no con cada filtro o
+// búsqueda) y llama siempre a la versión más nueva del fetch. Las respuestas
+// que llegan fuera de orden (una búsqueda lenta después de una más nueva) se
+// descartan.
+//
+// `onPedidoNuevo` se llama cuando entra un pedido (INSERT), para avisar.
+export function useOrders(
+  estado: FiltroEstado = 'todos',
+  busqueda = '',
+  onPedidoNuevo?: (pedido: Pedido) => void,
+) {
   const { session } = useAuth()
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [conteos, setConteos] = useState<ConteosPedidos>(CONTEOS_VACIOS)
@@ -49,9 +69,20 @@ export function useOrders(estado: FiltroEstado = 'todos', busqueda = '') {
   const [paginas, setPaginas] = useState(1)
   const [hayMas, setHayMas] = useState(false)
 
-  const texto = limpiarBusqueda(busqueda)
+  // Búsqueda "asentada": la que efectivamente se consulta.
+  const [texto, setTexto] = useState(() => limpiarBusqueda(busqueda))
+  useEffect(() => {
+    const limpio = limpiarBusqueda(busqueda)
+    if (limpio === texto) return
+    const t = setTimeout(() => setTexto(limpio), ESPERA_BUSQUEDA_MS)
+    return () => clearTimeout(t)
+  }, [busqueda, texto])
+
+  // Número de la última consulta de la lista: solo esa puede escribir el estado.
+  const ultimaConsulta = useRef(0)
 
   const fetchPedidos = useCallback(async () => {
+    const nro = ++ultimaConsulta.current
     let query = supabase
       .from('pedidos')
       .select('*')
@@ -67,14 +98,21 @@ export function useOrders(estado: FiltroEstado = 'todos', busqueda = '') {
     }
 
     if (texto) {
-      // Buscamos por nombre y teléfono; si además escribió un número, por nº de pedido.
-      const condiciones = [`nombre.ilike.%${texto}%`, `telefono.ilike.%${texto}%`]
+      // Buscamos por nombre, teléfono, email y localidad; si además escribió
+      // un número, por nº de pedido.
+      const condiciones = [
+        `nombre.ilike.%${texto}%`,
+        `telefono.ilike.%${texto}%`,
+        `email.ilike.%${texto}%`,
+        `localidad.ilike.%${texto}%`,
+      ]
       const soloDigitos = texto.replace(/\D/g, '')
-      if (soloDigitos) condiciones.push(`numero.eq.${soloDigitos}`)
+      if (soloDigitos && soloDigitos.length <= 12) condiciones.push(`numero.eq.${soloDigitos}`)
       query = query.or(condiciones.join(','))
     }
 
     const { data, error } = await query
+    if (nro !== ultimaConsulta.current) return // llegó tarde: hay una más nueva
     if (error) setError(error.message)
     else {
       const filas = (data ?? []) as Pedido[]
@@ -115,10 +153,23 @@ export function useOrders(estado: FiltroEstado = 'todos', busqueda = '') {
     fetchConteos()
   }, [fetchPedidos, fetchConteos])
 
+  // Últimas versiones, para el canal de Realtime (que no se reabre).
+  const fetchPedidosRef = useRef(fetchPedidos)
+  fetchPedidosRef.current = fetchPedidos
+  const onPedidoNuevoRef = useRef(onPedidoNuevo)
+  onPedidoNuevoRef.current = onPedidoNuevo
+
   // Al cambiar el filtro o la búsqueda volvemos a la primera página.
   useEffect(() => {
     setPaginas(1)
   }, [estado, texto])
+
+  // Lista: se vuelve a pedir con cada filtro, búsqueda o "Ver más", sin vaciar
+  // la que está en pantalla (no se pierde el scroll).
+  useEffect(() => {
+    if (!session) return
+    fetchPedidos()
+  }, [session, fetchPedidos])
 
   useEffect(() => {
     // Sin sesión no hay nada que traer (RLS devolvería 0 filas igual).
@@ -129,24 +180,26 @@ export function useOrders(estado: FiltroEstado = 'todos', busqueda = '') {
       return
     }
 
-    setLoading(true)
-    fetchPedidos()
     fetchConteos()
 
     const canal = supabase
-      .channel('admin-pedidos')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, () => {
-        fetchPedidos()
+      .channel(`admin-pedidos-${++secuenciaCanal}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, (cambio) => {
+        fetchPedidosRef.current()
         fetchConteos()
+        if (cambio.eventType === 'INSERT') onPedidoNuevoRef.current?.(cambio.new as Pedido)
       })
       .subscribe()
 
     return () => {
       supabase.removeChannel(canal)
     }
-  }, [session, fetchPedidos, fetchConteos])
+  }, [session, fetchConteos])
 
   const verMas = useCallback(() => setPaginas((p) => p + 1), [])
 
-  return { pedidos, conteos, loading, error, hayMas, verMas, refetch }
+  // Mientras la búsqueda escrita no se consultó todavía.
+  const buscando = limpiarBusqueda(busqueda) !== texto
+
+  return { pedidos, conteos, loading, buscando, error, hayMas, verMas, refetch }
 }
