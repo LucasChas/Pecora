@@ -158,6 +158,27 @@
     min-height: 44px;
   }
 }
+/* Celular: una sola fila que se desliza de costado (antes se partía en dos o
+   tres renglones y empujaba los productos para abajo). */
+@media (max-width: 720px) {
+  .filters {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin: 4px -14px 0;
+    padding: 2px 14px 4px;
+    gap: 8px;
+  }
+  .filters::-webkit-scrollbar {
+    display: none;
+  }
+  .filters button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
 
 /* ---------- Grilla ---------- */
 .catalog-root main {
@@ -185,13 +206,7 @@
     margin-top: 22px;
   }
   .card-body h3 {
-    font-size: 0.95rem;
-  }
-  .card-body .desc {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
+    font-size: 0.98rem;
   }
 }
 @media (max-width: 380px) {
@@ -212,12 +227,6 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 20px;
   }
-  .card-body .desc {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    overflow: hidden;
-  }
 }
 @media (min-width: 1024px) {
   .grid {
@@ -234,7 +243,7 @@
   background: #fff;
   border-radius: var(--radius);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+  box-shadow: 0 1px 2px rgba(51, 48, 42, 0.06), 0 0 0 1px rgba(176, 143, 85, 0.10);
   display: flex;
   flex-direction: column;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -242,7 +251,7 @@
 @media (hover: hover) {
   .card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(51, 48, 42, 0.10);
+    box-shadow: 0 12px 24px rgba(51, 48, 42, 0.10), 0 0 0 1px rgba(176, 143, 85, 0.16);
   }
 }
 .card-img {
@@ -256,59 +265,120 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.4s ease, opacity 0.3s ease;
+}
+/* Segunda foto: aparece al pasar el mouse (en táctil no se muestra). */
+.card-img .card-img-alt {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+@media (hover: hover) {
+  .card:hover .card-img img {
+    transform: scale(1.03);
+  }
+  .card:hover .card-img .card-img-alt {
+    opacity: 1;
+  }
+}
+@media (hover: none) {
+  .card-img .card-img-alt {
+    display: none;
+  }
 }
 .card.unavailable .card-img img {
-  filter: grayscale(1);
-  opacity: 0.55;
+  filter: grayscale(0.85);
+  opacity: 0.7;
 }
 .badge {
   position: absolute;
   top: 10px;
   left: 10px;
-  background: rgba(51, 48, 42, 0.85);
+  background: rgba(59, 47, 34, 0.86);
   color: #fff;
-  font-size: 0.68rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 4px 9px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 5px 10px;
   border-radius: 100px;
 }
+.badge--pocas {
+  background: #fff;
+  color: var(--danger);
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.15);
+}
 .card-body {
-  padding: 16px 16px 18px;
+  padding: 14px 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
+}
+.card-cat {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sage);
 }
 .card-body h3 {
   font-family: 'Fraunces', serif;
   font-weight: 500;
-  font-size: 1.15rem;
+  font-size: 1.12rem;
+  line-height: 1.25;
   margin: 0;
+  color: var(--ink);
 }
+/* Siempre dos líneas como máximo, en todos los tamaños. */
 .card-body .desc {
-  font-size: 0.85rem;
+  font-size: 0.83rem;
   color: var(--ink-soft);
   line-height: 1.4;
-  margin: 0;
-  flex: 1;
+  margin: 2px 0 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+/* Precio y estrellas abajo de todo: alineados entre cards de la misma fila. */
+.card-pie {
+  margin-top: auto;
+  padding-top: 10px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .card-body .price {
-  font-weight: 600;
-  font-size: 1.05rem;
-  margin: 2px 0 8px;
+  font-weight: 700;
+  font-size: 1.08rem;
+  margin: 0;
+  color: var(--ink);
 }
 .card.unavailable .price {
   color: var(--unavailable);
 }
-/* Aviso de pocas unidades en la card */
-.low-stock {
+.card-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   margin: 0;
   font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--danger);
+  font-weight: 600;
+  color: var(--ink);
 }
-
+.card-rating svg {
+  width: 13px;
+  height: 13px;
+  fill: var(--sage);
+}
+.card-rating span {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
 .wa-btn {
   display: flex;
   align-items: center;
@@ -326,11 +396,12 @@
   background: var(--sage-deep);
 }
 .card.unavailable .wa-btn {
-  background: var(--unavailable-bg);
-  color: var(--unavailable);
+  background: transparent;
+  color: var(--sage-deep);
+  border: 1px solid var(--sage);
 }
 .card.unavailable .wa-btn:hover {
-  background: #E2DED5;
+  background: var(--sage-pale);
 }
 .wa-btn svg {
   width: 16px;
@@ -504,18 +575,6 @@
     line-height: 1.2;
     text-align: center;
   }
-}
-/* Contador de fotos (esquina de la imagen, cuando hay más de una) */
-.photo-count {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(51, 48, 42, 0.72);
-  color: #fff;
-  font-size: 0.66rem;
-  font-weight: 600;
-  padding: 4px 9px;
-  border-radius: 100px;
 }
 
 /* ---------- Detalle de producto (página /producto/:id) ---------- */
@@ -698,25 +757,74 @@
 }
 .pd-breadcrumb {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   color: var(--ink-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  /* Un solo renglón: el nombre largo del producto se corta con "…". */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .pd-breadcrumb span {
-  color: var(--sage-deep);
+  color: var(--ink);
+}
+.pd-cat {
+  margin: 0;
+  font-size: 0.72rem;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sage);
+}
+.pd-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+@media (hover: hover) {
+  .pd-rating:hover span {
+    text-decoration: underline;
+  }
+}
+.pd-garantias {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--cream);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+.pd-garantias li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pd-garantias svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--sage-deep);
 }
 .pd-name {
   font-family: 'Fraunces', serif;
   font-weight: 600;
-  font-size: 1.5rem;
+  font-size: 1.6rem;
+  line-height: 1.2;
   margin: 0;
+  color: var(--ink);
 }
 .pd-price {
-  font-weight: 600;
-  font-size: 1.3rem;
+  font-weight: 700;
+  font-size: 1.45rem;
   margin: 2px 0 6px;
+  color: var(--ink);
 }
 .pd-price.off {
   color: var(--unavailable);
@@ -978,7 +1086,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin: -2px 0 4px;
+  margin: 6px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 .pd-share-btn {
   display: inline-flex;
@@ -1388,7 +1498,13 @@
    Reusa .grid y las cards del muestrario (igual que .related). En celular
    es un carrusel horizontal para no empujar la grilla muy abajo. */
 .mas-vendidos {
-  margin: 8px 0 34px;
+  margin: 30px 0 10px;
+  padding: 22px 22px 24px;
+  background: var(--sage-pale);
+  border-radius: var(--radius-lg);
+}
+.mas-vendidos .card {
+  box-shadow: 0 1px 2px rgba(51, 48, 42, 0.06);
 }
 .mas-vendidos-title {
   font-family: 'Fraunces', serif;
@@ -1408,7 +1524,9 @@
 }
 @media (max-width: 720px) {
   .mas-vendidos {
-    margin: 4px 0 26px;
+    margin: 22px -14px 4px;
+    padding: 18px 14px 18px;
+    border-radius: 0;
   }
   .mas-vendidos-title {
     font-size: 1.15rem;
@@ -1428,4 +1546,83 @@
   .mas-vendidos-grid.grid > * {
     scroll-snap-align: start;
   }
+}
+
+/* Barra arriba de la grilla: título de lo que se ve, cantidad y orden. */
+.catalogo-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 30px 0 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.catalogo-barra + .grid {
+  margin-top: 22px;
+}
+.catalogo-titulo {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.35rem;
+  color: var(--ink);
+}
+.catalogo-cuenta {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+@media (max-width: 720px) {
+  .catalogo-barra {
+    margin-top: 22px;
+    padding-bottom: 10px;
+  }
+  .catalogo-barra + .grid {
+    margin-top: 16px;
+  }
+  .catalogo-titulo {
+    font-size: 1.15rem;
+  }
+  /* El select solo ("Novedades ▾") alcanza: la etiqueta queda para lectores
+     de pantalla y la barra entra en un renglón. */
+  .orden-catalogo label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .orden-catalogo select {
+    font-size: 16px;
+    padding: 4px 8px;
+    min-height: 38px;
+  }
+}
+
+/* Selector de orden del muestrario. */
+.orden-catalogo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.orden-catalogo select {
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 6px 12px;
+  min-height: 40px;
 }

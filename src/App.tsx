@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import CatalogPage from './pages/CatalogPage'
 import ProductPage from './pages/ProductPage'
@@ -7,13 +8,25 @@ import AccountPage from './pages/AccountPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import MyOrdersPage from './pages/MyOrdersPage'
 import ComprobantePage from './pages/ComprobantePage'
-import AdminPage from './pages/AdminPage'
 import CartDrawer from './components/cart/CartDrawer'
 import Footer from './components/catalog/Footer'
 import ScrollManager from './components/ScrollManager'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
 import BajaAvisoPage from './pages/BajaAvisoPage'
+import NotFoundPage from './pages/NotFoundPage'
+
+// El panel se descarga aparte, solo cuando se abre: antes el muestrario
+// público bajaba todo el panel (y sus dependencias) en el mismo archivo.
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+
+function Panel() {
+  return (
+    <Suspense fallback={<div className="loading-state">Cargando el panel…</div>}>
+      <AdminPage />
+    </Suspense>
+  )
+}
 // El "modo" define qué expone cada deploy (ver VITE_APP_MODE en .env):
 //   - 'admin'   -> deploy privado: SOLO el panel, servido en la raíz "/".
 //   - 'catalog' -> deploy público: muestrario + páginas de producto. /admin no existe.
@@ -54,6 +67,7 @@ function RutasCatalogo() {
       <Route path="/privacidad" element={<PrivacyPage />} />
       <Route path="/terminos" element={<TermsPage />} />
       <Route path="/aviso/baja" element={<BajaAvisoPage />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Route>
   )
 }
@@ -64,7 +78,7 @@ export default function App() {
     return (
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<AdminPage />} />
+          <Route path="/" element={<Panel />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
@@ -75,10 +89,7 @@ export default function App() {
     // Deploy público: muestrario + detalle + carrito/checkout. No se registra /admin.
     return (
       <BrowserRouter>
-        <Routes>
-          {RutasCatalogo()}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Routes>{RutasCatalogo()}</Routes>
       </BrowserRouter>
     )
   }
@@ -87,8 +98,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/admin" element={<Panel />} />
         {RutasCatalogo()}
-        <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </BrowserRouter>
   )

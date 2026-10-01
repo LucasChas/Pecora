@@ -16,17 +16,10 @@ extra_search_path = ["public", "extensions"]
 # The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
 # for accidental or malicious requests.
 max_rows = 1000
-# Controls whether new tables, views, sequences and functions created in the `public` schema by
-# `postgres` are reachable through the Data API roles (`anon`, `authenticated`, `service_role`)
-# without explicit GRANTs. When unset, new entities are NOT auto-exposed, matching the new cloud
-# default. Set to `true` to keep the legacy behaviour of auto-exposing new entities; this is
-# deprecated and the field is removed on 2026-10-30 once the always-revoked behaviour is permanent.
-# Pecora: enabled on purpose. The production project was created with the legacy behaviour and
-# migrations 0001-0014 rely on it (they never GRANT table privileges to anon/authenticated).
-# Without it the local/CI database diverges from production (anon cannot read productos, and the
-# 0014 tests would pass or fail for the wrong reasons). Before upgrading the CLI past the removal
-# date, replace this with a new migration that grants the privileges explicitly.
-auto_expose_new_tables = true
+# Pecora: `auto_expose_new_tables` is deliberately unset (new Supabase default: nothing new in
+# `public` is reachable by anon/authenticated/service_role without an explicit GRANT). The legacy
+# tables of 0001-0014 get their GRANTs from 20261001020100_grants_explicitos.sql, and every later
+# migration grants its own objects. privilegios_base.test.sql fails if that access drifts.
 
 [api.tls]
 # Enable HTTPS endpoints locally using a self-signed certificate.

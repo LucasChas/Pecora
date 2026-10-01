@@ -314,3 +314,64 @@ export async function ocultarResena(id: string, oculta: boolean): Promise<Result
     return fallo('ocultarResena', e)
   }
 }
+
+/** Reseña propia junto al producto al que pertenece (mis_resenas). */
+export interface MiResenaDeProducto extends MiResena {
+  producto_id: string
+}
+
+/** Todas las reseñas de la cuenta logueada, en una sola llamada. */
+export async function cargarMisResenas(): Promise<Resultado<MiResenaDeProducto[]>> {
+  try {
+    const { data, error } = await supabase.rpc('mis_resenas')
+    if (error) return fallo('cargarMisResenas', error)
+    const filas: MiResenaDeProducto[] = []
+    for (const fila of Array.isArray(data) ? data : []) {
+      const productoId = texto((fila as Record<string, unknown> | null)?.producto_id)
+      const mia = normalizarMiResena(fila)
+      if (productoId && mia) filas.push({ ...mia, producto_id: productoId })
+    }
+    return { ok: true, valor: filas }
+  } catch (e) {
+    return fallo('cargarMisResenas', e)
+  }
+}
+
+/**
+ * Promedio y cantidad de reseñas visibles por producto, para las cards del
+ * muestrario. Se agrupa acá: la tabla se puede leer (RLS: solo las visibles
+ * para el público) sin user_id. Se filtra `oculta` igual, porque el staff
+ * también ve las ocultas.
+ */
+export function agruparResumenes(filas: unknown): Map<string, ResumenResenas> {
+  const sumas = new Map<string, { total: number; cantidad: number }>()
+  for (const fila of Array.isArray(filas) ? filas : []) {
+    const f = (fila ?? {}) as Record<string, unknown>
+    const productoId = texto(f.producto_id)
+    const estrellas = estrellasValidas(f.estrellas)
+    if (!productoId || estrellas === null || f.oculta === true) continue
+    const s = sumas.get(productoId) ?? { total: 0, cantidad: 0 }
+    s.total += estrellas
+    s.cantidad += 1
+    sumas.set(productoId, s)
+  }
+  const mapa = new Map<string, ResumenResenas>()
+  for (const [id, s] of sumas) {
+    mapa.set(id, { cantidad: s.cantidad, promedio: Math.round((s.total / s.cantidad) * 10) / 10 })
+  }
+  return mapa
+}
+
+export async function cargarResumenesResenas(): Promise<Resultado<Map<string, ResumenResenas>>> {
+  try {
+    const { data, error } = await supabase
+      .from('resenas')
+      .select('producto_id, estrellas, oculta')
+      .eq('oculta', false)
+      .limit(5000)
+    if (error) return fallo('cargarResumenesResenas', error)
+    return { ok: true, valor: agruparResumenes(data) }
+  } catch (e) {
+    return fallo('cargarResumenesResenas', e)
+  }
+}

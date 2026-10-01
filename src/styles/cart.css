@@ -1397,3 +1397,15 @@
     border-color: var(--sage);
   }
 }
+
+/* Ficha: cuánto hay ya en el carrito y botones −/+ en el límite. */
+.add-cart-nota {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.qty button:disabled {
+  color: var(--line);
+  cursor: default;
+}

@@ -3,8 +3,9 @@ import type { EstadoPedido, Pedido } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
 import { money } from '../../lib/format'
-import { detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
+import { ETIQUETA_ESTADO, detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
 import { etiquetaEnvioPedido, sucursalDePedido } from '../../lib/transportistas'
+import { linkWhatsappPedido } from '../../lib/whatsapp'
 import OrderPrintView, { type TipoImpresion } from './OrderPrintView'
 
 interface Props {
@@ -17,7 +18,7 @@ interface Props {
   puedeBorrarDefinitivo?: boolean
 }
 
-const ESTADOS: EstadoPedido[] = ['nuevo', 'confirmado', 'entregado', 'cancelado']
+const ESTADOS: EstadoPedido[] = ['nuevo', 'confirmado', 'enviado', 'entregado', 'cancelado']
 
 // ---- Mails del pedido: recibo a la clienta y aviso a la dueña ----
 // La Edge Function enviar-recibo-pedido marca email_enviado_at y
@@ -50,15 +51,6 @@ export function mailsPendientes(pedido: Pedido, ahora: number): MailsPendientes 
 
 type EstadoReenvio = 'listo' | 'enviando' | 'solicitado'
 
-// Arma un link de WhatsApp al teléfono de la clienta (normaliza el número a AR).
-function waCliente(telefono: string, numero: number): string {
-  let d = telefono.replace(/\D/g, '')
-  if (d.startsWith('0')) d = d.slice(1)
-  if (!d.startsWith('54')) d = '549' + d
-  const msg = `Hola! Te escribo por tu pedido #${numero} en Pecora 🐑`
-  return `https://wa.me/${d}?text=${encodeURIComponent(msg)}`
-}
-
 function fecha(iso: string): string {
   return new Date(iso).toLocaleString('es-AR', {
     day: '2-digit',
@@ -72,7 +64,7 @@ function fecha(iso: string): string {
 // un selector para cambiar el estado y el menú "Imprimir" (nota de entrega y,
 // si es envío, etiqueta).
 export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinitivo = false }: Props) {
-  const { confirmar, avisar } = useDialog()
+  const { confirmar, avisar, notificar } = useDialog()
   const enPapelera = pedido.eliminado_at !== null
   const totales = totalesDe(pedido)
   const detalle = detalleDe(pedido)
@@ -81,6 +73,18 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
   const envioTransportista = etiquetaEnvioPedido(pedido)
   const sucursal = envioTransportista ? sucursalDePedido(pedido) : null
   const mails = mailsPendientes(pedido, ahora ?? Date.now())
+
+  // Estado que se muestra en el selector: cambia al instante al elegir (antes
+  // volvía al anterior hasta que respondía la base y parecía que no anduvo).
+  const [estadoVisible, setEstadoVisible] = useState<EstadoPedido>(pedido.estado)
+  useEffect(() => setEstadoVisible(pedido.estado), [pedido.estado])
+  const linkWa = linkWhatsappPedido({ ...pedido, estado: estadoVisible, total: totales.total })
+
+  // Seguimiento del correo: se guarda al salir del campo.
+  const [seguimiento, setSeguimiento] = useState(pedido.seguimiento ?? '')
+  useEffect(() => setSeguimiento(pedido.seguimiento ?? ''), [pedido.seguimiento])
+  // Sin la migración de pago/seguimiento las filas no traen las columnas.
+  const tienePago = pedido.pagado_at !== undefined
 
   const [reenvio, setReenvio] = useState<EstadoReenvio>('listo')
   const [menuImprimir, setMenuImprimir] = useState(false)
@@ -157,14 +161,69 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
         textoCancelar: 'Volver',
         peligro: true,
       })
-      if (!ok) {
-        onChanged() // devuelve el select al estado real
-        return
-      }
+      if (!ok) return
     }
+    const anterior = pedido.estado
+    if (!(await guardarEstado(estado))) return
+    // Con un filtro activo el pedido puede desaparecer de la lista: el aviso
+    // dice a dónde fue y permite deshacer un toque equivocado.
+    notificar(`Pedido #${pedido.numero} → ${ETIQUETA_ESTADO[estado]}`, {
+      accion: { texto: 'Deshacer', onClick: () => void guardarEstado(anterior) },
+    })
+  }
+
+  async function alternarPago() {
+    const pagado_at = pedido.pagado_at ? null : new Date().toISOString()
+    const { error } = await supabase.from('pedidos').update({ pagado_at }).eq('id', pedido.id)
+    if (error) {
+      await avisar({ titulo: 'No se pudo guardar el pago', mensaje: error.message })
+      return
+    }
+    onChanged()
+    notificar(pagado_at ? `Pedido #${pedido.numero} marcado como pagado` : `Pedido #${pedido.numero}: pago quitado`)
+  }
+
+  // Para pegar en la etiqueta o en la web del correo.
+  async function copiarDireccion() {
+    const texto = [
+      pedido.nombre,
+      pedido.direccion,
+      [pedido.localidad, pedido.provincia].filter(Boolean).join(', '),
+      pedido.cp ? `CP ${pedido.cp}` : '',
+      pedido.telefono,
+    ]
+      .filter(Boolean)
+      .join('\n')
+    try {
+      await navigator.clipboard.writeText(texto)
+      notificar('Dirección copiada')
+    } catch {
+      await avisar({ titulo: 'No se pudo copiar', mensaje: texto })
+    }
+  }
+
+  async function guardarSeguimiento() {
+    const valor = seguimiento.trim() || null
+    if (valor === (pedido.seguimiento ?? null)) return
+    const { error } = await supabase.from('pedidos').update({ seguimiento: valor }).eq('id', pedido.id)
+    if (error) {
+      await avisar({ titulo: 'No se pudo guardar el seguimiento', mensaje: error.message })
+      return
+    }
+    onChanged()
+    notificar('Seguimiento guardado')
+  }
+
+  async function guardarEstado(estado: EstadoPedido): Promise<boolean> {
+    setEstadoVisible(estado)
     const { error } = await supabase.from('pedidos').update({ estado }).eq('id', pedido.id)
-    if (error) await avisar({ titulo: 'No se pudo actualizar el estado', mensaje: error.message })
-    else onChanged()
+    if (error) {
+      setEstadoVisible(pedido.estado)
+      await avisar({ titulo: 'No se pudo actualizar el estado', mensaje: error.message })
+      return false
+    }
+    onChanged()
+    return true
   }
 
   // "Borrar" manda a la papelera: se puede recuperar desde el filtro Eliminados.
@@ -246,17 +305,21 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
             {pedido.origen === 'admin' ? 'Manual' : 'Web'}
           </span>
           <span className="order-fecha">{fecha(pedido.created_at)}</span>
+          {tienePago && !pedido.pagado_at && pedido.estado !== 'cancelado' && !enPapelera && (
+            <span className="order-pill-pago">Sin pagar</span>
+          )}
         </div>
         {/* En la papelera no se cambia el estado: primero hay que restaurarlo. */}
         <select
-          className={`order-estado ${pedido.estado}`}
-          value={pedido.estado}
+          className={`order-estado ${estadoVisible}`}
+          value={estadoVisible}
           disabled={enPapelera}
+          aria-label={`Estado del pedido #${pedido.numero}`}
           onChange={(e) => cambiarEstado(e.target.value as EstadoPedido)}
         >
           {ESTADOS.map((es) => (
             <option key={es} value={es}>
-              {es}
+              {ETIQUETA_ESTADO[es]}
             </option>
           ))}
         </select>
@@ -264,9 +327,13 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
 
       <div className="order-cliente">
         <strong>{pedido.nombre}</strong>
-        <a className="order-wa" href={waCliente(pedido.telefono, pedido.numero)} target="_blank" rel="noopener noreferrer">
-          {pedido.telefono} · WhatsApp
-        </a>
+        {linkWa ? (
+          <a className="order-wa" href={linkWa} target="_blank" rel="noopener noreferrer">
+            {pedido.telefono} · WhatsApp
+          </a>
+        ) : (
+          <span className="order-email">{pedido.telefono || 'Sin teléfono'}</span>
+        )}
         {pedido.email && <span className="order-email">{pedido.email}</span>}
       </div>
 
@@ -286,6 +353,35 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
           <>🛍️ Retiro / a coordinar</>
         )}
       </div>
+
+      {tienePago && !enPapelera && pedido.estado !== 'cancelado' && (
+        <div className="order-pago">
+          <button
+            type="button"
+            className={pedido.pagado_at ? 'order-pago-btn pagado' : 'order-pago-btn'}
+            aria-pressed={Boolean(pedido.pagado_at)}
+            onClick={() => void alternarPago()}
+          >
+            {pedido.pagado_at ? 'Pagado ✓' : 'Marcar como pagado'}
+          </button>
+          {esEnvio && (
+            <>
+              <button type="button" className="order-pago-btn" onClick={() => void copiarDireccion()}>
+                Copiar dirección
+              </button>
+              <input
+                className="order-seguimiento"
+                value={seguimiento}
+                onChange={(e) => setSeguimiento(e.target.value)}
+                onBlur={() => void guardarSeguimiento()}
+                maxLength={300}
+                placeholder="N.º o link de seguimiento"
+                aria-label={`Seguimiento del envío del pedido #${pedido.numero}`}
+              />
+            </>
+          )}
+        </div>
+      )}
 
       <div className="order-items">
         {pedido.items.map((i, idx) => (

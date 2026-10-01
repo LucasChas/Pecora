@@ -122,6 +122,9 @@
 .order-card.estado-confirmado {
   border-left-color: var(--clay);
 }
+.order-card.estado-enviado {
+  border-left-color: var(--sage);
+}
 .order-card.estado-entregado {
   border-left-color: #7ba05b;
 }
@@ -171,7 +174,6 @@
   padding: 5px 10px;
   background: var(--cream);
   color: var(--ink);
-  text-transform: capitalize;
   cursor: pointer;
 }
 .order-cliente {
@@ -462,6 +464,11 @@
   background: var(--danger-pale);
   color: var(--danger);
 }
+/* Pocas unidades: avisa antes de que se agote. */
+.status-pill.low {
+  background: #f6e3cf;
+  color: #8a5a2b;
+}
 
 .prod-fields {
   display: flex;
@@ -495,6 +502,44 @@
   outline-offset: 1px;
 }
 
+/* Stock con botones −/+ a los costados (sumar o restar sin tipear). */
+.mini-field--stock {
+  flex: 1.3;
+}
+.stock-stepper {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+.stock-stepper input {
+  text-align: center;
+  min-width: 0;
+  -moz-appearance: textfield;
+}
+.stock-stepper input::-webkit-outer-spin-button,
+.stock-stepper input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.stock-stepper button {
+  flex-shrink: 0;
+  width: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.stock-stepper button:active {
+  background: var(--sage-pale);
+}
+.stock-stepper button:disabled {
+  color: var(--line);
+  cursor: default;
+}
+
 .prod-actions {
   display: flex;
   gap: 14px;
@@ -511,6 +556,49 @@
 }
 .link-btn.danger {
   color: var(--danger);
+}
+
+.link-btn,
+.order-item-remove,
+.cat-manage-item .btn-del-cat {
+  position: relative;
+}
+
+/* ---------- Celular: áreas de toque y zoom de iOS ----------
+   Los botones chicos (quitar foto, arrastrar, +/−, links de texto) tienen un
+   área de toque invisible de al menos 44×44 px, sin cambiar cómo se ven.
+   Y los campos van a 16 px: con menos, iOS agranda la pantalla cada vez que
+   se toca un campo (al editar precio o stock desde la lista). */
+@media (pointer: coarse) {
+  .link-btn::after,
+  .order-item-remove::after,
+  .cat-manage-item .btn-del-cat::after,
+  .img-remove::after,
+  .img-drag-handle::after,
+  .qty-stepper button::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+  .qty-stepper button {
+    position: relative;
+    width: 32px;
+    height: 32px;
+  }
+  .img-remove,
+  .img-drag-handle {
+    width: 30px;
+    height: 30px;
+  }
+  .admin-root input:not([type='checkbox'], [type='radio'], [type='file']),
+  .admin-root select,
+  .admin-root textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* ---------- Botón flotante (+) ---------- */
@@ -654,6 +742,12 @@
 }
 .field-label-row label {
   margin-bottom: 0;
+}
+.field-ayuda {
+  margin: 5px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
 }
 .field label {
   display: block;
@@ -814,6 +908,39 @@
   flex-direction: column;
   gap: 10px;
   margin-top: 6px;
+}
+
+/* En el celular, Guardar/Cancelar quedan fijos al pie de la hoja: antes había
+   que bajar pasando fotos, descripción y campos para poder guardar. El margen
+   negativo de abajo tapa el padding de la hoja, así queda pegado al borde. */
+.sheet .sheet-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  flex-direction: row;
+  flex-wrap: wrap;
+  margin: 8px -20px calc(-24px - env(safe-area-inset-bottom));
+  padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
+  background: var(--cream);
+  border-top: 1px solid var(--line);
+}
+.sheet .sheet-actions .btn {
+  width: auto;
+  min-width: 0;
+}
+.sheet .sheet-actions .btn-primary {
+  flex: 2 1 0;
+  order: 2;
+}
+.sheet .sheet-actions .btn-ghost {
+  flex: 1 1 0;
+  order: 1;
+}
+/* Borrar va arriba de la barra fija, no adentro: no le quita alto. */
+.btn-danger-text.sheet-peligro {
+  display: block;
+  margin: 10px auto 0;
+  min-height: 44px;
 }
 .btn {
   border: none;
@@ -1326,10 +1453,6 @@
   }
   .admin-root .sheet .sheet-actions .btn-primary {
     order: 2;
-  }
-  .admin-root .sheet .sheet-actions .btn-danger-text {
-    order: 0;
-    margin-right: auto;
   }
 
   /* Selector de imágenes: el input de archivo queda enfocable con teclado
@@ -2129,6 +2252,145 @@
     padding: 10px 22px;
     font-size: 0.9rem;
   }
+}
+
+/* Pedido manual: qué falta para poder crearlo. */
+.manual-faltan {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin: 4px 0 0;
+}
+
+/* Pago y seguimiento en la card del pedido. */
+.order-pago {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 10px;
+}
+.order-pago-btn {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 100px;
+  padding: 8px 14px;
+  min-height: 40px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.order-pago-btn.pagado {
+  background: #e7f0de;
+  border-color: #b9d1a3;
+  color: #4c6b34;
+}
+.order-seguimiento {
+  flex: 1 1 180px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  background: #fff;
+  color: var(--ink);
+}
+.order-pill-pago {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: #fbe3df;
+  color: var(--danger);
+  margin-left: 6px;
+}
+
+/* Ajustar precios: vista previa antes → después. */
+.sheet-sub {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin: -6px 0 14px;
+  line-height: 1.45;
+}
+.ajuste-nota {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin: 6px 0;
+}
+.ajuste-previa ul {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.ajuste-previa li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+.ajuste-previa li:last-child {
+  border-bottom: none;
+}
+.ajuste-nombre {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ajuste-montos {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.ajuste-montos s {
+  color: var(--ink-soft);
+}
+
+/* Acciones del encabezado de Productos (apiladas en el celular). */
+.list-head .head-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  margin-left: 12px;
+}
+.list-head .head-actions .head-action {
+  margin-left: 0;
+}
+@media (min-width: 768px) {
+  .list-head .head-actions {
+    flex-direction: row;
+  }
+}
+
+/* "Duplicar producto" en la hoja de edición. */
+.link-btn.sheet-duplicar {
+  display: block;
+  margin: 12px auto 0;
+  min-height: 40px;
+}
+
+/* Renombrar categoría en el lugar. */
+.cat-manage-item .link-btn {
+  margin-left: auto;
+  margin-right: 10px;
+}
+.cat-rename-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--sage);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  background: #fff;
 }
 
 /* ============================================================

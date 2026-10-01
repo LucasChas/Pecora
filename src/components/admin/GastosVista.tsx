@@ -19,6 +19,7 @@ import {
   type Gasto,
   type ProductoOpcion,
 } from '../../lib/gastos'
+import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
 
 // Vista "Gastos" de Estadísticas: compras de materiales, packaging, envíos y
 // otros, filtradas por el período elegido. Alta / edición en el mismo bottom
@@ -196,6 +197,9 @@ export default function GastosVista({ rango }: { rango: Rango }) {
   const porUnidad = costoPorUnidad(datosForm.monto, datosForm.cantidad)
   const productoInexistente =
     form.productoId !== '' && productos.length > 0 && !productos.some((p) => p.id === form.productoId)
+
+  // "Atrás" en el celular cierra la hoja en vez de salir del panel.
+  useCerrarConAtras(hojaAbierta, () => setHojaAbierta(false))
 
   return (
     <div className="est-gastos">
@@ -401,6 +405,11 @@ export default function GastosVista({ rango }: { rango: Rango }) {
               </p>
             )}
 
+            {editando && (
+              <button type="button" className="btn-danger-text sheet-peligro" onClick={() => void borrar(editando)}>
+                Borrar gasto
+              </button>
+            )}
             <div className="sheet-actions">
               <button type="submit" className="btn btn-primary" disabled={guardando}>
                 {guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Agregar gasto'}
@@ -408,11 +417,6 @@ export default function GastosVista({ rango }: { rango: Rango }) {
               <button type="button" className="btn btn-ghost" onClick={() => setHojaAbierta(false)}>
                 Cancelar
               </button>
-              {editando && (
-                <button type="button" className="btn-danger-text" onClick={() => void borrar(editando)}>
-                  Borrar gasto
-                </button>
-              )}
             </div>
           </form>
         </div>

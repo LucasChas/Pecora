@@ -257,6 +257,10 @@ function Kpi({ etiqueta, valor, destacado }: { etiqueta: string; valor: string; 
 function GraficoMeses({ meses }: { meses: VentaMes[] }) {
   const id = useId()
   const [ref, ancho] = useAncho<HTMLDivElement>(600)
+  // Mes tocado: su valor se muestra arriba del gráfico (el <title> de cada
+  // barra solo aparece al pasar el mouse, no al tocar en el celular).
+  const [elegido, setElegido] = useState<string | null>(null)
+  const mesElegido = meses.find((m) => m.mes === elegido) ?? null
   const alto = 220
   const margen = { arriba: 12, derecha: 8, abajo: 26, izquierda: 58 }
   const internoAncho = Math.max(ancho - margen.izquierda - margen.derecha, 40)
@@ -280,6 +284,13 @@ function GraficoMeses({ meses }: { meses: VentaMes[] }) {
 
   return (
     <>
+      <p className="est-chart-valor" aria-live="polite">
+        {mesElegido
+          ? `${etiquetaMes(mesElegido.mes, true)}: ${money(mesElegido.total)} · ${mesElegido.pedidos} ${
+              mesElegido.pedidos === 1 ? 'pedido' : 'pedidos'
+            }`
+          : 'Tocá una barra para ver el detalle del mes.'}
+      </p>
       <div className="est-chart" ref={ref}>
         <svg
           width={ancho}
@@ -306,9 +317,11 @@ function GraficoMeses({ meses }: { meses: VentaMes[] }) {
               const h = (m.total / max) * internoAlto
               const x = i * paso + (paso - anchoBarra) / 2
               return (
-                <g key={m.mes}>
+                <g key={m.mes} onClick={() => setElegido(m.mes === elegido ? null : m.mes)}>
+                  {/* Área de toque: toda la columna del mes, no solo la barra. */}
+                  <rect x={i * paso} y={0} width={paso} height={internoAlto} fill="transparent" />
                   <rect
-                    className="est-barra"
+                    className={m.mes === elegido ? 'est-barra est-barra--elegida' : 'est-barra'}
                     x={x}
                     y={internoAlto - h}
                     width={anchoBarra}

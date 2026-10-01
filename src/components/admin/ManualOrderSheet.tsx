@@ -9,6 +9,8 @@ import {
   nuevaClaveIdempotencia,
 } from '../../lib/orders'
 import { validarCupon, type ResultadoCupon } from '../../lib/cupones'
+import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
+import { useDialog } from '../../context/DialogContext'
 
 interface Props {
   open: boolean
@@ -27,6 +29,7 @@ interface ItemSeleccionado {
 export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
+  const [email, setEmail] = useState('')
   const [entrega, setEntrega] = useState<EntregaPedido>('coordinar')
   const [direccion, setDireccion] = useState('')
   const [localidad, setLocalidad] = useState('')
@@ -68,6 +71,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     if (!open) return
     setNombre('')
     setTelefono('')
+    setEmail('')
     setEntrega('coordinar')
     setDireccion('')
     setLocalidad('')
@@ -172,16 +176,50 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   }
   const nombreValido = nombre.trim().length >= 2
   const telefonoValido = telefono.replace(/\D/g, '').length >= 8
+  // Opcional; si se carga, que tenga forma de email.
+  const emailValido = email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   // Para envío hace falta al menos dirección y localidad (CP y provincia opcionales).
   const entregaValida =
     entrega === 'coordinar' || (direccion.trim() !== '' && localidad.trim() !== '')
   const puedeConfirmar =
     nombreValido &&
     telefonoValido &&
+    emailValido &&
     entregaValida &&
     items.length > 0 &&
     !guardando &&
     !validandoCupon
+
+  // Qué falta para poder crear el pedido (antes el botón quedaba gris sin
+  // decir por qué).
+  const faltantes = [
+    items.length === 0 && 'agregá al menos un producto',
+    !nombreValido && 'el nombre (2 letras o más)',
+    !telefonoValido && 'un teléfono de 8 dígitos o más',
+    !emailValido && 'un email válido (o dejalo vacío)',
+    !entregaValida && 'la dirección y la localidad del envío',
+  ].filter(Boolean) as string[]
+
+  const { confirmar, notificar } = useDialog()
+  const hayCambios =
+    open && (items.length > 0 || nombre.trim() !== '' || telefono.trim() !== '' || email.trim() !== '')
+
+  async function pedirCierre(): Promise<boolean> {
+    if (guardando) return false
+    if (hayCambios) {
+      const ok = await confirmar({
+        titulo: '¿Descartar este pedido?',
+        mensaje: 'Todavía no lo creaste: se pierden los datos cargados.',
+        textoOk: 'Descartar',
+        textoCancelar: 'Seguir cargando',
+        peligro: true,
+      })
+      if (!ok) return false
+    }
+    onClose()
+    return true
+  }
+  useCerrarConAtras(open, pedirCierre)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -189,8 +227,8 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     setGuardando(true)
     setError(null)
     try {
-      await crearPedido({
-        datos: { nombre, telefono, entrega, direccion, localidad, cp, provincia, notas },
+      const numero = await crearPedido({
+        datos: { nombre, telefono, email: email.trim() || null, entrega, direccion, localidad, cp, provincia, notas },
         items,
         origen: 'admin',
         idempotencyKey: claveIdempotencia(),
@@ -199,6 +237,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
       claveRef.current = null
       onChanged()
       onClose()
+      notificar(`Pedido #${numero} creado`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo crear el pedido.')
     } finally {
@@ -210,7 +249,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     <div
       className={open ? 'overlay open' : 'overlay'}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        if (e.target === e.currentTarget) void pedirCierre()
       }}
     >
       <div className="sheet">
@@ -219,8 +258,9 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
 
         <form onSubmit={onSubmit}>
           <div className="field">
-            <label>Nombre de la clienta</label>
+            <label htmlFor="manual-nombre-de-la-clienta">Nombre de la clienta</label>
             <input
+              id="manual-nombre-de-la-clienta" maxLength={120}
               type="text"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
@@ -229,13 +269,31 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           </div>
 
           <div className="field">
-            <label>Teléfono</label>
+            <label htmlFor="manual-telefono">Teléfono</label>
             <input
+              id="manual-telefono" maxLength={40}
               type="tel"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
               placeholder="Ej: 11 5555 5555"
             />
+          </div>
+
+          <div className="field">
+            <label htmlFor="manual-email">Email (opcional)</label>
+            <input
+              id="manual-email" maxLength={254}
+              type="email"
+              inputMode="email"
+              autoComplete="off"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Ej: marina@gmail.com"
+            />
+            <p className="field-ayuda">
+              Si se crea una cuenta en la tienda con este email, va a poder dejar su opinión de lo que
+              compró. No le mandamos ningún mail.
+            </p>
           </div>
 
           <div className="field">
@@ -255,7 +313,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
               <div className="field">
                 <label htmlFor="manual-direccion">Dirección</label>
                 <input
-                  id="manual-direccion"
+                  id="manual-direccion" maxLength={200}
                   type="text"
                   value={direccion}
                   onChange={(e) => setDireccion(e.target.value)}
@@ -266,7 +324,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
                 <div className="field">
                   <label htmlFor="manual-localidad">Localidad</label>
                   <input
-                    id="manual-localidad"
+                    id="manual-localidad" maxLength={100}
                     type="text"
                     value={localidad}
                     onChange={(e) => setLocalidad(e.target.value)}
@@ -276,7 +334,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
                 <div className="field">
                   <label htmlFor="manual-cp">Código postal</label>
                   <input
-                    id="manual-cp"
+                    id="manual-cp" maxLength={20}
                     type="text"
                     inputMode="numeric"
                     value={cp}
@@ -304,8 +362,9 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           )}
 
           <div className="field order-product-picker">
-            <label>Agregar producto</label>
+            <label htmlFor="manual-agregar-producto">Agregar producto</label>
             <input
+              id="manual-agregar-producto"
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
@@ -424,8 +483,9 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           )}
 
           <div className="field">
-            <label>Notas</label>
+            <label htmlFor="manual-notas">Notas</label>
             <textarea
+              id="manual-notas" maxLength={1000}
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
               placeholder="Detalles del pedido..."
@@ -433,12 +493,15 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           </div>
 
           {error && <p className="form-error">{error}</p>}
+          {faltantes.length > 0 && (
+            <p className="manual-faltan">Para crear el pedido falta: {faltantes.join(', ')}.</p>
+          )}
 
           <div className="sheet-actions">
             <button type="submit" className="btn btn-primary" disabled={!puedeConfirmar}>
               {guardando ? 'Guardando…' : 'Crear pedido'}
             </button>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+            <button type="button" className="btn btn-ghost" onClick={() => void pedirCierre()}>
               Cancelar
             </button>
           </div>

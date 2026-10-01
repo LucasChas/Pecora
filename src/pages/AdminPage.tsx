@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useDialog } from '../context/DialogContext'
@@ -6,7 +6,7 @@ import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
 import { useOrders, type FiltroEstado } from '../hooks/useOrders'
 import { useMiniaturasAutomaticas } from '../hooks/useMiniaturasAutomaticas'
-import type { ProductoConCategoria } from '../types'
+import type { Pedido, ProductoConCategoria } from '../types'
 import Logo from '../components/Logo'
 import LoginForm from '../components/admin/LoginForm'
 import StatsStrip from '../components/admin/StatsStrip'
@@ -16,12 +16,16 @@ import CategoryFilters from '../components/common/CategoryFilters'
 import ProductFormSheet from '../components/admin/ProductFormSheet'
 import CategoryManagerSheet from '../components/admin/CategoryManagerSheet'
 import ManualOrderSheet from '../components/admin/ManualOrderSheet'
+import AjustarPreciosSheet from '../components/admin/AjustarPreciosSheet'
 import OrdersList from '../components/admin/OrdersList'
 import CatalogExport from '../components/admin/CatalogExport'
 import AjustesPanel from '../components/admin/AjustesPanel'
 import EstadisticasPanel from '../components/admin/EstadisticasPanel'
 import { permisosDe } from '../lib/roles'
+import { STOCK_BAJO } from '../lib/stock'
+import { coincideBusqueda } from '../lib/format'
 import '../styles/admin.css'
+import { useTitulo } from '../hooks/useTitulo'
 
 // 'exportar' = lista de precios para imprimir/PDF (pantalla completa, sin pestañas).
 // 'ajustes' = cupones, zonas de envío, carga masiva y equipo (solo admin).
@@ -34,8 +38,10 @@ const FILTROS: { valor: FiltroEstado; texto: string }[] = [
   { valor: 'todos', texto: 'Todos' },
   { valor: 'nuevo', texto: 'Nuevos' },
   { valor: 'confirmado', texto: 'En preparación' },
+  { valor: 'enviado', texto: 'Enviados' },
   { valor: 'entregado', texto: 'Entregados' },
   { valor: 'cancelado', texto: 'Cancelados' },
+  { valor: 'sin-pagar', texto: 'Sin pagar' },
   { valor: 'eliminados', texto: 'Papelera' },
 ]
 
@@ -44,6 +50,7 @@ const FILTROS: { valor: FiltroEstado; texto: string }[] = [
 export default function AdminPage() {
   const { session, perfil, loading: cargandoSesion } = useAuth()
   const permisos = permisosDe(perfil)
+  useTitulo('Panel')
   const {
     productos,
     loading: cargandoProductos,
@@ -56,8 +63,27 @@ export default function AdminPage() {
     error: errorCategorias,
     refetch: refetchCategorias,
   } = useCategories()
-  const { confirmar } = useDialog()
-  const [vistaElegida, setVista] = useState<Vista>('productos')
+  const { confirmar, notificar } = useDialog()
+  // La pestaña se recuerda en este dispositivo: al recargar o volver al panel
+  // no vuelve siempre a Productos.
+  const [vistaElegida, setVistaElegida] = useState<Vista>(() => {
+    try {
+      const guardada = localStorage.getItem('pecora-panel-vista')
+      return guardada === 'pedidos' || guardada === 'estadisticas' || guardada === 'ajustes'
+        ? guardada
+        : 'productos'
+    } catch {
+      return 'productos'
+    }
+  })
+  const setVista = useCallback((v: Vista) => {
+    setVistaElegida(v)
+    try {
+      if (v !== 'exportar') localStorage.setItem('pecora-panel-vista', v)
+    } catch {
+      /* sin persistencia */
+    }
+  }, [])
   // Si el rol no alcanza para la vista elegida (ej. cambió el perfil), Productos.
   const vista: Vista =
     (vistaElegida === 'ajustes' && !permisos.ajustes) ||
@@ -90,21 +116,37 @@ export default function AdminPage() {
   // tenemos todos los productos cargados por useProducts).
   const [busquedaProducto, setBusquedaProducto] = useState('')
   const [categoriaProductoActiva, setCategoriaProductoActiva] = useState('Todos')
-  const [soloSinStock, setSoloSinStock] = useState(false)
+  // Filtro de stock: "Poco stock" avisa antes de que se agote (antes solo
+  // existía "Sin stock", y se enteraba cuando ya no había).
+  const [filtroStock, setFiltroStock] = useState<'todos' | 'poco' | 'sin'>('todos')
+  const conteoPocoStock = productos.filter((p) => p.stock > 0 && p.stock <= STOCK_BAJO).length
+  const conteoSinStock = productos.filter((p) => p.stock <= 0).length
 
   const productosFiltrados = useMemo(() => {
-    const term = busquedaProducto.trim().toLowerCase()
     return productos.filter((p) => {
       const coincideCat =
         categoriaProductoActiva === 'Todos' || p.categoria_nombre === categoriaProductoActiva
-      const coincideTexto =
-        !term ||
-        p.nombre.toLowerCase().includes(term) ||
-        (p.categoria_nombre ?? '').toLowerCase().includes(term)
-      const coincideStock = !soloSinStock || p.stock === 0
+      const coincideTexto = coincideBusqueda(
+        busquedaProducto,
+        p.nombre,
+        p.categoria_nombre,
+        p.sku,
+        p.descripcion,
+      )
+      const coincideStock =
+        filtroStock === 'todos' ||
+        (filtroStock === 'sin' && p.stock <= 0) ||
+        (filtroStock === 'poco' && p.stock > 0 && p.stock <= STOCK_BAJO)
       return coincideCat && coincideTexto && coincideStock
     })
-  }, [productos, busquedaProducto, categoriaProductoActiva, soloSinStock])
+  }, [productos, busquedaProducto, categoriaProductoActiva, filtroStock])
+  const filtrandoProductos =
+    busquedaProducto.trim() !== '' || categoriaProductoActiva !== 'Todos' || filtroStock !== 'todos'
+  function limpiarFiltrosProductos() {
+    setBusquedaProducto('')
+    setCategoriaProductoActiva('Todos')
+    setFiltroStock('todos')
+  }
 
   const {
     pedidos,
@@ -114,11 +156,35 @@ export default function AdminPage() {
     hayMas,
     verMas,
     refetch: refetchPedidos,
-  } = useOrders(filtroEstado, busqueda)
+  } = useOrders(filtroEstado, busqueda, avisarPedidoNuevo)
+
+  // Pedido nuevo con el panel abierto: aviso con atajo, y vibración en el
+  // celular. Antes solo cambiaba el número del badge.
+  function avisarPedidoNuevo(pedido: Pedido) {
+    if (pedido.origen === 'admin') return // lo acaba de cargar alguien del panel
+    navigator.vibrate?.(200)
+    notificar(`Nuevo pedido #${pedido.numero} de ${pedido.nombre.split(' ')[0]}`, {
+      accion: {
+        texto: 'Ver',
+        onClick: () => {
+          setVista('pedidos')
+          setFiltroEstado('nuevo')
+        },
+      },
+    })
+  }
+
+  // Pedidos por atender en el título de la pestaña: "(2) Pecora · Panel".
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\) /, '')
+    document.title = conteos.nuevo > 0 ? `(${conteos.nuevo}) ${base}` : base
+  }, [conteos.nuevo])
 
   // Control de las dos hojas (bottom sheets).
   const [sheetAbierta, setSheetAbierta] = useState(false)
   const [editando, setEditando] = useState<ProductoConCategoria | null>(null)
+  const [plantilla, setPlantilla] = useState<ProductoConCategoria | null>(null)
+  const [preciosAbierta, setPreciosAbierta] = useState(false)
   const [catSheetAbierta, setCatSheetAbierta] = useState(false)
   const [pedidoSheetAbierta, setPedidoSheetAbierta] = useState(false)
 
@@ -175,11 +241,20 @@ export default function AdminPage() {
 
   function abrirNuevo() {
     setEditando(null)
+    setPlantilla(null)
     setSheetAbierta(true)
   }
 
   function abrirEdicion(producto: ProductoConCategoria) {
     setEditando(producto)
+    setPlantilla(null)
+    setSheetAbierta(true)
+  }
+
+  // "Duplicar": la misma hoja pasa a ser un alta con los datos del producto.
+  function duplicar(producto: ProductoConCategoria) {
+    setEditando(null)
+    setPlantilla(producto)
     setSheetAbierta(true)
   }
 
@@ -249,9 +324,14 @@ export default function AdminPage() {
                 <h1>Productos</h1>
                 <p>Tocá un producto para editarlo.</p>
               </div>
-              <button className="head-action" onClick={() => setVista('exportar')}>
-                Exportar catálogo
-              </button>
+              <div className="head-actions">
+                <button className="head-action" onClick={() => setPreciosAbierta(true)}>
+                  Ajustar precios
+                </button>
+                <button className="head-action" onClick={() => setVista('exportar')}>
+                  Exportar catálogo
+                </button>
+              </div>
             </div>
             {miniaturasConProblemas && (
               <p className="head-status">
@@ -265,7 +345,7 @@ export default function AdminPage() {
               <SearchBar
                 value={busquedaProducto}
                 onChange={setBusquedaProducto}
-                placeholder="Buscar por nombre o categoría"
+                placeholder="Buscar por nombre, categoría o SKU"
                 className="orders-search"
               />
               <div className="orders-chips">
@@ -276,10 +356,20 @@ export default function AdminPage() {
                   className="chip"
                 />
                 <button
-                  className={soloSinStock ? 'chip active' : 'chip'}
-                  onClick={() => setSoloSinStock((v) => !v)}
+                  type="button"
+                  className={filtroStock === 'poco' ? 'chip active' : 'chip'}
+                  aria-pressed={filtroStock === 'poco'}
+                  onClick={() => setFiltroStock((f) => (f === 'poco' ? 'todos' : 'poco'))}
                 >
-                  Sin stock
+                  Poco stock{conteoPocoStock > 0 ? ` (${conteoPocoStock})` : ''}
+                </button>
+                <button
+                  type="button"
+                  className={filtroStock === 'sin' ? 'chip active' : 'chip'}
+                  aria-pressed={filtroStock === 'sin'}
+                  onClick={() => setFiltroStock((f) => (f === 'sin' ? 'todos' : 'sin'))}
+                >
+                  Sin stock{conteoSinStock > 0 ? ` (${conteoSinStock})` : ''}
                 </button>
               </div>
             </div>
@@ -311,7 +401,13 @@ export default function AdminPage() {
                 <div className="empty">Cargando productos…</div>
               </div>
             ) : (
-              <ProductList productos={productosFiltrados} onEditar={abrirEdicion} onChanged={refrescar} />
+              <ProductList
+                productos={productosFiltrados}
+                onEditar={abrirEdicion}
+                onChanged={refrescar}
+                filtrando={filtrandoProductos}
+                onLimpiarFiltros={limpiarFiltrosProductos}
+              />
             )}
             <button className="fab" aria-label="Nuevo producto" onClick={abrirNuevo}>
               +<span className="fab-label">Nuevo producto</span>
@@ -386,6 +482,16 @@ export default function AdminPage() {
         categorias={categorias}
         onClose={() => setSheetAbierta(false)}
         onGestionarCategorias={() => setCatSheetAbierta(true)}
+        onChanged={refrescar}
+        plantilla={plantilla}
+        onDuplicar={duplicar}
+      />
+
+      {/* Hoja de ajuste de precios en bloque */}
+      <AjustarPreciosSheet
+        open={preciosAbierta}
+        categorias={categorias}
+        onClose={() => setPreciosAbierta(false)}
         onChanged={refrescar}
       />
 

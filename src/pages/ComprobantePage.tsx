@@ -206,6 +206,9 @@ function VistaComprobante({ pedido }: { pedido: Pedido }) {
             <div className="op-bloque">
               <h2>Estado del pedido</h2>
               <p className={`op-bloque-nombre cp-estado cp-estado--${c.estado}`}>{c.estadoTexto}</p>
+              {c.estadoDetalle.map((l) => (
+                <p key={l}>{l}</p>
+              ))}
             </div>
           </section>
 
