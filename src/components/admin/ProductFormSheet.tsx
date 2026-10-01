@@ -5,6 +5,7 @@ import { comprimirImagen } from '../../lib/imageCompress'
 import { BUCKET_PRODUCTOS } from '../../lib/images'
 import { subirOriginalConMiniatura } from '../../lib/thumbnails'
 import { useDialog } from '../../context/DialogContext'
+import { guardarProductoSinPisarStock, mensajeConflictoStock } from '../../lib/stock'
 import ImagePicker, { type ImagenItem } from './ImagePicker'
 
 interface Props {
@@ -56,6 +57,8 @@ export default function ProductFormSheet({
   const [descripcion, setDescripcion] = useState('')
   const [precio, setPrecio] = useState('')
   const [stock, setStock] = useState('')
+  // Stock que había en la base al abrir: el guardado no pisa ventas posteriores.
+  const [stockLeido, setStockLeido] = useState(0)
   // Galería: lista única y ordenada (URLs existentes + archivos nuevos
   // intercalados, en el orden en que se van a mostrar/guardar). El índice 0
   // es la portada. Reemplaza los antiguos keepUrls/newFiles disjuntos, que
@@ -90,6 +93,7 @@ export default function ProductFormSheet({
     setDescripcion(producto?.descripcion ?? '')
     setPrecio(producto ? String(producto.precio) : '')
     setStock(producto ? String(producto.stock) : '')
+    setStockLeido(producto?.stock ?? 0)
     setImagenes(imagenesGuardadas(producto))
     setMostrarNuevaCat(false)
     setNuevaCat('')
@@ -171,12 +175,24 @@ export default function ProductFormSheet({
       // Recorremos la galería en el orden que dejó el drag-and-drop, subiendo
       // a Storage sólo las imágenes nuevas, en el lugar exacto donde quedaron
       // (ya no van todas al final como con keepUrls/newFiles separados).
+      // Cada foto subida pasa a ser una URL en la galería: si después falla
+      // algo y se reintenta, no se vuelve a subir (ni queda duplicada).
       const imagenesFinal: string[] = []
-      for (const item of imagenes) {
-        imagenesFinal.push(item.kind === 'url' ? item.url : await subirImagen(item.file))
+      const galeria = [...imagenes]
+      for (let i = 0; i < galeria.length; i++) {
+        const item = galeria[i]
+        if (item.kind === 'url') {
+          imagenesFinal.push(item.url)
+          continue
+        }
+        const url = await subirImagen(item.file)
+        imagenesFinal.push(url)
+        URL.revokeObjectURL(item.preview)
+        galeria[i] = { key: item.key, kind: 'url', url }
+        setImagenes([...galeria])
       }
 
-      const payload = {
+      const payload: Record<string, unknown> = {
         nombre,
         categoria_id: categoriaId,
         descripcion,
@@ -187,8 +203,16 @@ export default function ProductFormSheet({
       }
 
       if (producto) {
-        const { error } = await supabase.from('productos').update(payload).eq('id', producto.id)
-        if (error) throw error
+        // Si no tocó el stock, no se manda: así una venta que entró mientras
+        // editaba (fotos, descripción...) no se deshace al guardar.
+        if (payload.stock === stockLeido) delete payload.stock
+        const r = await guardarProductoSinPisarStock(producto.id, payload, stockLeido)
+        if (!r.ok && r.conflicto) {
+          setStockLeido(r.stockActual)
+          setError(mensajeConflictoStock(stockLeido, r.stockActual))
+          return
+        }
+        if (!r.ok) throw new Error(r.error)
       } else {
         const { error } = await supabase.from('productos').insert(payload)
         if (error) throw error
