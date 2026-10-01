@@ -36,6 +36,7 @@ describe('mensajePedido', () => {
     expect(mensajePedido({ ...base, estado: 'confirmado', entrega: 'envio' })).toMatch(/preparación.*despachemos/)
     expect(mensajePedido({ ...base, estado: 'confirmado', entrega: 'coordinar' })).toContain('retirar')
     expect(mensajePedido({ ...base, estado: 'entregado' })).toContain('¿Te llegó bien')
+    expect(mensajePedido({ ...base, estado: 'enviado', seguimiento: 'AR123' })).toMatch(/en camino.*AR123/)
   })
 })
 

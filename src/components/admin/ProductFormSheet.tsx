@@ -18,6 +18,10 @@ interface Props {
   onGestionarCategorias: () => void
   // Refresca los datos después de guardar/borrar/crear categoría.
   onChanged: () => void
+  // Alta a partir de otro producto ("Duplicar"): mismos datos y fotos, con
+  // "(copia)" en el nombre y el stock vacío. Solo cuenta si producto es null.
+  plantilla?: ProductoConCategoria | null
+  onDuplicar?: (producto: ProductoConCategoria) => void
 }
 
 // Comprime y sube un archivo al bucket "productos" de Storage y, en paralelo,
@@ -64,6 +68,8 @@ export default function ProductFormSheet({
   onClose,
   onGestionarCategorias,
   onChanged,
+  plantilla = null,
+  onDuplicar,
 }: Props) {
   const [nombre, setNombre] = useState('')
   const [categoriaId, setCategoriaId] = useState('')
@@ -103,28 +109,40 @@ export default function ProductFormSheet({
     imagenesRef.current.forEach((it) => {
       if (it.kind === 'file') URL.revokeObjectURL(it.preview)
     })
-    setNombre(producto?.nombre ?? '')
-    setCategoriaId(producto?.categoria_id ?? categorias[0]?.id ?? '')
-    setDescripcion(producto?.descripcion ?? '')
-    setPrecio(producto ? String(producto.precio) : '')
-    setStock(producto ? String(producto.stock) : '')
+    // Datos de partida: el producto a editar, el que se duplica o vacío. En un
+    // alta la categoría arranca sin elegir (antes quedaba la primera de la
+    // lista sin avisar y era fácil guardar en la equivocada).
+    const base = producto ?? plantilla
+    const valores = {
+      nombre: producto ? producto.nombre : plantilla ? `${plantilla.nombre} (copia)` : '',
+      categoriaId: base?.categoria_id ?? '',
+      descripcion: base?.descripcion ?? '',
+      precio: base ? String(base.precio) : '',
+      stock: producto ? String(producto.stock) : '',
+      imagenes: imagenesGuardadas(base),
+    }
+    setNombre(valores.nombre)
+    setCategoriaId(valores.categoriaId)
+    setDescripcion(valores.descripcion)
+    setPrecio(valores.precio)
+    setStock(valores.stock)
     setStockLeido(producto?.stock ?? 0)
-    setImagenes(imagenesGuardadas(producto))
+    setImagenes(valores.imagenes)
     setMostrarNuevaCat(false)
     setNuevaCat('')
     setError(null)
     setInicial(
       firmaCampos(
-        producto?.nombre ?? '',
-        producto?.categoria_id ?? categorias[0]?.id ?? '',
-        producto?.descripcion ?? '',
-        producto ? String(producto.precio) : '',
-        producto ? String(producto.stock) : '',
-        imagenesGuardadas(producto),
+        valores.nombre,
+        valores.categoriaId,
+        valores.descripcion,
+        valores.precio,
+        valores.stock,
+        valores.imagenes,
       ),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, producto])
+  }, [open, producto, plantilla])
 
   const hayCambios =
     open && firmaCampos(nombre, categoriaId, descripcion, precio, stock, imagenes) !== inicial
@@ -267,12 +285,26 @@ export default function ProductFormSheet({
       }
       onChanged() // Refresca los datos para que el cambio se vea al instante.
       onClose()
-      notificar(producto ? 'Cambios guardados' : 'Producto creado')
+      notificar(producto ? 'Cambios guardados' : plantilla ? 'Copia creada' : 'Producto creado')
     } catch (err) {
       setError('No se pudo guardar: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
       setGuardando(false)
     }
+  }
+
+  async function duplicar() {
+    if (!producto || !onDuplicar) return
+    if (hayCambios) {
+      const ok = await confirmar({
+        titulo: '¿Duplicar sin guardar?',
+        mensaje: 'Los cambios que hiciste en este producto se pierden. La copia sale de lo último guardado.',
+        textoOk: 'Duplicar igual',
+        textoCancelar: 'Volver',
+      })
+      if (!ok) return
+    }
+    onDuplicar(producto)
   }
 
   async function eliminar() {
@@ -302,7 +334,7 @@ export default function ProductFormSheet({
     >
       <div className="sheet sheet--producto">
         <div className="handle" />
-        <h2>{producto ? 'Editar producto' : 'Nuevo producto'}</h2>
+        <h2>{producto ? 'Editar producto' : plantilla ? 'Duplicar producto' : 'Nuevo producto'}</h2>
 
         <form onSubmit={onSubmit}>
           <ImagePicker items={imagenes} onChange={onImagenesChange} onAddFiles={agregarFiles} />
@@ -329,7 +361,15 @@ export default function ProductFormSheet({
               value={mostrarNuevaCat ? '__new__' : categoriaId}
               onChange={(e) => onCategoriaChange(e.target.value)}
             >
-              {categorias.length === 0 && <option value="">Sin categorías todavía</option>}
+              {categorias.length === 0 ? (
+                <option value="">Sin categorías todavía</option>
+              ) : (
+                !categoriaId && (
+                  <option value="" disabled>
+                    Elegí una categoría…
+                  </option>
+                )
+              )}
               {categorias.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nombre}
@@ -391,6 +431,11 @@ export default function ProductFormSheet({
 
           {error && <p className="form-error">{error}</p>}
 
+          {producto && onDuplicar && (
+            <button type="button" className="link-btn sheet-duplicar" onClick={() => void duplicar()}>
+              Duplicar producto (para otro talle o color)
+            </button>
+          )}
           {producto && (
             <button type="button" className="btn-danger-text sheet-peligro" onClick={eliminar}>
               Eliminar producto

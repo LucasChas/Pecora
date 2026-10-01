@@ -40,6 +40,7 @@ export function mensajePedido(p: {
   estado: EstadoPedido
   total?: number | null
   entrega?: string
+  seguimiento?: string | null
 }): string {
   const nombre = p.nombre.trim().split(/\s+/)[0] || ''
   const hola = `Hola ${nombre}!`.replace(' !', '!')
@@ -49,6 +50,11 @@ export function mensajePedido(p: {
         `${hola} Tu pedido #${p.numero} de Pecora ya está en preparación 🐑` +
         (p.total ? ` El total es ${money(p.total)}.` : '') +
         (p.entrega === 'envio' ? ' Te aviso cuando lo despachemos.' : ' Te aviso cuando esté listo para retirar.')
+      )
+    case 'enviado':
+      return (
+        `${hola} Tu pedido #${p.numero} de Pecora ya está en camino 📦` +
+        (p.seguimiento ? ` Seguimiento: ${p.seguimiento}` : '')
       )
     case 'entregado':
       return `${hola} ¿Te llegó bien tu pedido #${p.numero}? Cualquier cosa, escribime 🐑`

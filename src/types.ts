@@ -45,7 +45,8 @@ export interface Perfil {
 }
 
 // ---- Pedidos (ver migraciones 0003 / 0005) ----
-export type EstadoPedido = 'nuevo' | 'confirmado' | 'entregado' | 'cancelado'
+// 'enviado' = despachado por correo, todavía no entregado (migración 20261001030000).
+export type EstadoPedido = 'nuevo' | 'confirmado' | 'enviado' | 'entregado' | 'cancelado'
 
 export type OrigenPedido = 'checkout' | 'admin'
 
@@ -92,6 +93,11 @@ export interface Pedido {
   idempotency_key?: string | null
   email_enviado_at?: string | null
   aviso_duena_enviado_at?: string | null
+
+  // ---- Pago y seguimiento (migración 20261001030000_pedido_enviado_pagado) ----
+  // Opcionales por el mismo motivo. pagado_at null = todavía no pagado.
+  pagado_at?: string | null
+  seguimiento?: string | null
 
   // ---- Cupón y zona de envío (migración de cupones / envíos) ----
   // Opcionales por el mismo motivo: la base los completa en crear_pedido.

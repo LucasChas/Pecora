@@ -8,25 +8,28 @@ import type { EstadoPedido, Pedido } from '../types'
 const POR_PAGINA = 20
 
 // 'eliminados' no es un estado del pedido: es la papelera (ver migración 0009).
-export type FiltroEstado = EstadoPedido | 'todos' | 'eliminados'
+// 'sin-pagar' = pedidos activos (no cancelados) sin marca de pago.
+export type FiltroEstado = EstadoPedido | 'todos' | 'eliminados' | 'sin-pagar'
 
-// Cantidad de pedidos por estado, para los chips del filtro y el badge de la
-// pestaña. Se cuenta en la base (no sobre la página cargada), así los números
-// son los reales aunque estés viendo solo los primeros 20.
-export interface ConteosPedidos {
-  todos: number
-  nuevo: number
-  confirmado: number
-  entregado: number
-  cancelado: number
-  eliminados: number
+// Cantidad de pedidos por filtro, para los chips y el badge de la pestaña. Se
+// cuenta en la base (no sobre la página cargada), así los números son los
+// reales aunque estés viendo solo los primeros 20.
+export type ConteosPedidos = Record<FiltroEstado, number>
+
+const ESTADOS: EstadoPedido[] = ['nuevo', 'confirmado', 'enviado', 'entregado', 'cancelado']
+const FILTROS_CONTADOS: FiltroEstado[] = ['todos', ...ESTADOS, 'eliminados', 'sin-pagar']
+
+const CONTEOS_VACIOS = Object.fromEntries(FILTROS_CONTADOS.map((f) => [f, 0])) as ConteosPedidos
+
+// Filtro de la lista. La papelera es una vista aparte: el resto la excluye.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function aplicarFiltro<Q extends { is: any; not: any; eq: any; neq: any }>(query: Q, filtro: FiltroEstado): Q {
+  if (filtro === 'eliminados') return query.not('eliminado_at', 'is', null)
+  const activos = query.is('eliminado_at', null)
+  if (filtro === 'todos') return activos
+  if (filtro === 'sin-pagar') return activos.neq('estado', 'cancelado').is('pagado_at', null)
+  return activos.eq('estado', filtro)
 }
-
-const CONTEOS_VACIOS: ConteosPedidos = {
-  todos: 0, nuevo: 0, confirmado: 0, entregado: 0, cancelado: 0, eliminados: 0,
-}
-
-const ESTADOS: EstadoPedido[] = ['nuevo', 'confirmado', 'entregado', 'cancelado']
 
 // La búsqueda arma un filtro "or" de PostgREST, donde la coma separa condiciones.
 // Sacamos los caracteres que romperían esa sintaxis.
@@ -89,13 +92,7 @@ export function useOrders(
       .order('created_at', { ascending: false })
       .range(0, paginas * POR_PAGINA - 1)
 
-    // La papelera es una vista aparte: el resto de los filtros la excluyen.
-    if (estado === 'eliminados') {
-      query = query.not('eliminado_at', 'is', null)
-    } else {
-      query = query.is('eliminado_at', null)
-      if (estado !== 'todos') query = query.eq('estado', estado)
-    }
+    query = aplicarFiltro(query, estado)
 
     if (texto) {
       // Buscamos por nombre, teléfono, email y localidad; si además escribió
@@ -124,28 +121,17 @@ export function useOrders(
     setLoading(false)
   }, [estado, texto, paginas])
 
-  // Conteos por estado: pedimos solo el total (head: true no trae filas).
+  // Conteos por filtro: pedimos solo el total (head: true no trae filas). Si
+  // uno falla (ej. falta una migración) cuenta 0 y el resto sigue.
   const fetchConteos = useCallback(async () => {
-    const activos = () =>
-      supabase.from('pedidos').select('*', { count: 'exact', head: true }).is('eliminado_at', null)
-
-    const consultas = [
-      activos(),
-      ...ESTADOS.map((e) => activos().eq('estado', e)),
-      supabase
-        .from('pedidos')
-        .select('*', { count: 'exact', head: true })
-        .not('eliminado_at', 'is', null),
-    ]
-    const [todos, ...resto] = await Promise.all(consultas)
-    setConteos({
-      todos: todos.count ?? 0,
-      nuevo: resto[0].count ?? 0,
-      confirmado: resto[1].count ?? 0,
-      entregado: resto[2].count ?? 0,
-      cancelado: resto[3].count ?? 0,
-      eliminados: resto[4].count ?? 0,
-    })
+    const respuestas = await Promise.all(
+      FILTROS_CONTADOS.map((f) =>
+        aplicarFiltro(supabase.from('pedidos').select('*', { count: 'exact', head: true }), f),
+      ),
+    )
+    setConteos(
+      Object.fromEntries(FILTROS_CONTADOS.map((f, i) => [f, respuestas[i].count ?? 0])) as ConteosPedidos,
+    )
   }, [])
 
   const refetch = useCallback(() => {
