@@ -64,7 +64,26 @@ export default function AdminPage() {
     refetch: refetchCategorias,
   } = useCategories()
   const { confirmar, notificar } = useDialog()
-  const [vistaElegida, setVista] = useState<Vista>('productos')
+  // La pestaña se recuerda en este dispositivo: al recargar o volver al panel
+  // no vuelve siempre a Productos.
+  const [vistaElegida, setVistaElegida] = useState<Vista>(() => {
+    try {
+      const guardada = localStorage.getItem('pecora-panel-vista')
+      return guardada === 'pedidos' || guardada === 'estadisticas' || guardada === 'ajustes'
+        ? guardada
+        : 'productos'
+    } catch {
+      return 'productos'
+    }
+  })
+  const setVista = useCallback((v: Vista) => {
+    setVistaElegida(v)
+    try {
+      if (v !== 'exportar') localStorage.setItem('pecora-panel-vista', v)
+    } catch {
+      /* sin persistencia */
+    }
+  }, [])
   // Si el rol no alcanza para la vista elegida (ej. cambió el perfil), Productos.
   const vista: Vista =
     (vistaElegida === 'ajustes' && !permisos.ajustes) ||
