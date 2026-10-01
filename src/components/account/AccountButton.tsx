@@ -70,6 +70,9 @@ export default function AccountButton() {
               </span>
               <span className="account-menu-email">{session.user.email}</span>
             </div>
+            <Link to="/mi-cuenta" onClick={() => setAbierto(false)}>
+              Mi cuenta
+            </Link>
             <Link to="/mis-pedidos" onClick={() => setAbierto(false)}>
               Mis pedidos
             </Link>

@@ -5,6 +5,7 @@ import ErrorBoundary from './components/common/ErrorBoundary'
 import { AuthProvider } from './context/AuthContext'
 import { CartProvider } from './context/CartContext'
 import { DialogProvider } from './context/DialogContext'
+import { FavoritosProvider } from './context/FavoritosContext'
 import './styles/tokens.css'
 import './styles/global.css'
 
@@ -15,9 +16,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <DialogProvider>
         <AuthProvider>
-          <CartProvider>
-            <App />
-          </CartProvider>
+          <FavoritosProvider>
+            <CartProvider>
+              <App />
+            </CartProvider>
+          </FavoritosProvider>
         </AuthProvider>
       </DialogProvider>
     </ErrorBoundary>
