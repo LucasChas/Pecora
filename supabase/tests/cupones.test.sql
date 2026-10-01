@@ -157,8 +157,8 @@ select hasnt_function(
 select has_function(
   'public', 'crear_pedido',
   array['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text',
-        'jsonb', 'numeric', 'text', 'text', 'uuid', 'text'],
-  'crear_pedido has the 14-argument signature (p_cupon last)'
+        'jsonb', 'numeric', 'text', 'text', 'uuid', 'text', 'uuid'],
+  'crear_pedido has the 15-argument signature (p_cupon, then p_cotizacion_envio)'
 );
 -- 12
 select hasnt_function(
@@ -170,7 +170,7 @@ select hasnt_function(
 -- 13
 select results_eq(
   $$ select r.rol::text, has_function_privilege(r.rol,
-            'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text)',
+            'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text, uuid)',
             'EXECUTE')
        from (values ('anon'), ('authenticated')) r(rol) order by 1 $$,
   $$ values ('anon'::text, false), ('authenticated', true) $$,

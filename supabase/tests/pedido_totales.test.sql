@@ -80,8 +80,8 @@ select is(
 select has_function(
   'public', 'crear_pedido',
   array['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text',
-        'jsonb', 'numeric', 'text', 'text', 'uuid', 'text'],
-  'crear_pedido has the current signature (13 args + p_cupon from cupones_y_envios)'
+        'jsonb', 'numeric', 'text', 'text', 'uuid', 'text', 'uuid'],
+  'crear_pedido has the current signature (13 args + p_cupon + p_cotizacion_envio)'
 );
 -- 7
 select hasnt_function(
@@ -93,7 +93,7 @@ select hasnt_function(
 -- 8
 select is(
   has_function_privilege('anon',
-    'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text)',
+    'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text, uuid)',
     'EXECUTE'),
   false,
   'anon cannot execute crear_pedido'
@@ -101,7 +101,7 @@ select is(
 -- 9
 select is(
   has_function_privilege('authenticated',
-    'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text)',
+    'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text, uuid)',
     'EXECUTE'),
   true,
   'authenticated can execute crear_pedido'
@@ -113,7 +113,7 @@ select is(
                            where a.grantee = 0 and a.privilege_type = 'EXECUTE')
      from pg_proc p
     where p.oid = to_regprocedure(
-      'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text)')),
+      'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text, uuid)')),
   true,
   'PUBLIC has no EXECUTE on crear_pedido'
 );
