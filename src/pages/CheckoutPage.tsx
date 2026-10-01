@@ -333,7 +333,16 @@ export default function CheckoutPage() {
   }
 
   // Para comprar hay que estar logueada: si no, va a /cuenta y vuelve al checkout.
-  if (cargandoSesion) return null
+  if (cargandoSesion) {
+    return (
+      <div className="catalog-root">
+        <div className="loading-state">
+          <span className="loading-spinner" aria-hidden="true" />
+          Cargando…
+        </div>
+      </div>
+    )
+  }
   if (!session) return <Navigate to="/cuenta?next=/checkout" replace />
 
   return (

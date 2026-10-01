@@ -95,3 +95,45 @@
     transform: translateY(10px) scale(0.97);
   }
 }
+
+/* ---- Avisos breves (toast) ---- */
+.toast-zona {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 95;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 440px;
+  background: var(--ink);
+  color: var(--cream);
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  box-shadow: 0 10px 30px rgba(51, 48, 42, 0.3);
+  animation: dlg-pop 0.22s cubic-bezier(0.18, 0.89, 0.32, 1.2);
+}
+
+.toast-accion {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--sage-pale);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0 4px;
+}
