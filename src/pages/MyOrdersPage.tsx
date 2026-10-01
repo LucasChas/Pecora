@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
@@ -7,41 +7,25 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
 import { waConsultaCancelacionLink } from '../lib/config'
-import { detalleDe, lineasDesglose, montoLinea, totalesDe } from '../lib/orders'
+import { cargarMisPedidos, detalleDe, lineasDesglose, montoLinea, totalesDe } from '../lib/orders'
 import { IMG_PLACEHOLDER, portadaDe } from '../lib/images'
 import ImageZoom from '../components/common/ImageZoom'
+import { ESTADO_CLIENTE, estadoVisible } from '../lib/comprobante'
 import CalificarProducto from '../components/account/CalificarProducto'
 import { Estrellas } from '../components/catalog/ResenasProducto'
 import { cargarMisResenas, textoEstrellas, type MiResenaDeProducto } from '../lib/resenas'
 import { invalidarResumenesResenas } from '../hooks/useResumenesResenas'
 import { useDialog } from '../context/DialogContext'
-import type { EstadoPedido, Pedido } from '../types'
+import type { Pedido } from '../types'
 import '../styles/catalog.css'
 import '../styles/account.css'
+import '../styles/comprobante.css'
 import { useTitulo } from '../hooks/useTitulo'
-
-// La vista del comprobante (y su CSS) se baja recién al tocar "Descargar".
-const OrderPrintView = lazy(() => import('../components/common/OrderPrintView'))
 
 interface ProductoACalificar {
   id: string
   nombre: string
   imagen: string
-}
-
-// Cómo se le muestra el estado a la clienta (más amable que el interno).
-const ESTADO_CLIENTE: Record<EstadoPedido, { texto: string; clase: string }> = {
-  nuevo: { texto: 'Pedido recibido', clase: 'e-nuevo' },
-  confirmado: { texto: 'Confirmado · en preparación', clase: 'e-confirmado' },
-  enviado: { texto: 'Enviado · en camino', clase: 'e-enviado' },
-  entregado: { texto: 'Entregado', clase: 'e-entregado' },
-  cancelado: { texto: 'Cancelado', clase: 'e-cancelado' },
-}
-
-// Un pedido que la admin mandó a la papelera se le muestra a la clienta como
-// "Cancelado": para ella el efecto es el mismo y así no desaparece sin aviso.
-function estadoVisible(pedido: Pedido): EstadoPedido {
-  return pedido.eliminado_at ? 'cancelado' : pedido.estado
 }
 
 function fecha(iso: string): string {
@@ -70,7 +54,6 @@ export default function MyOrdersPage() {
   // Reseñas propias por producto. null = no disponible (no se ofrece calificar).
   const [misResenas, setMisResenas] = useState<Map<string, MiResenaDeProducto> | null>(null)
   const [calificando, setCalificando] = useState<ProductoACalificar | null>(null)
-  const [comprobante, setComprobante] = useState<Pedido | null>(null)
   const { notificar } = useDialog()
 
   const fetchMisResenas = useCallback(async () => {
@@ -79,19 +62,12 @@ export default function MyOrdersPage() {
   }, [])
 
   const fetchPedidos = useCallback(async (uid: string) => {
-    // Filtramos por user_id explícitamente. No alcanza con confiar en RLS: la
-    // política permite leer "los propios O todos si sos admin", así que la
-    // administradora vería acá los pedidos de todas las clientas como si fueran
-    // suyos. "Mis pedidos" siempre son los de la cuenta logueada.
+    // Los de la cuenta logueada, nunca "todos" (la RLS deja a la admin leer
+    // todos los pedidos): los de la web con esta cuenta y los cargados a mano
+    // con su email confirmado (ver cargarMisPedidos).
     let lista: Pedido[]
     try {
-      const { data, error } = await supabase
-        .from('pedidos')
-        .select('*')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      lista = (data ?? []) as Pedido[]
+      lista = await cargarMisPedidos(uid)
     } catch (e) {
       console.error('No se pudieron cargar los pedidos:', e)
       setErrorCarga(true)
@@ -210,11 +186,11 @@ export default function MyOrdersPage() {
                   <div className="mp-items">
                     {p.items.map((i, idx) => {
                       const src = imagenes[i.id] ?? IMG_PLACEHOLDER
-                      // Se ofrece calificar lo comprado por la web, no cancelado y
-                      // que siga en el muestrario (la base exige lo mismo).
+                      // Se ofrece calificar lo comprado (por la web o por WhatsApp),
+                      // no cancelado y que siga en el muestrario (la base exige lo
+                      // mismo).
                       const calificable =
                         misResenas !== null &&
-                        p.origen === 'checkout' &&
                         estado !== 'cancelado' &&
                         existentes.has(i.id)
                       const resena = misResenas?.get(i.id) ?? null
@@ -332,16 +308,28 @@ export default function MyOrdersPage() {
                     </div>
                   )}
 
-                  {estado !== 'cancelado' && (
-                    <button type="button" className="mp-comprobante" onClick={() => setComprobante(p)}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M12 3v12" />
-                        <path d="M7 10l5 5 5-5" />
-                        <path d="M5 21h14" />
-                      </svg>
-                      Descargar comprobante
-                    </button>
-                  )}
+                  {/* Comprobante de compra imprimible (no es factura). También
+                      para los cancelados: queda constancia de lo que se pidió. */}
+                  <Link
+                    className="mp-comprobante"
+                    to={`/mis-pedidos/${p.numero}/comprobante`}
+                    aria-label={`Descargar comprobante del pedido del ${fecha(p.created_at)}`}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 3v12" />
+                      <path d="M7 10l5 5 5-5" />
+                      <path d="M5 21h14" />
+                    </svg>
+                    Descargar comprobante
+                  </Link>
 
                   {/* Un pedido cancelado siempre tiene una explicación del otro
                       lado: le damos a la clienta cómo pedirla. */}
@@ -388,11 +376,6 @@ export default function MyOrdersPage() {
         />
       )}
 
-      {comprobante && (
-        <Suspense fallback={null}>
-          <OrderPrintView pedido={comprobante} tipo="comprobante" onClose={() => setComprobante(null)} />
-        </Suspense>
-      )}
     </div>
   )
 }

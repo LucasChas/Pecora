@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient'
 import { money } from './format'
+import { ErrorCotizacionVencida, esCotizacionVencida, etiquetaEnvioPedido } from './transportistas'
 import type { EntregaPedido, EstadoPedido, OrigenPedido, Pedido } from '../types'
 
 // ============================================================================
@@ -99,16 +100,23 @@ export interface LineaDesglose {
 
 // Cupón y zona de envío que se aplicaron al pedido (columnas cupon_codigo y
 // zona_nombre). Opcionales: antes de la migración no existen.
+// "zona" es el nombre con el que se muestra el envío: la zona o, si se envía
+// con transportista, "Andreani a sucursal" / "Correo Argentino a domicilio".
 export interface DetallePedido {
   cupon?: string | null
   zona?: string | null
 }
 
-// Detalle de cupón / zona de una fila de pedidos (tolera columnas ausentes).
-export function detalleDe(pedido: Partial<Pick<Pedido, 'cupon_codigo' | 'zona_nombre'>>): DetallePedido {
+// Detalle de cupón / envío de una fila de pedidos (tolera columnas ausentes).
+// El transportista, si lo hay, gana sobre la zona.
+export function detalleDe(
+  pedido: Partial<
+    Pick<Pedido, 'cupon_codigo' | 'zona_nombre' | 'transportista' | 'servicio_envio' | 'sucursal_envio'>
+  >,
+): DetallePedido {
   return {
     cupon: textoOpcional(pedido.cupon_codigo),
-    zona: textoOpcional(pedido.zona_nombre),
+    zona: etiquetaEnvioPedido(pedido) ?? textoOpcional(pedido.zona_nombre),
   }
 }
 
@@ -192,6 +200,11 @@ export interface NuevoPedido {
   // Código de cupón. La base lo valida y calcula el descuento; si no es
   // válido, rechaza el pedido con un mensaje ya redactado.
   cupon?: string | null
+  // Id de la opción de transportista elegida (Edge Function cotizar-envio).
+  // Solo cuenta para envío a domicilio. La base cobra el precio guardado en
+  // la cotización; si venció o no corresponde, rechaza con 22023 y crearPedido
+  // lanza ErrorCotizacionVencida.
+  cotizacionEnvio?: string | null
 }
 
 // Mensaje cuando la clienta cargó un cupón pero la base todavía no acepta
@@ -248,6 +261,10 @@ function numeroDePedido(data: unknown): number | null {
 //     base nueva, así que sirve para las dos). Si tampoco existe, se reintenta
 //     UNA vez con la firma anterior de 11 parámetros; se pierde la provincia y
 //     la protección contra duplicados, igual que antes de esa migración.
+//   - Con cotización de transportista: se suma p_cotizacion_envio (y p_cupon,
+//     null si no hay). Si la base todavía no acepta ese parámetro, se sigue
+//     como si no hubiera cotización (el envío se cobra por zona, como antes
+//     de los transportistas); los totales reales se leen después del alta.
 //
 // Los errores de la base (falta de stock, cupón vencido…) ya vienen redactados
 // para mostrarse tal cual.
@@ -257,6 +274,7 @@ export async function crearPedido({
   origen = 'checkout',
   idempotencyKey,
   cupon,
+  cotizacionEnvio,
 }: NuevoPedido): Promise<number> {
   const envio = datos.entrega === 'envio'
   const firma11 = {
@@ -288,28 +306,49 @@ export async function crearPedido({
     p_idempotency_key: idempotencyKey ?? null,
   }
   const codigoCupon = textoOpcional(cupon)?.toUpperCase() ?? null
+  const cotizacion = envio ? textoOpcional(cotizacionEnvio) : null
 
   let data: unknown
-  let error: ErrorRpc | null
-  if (codigoCupon) {
-    ;({ data, error } = await supabase.rpc('crear_pedido', { ...firma13, p_cupon: codigoCupon }))
+  let error: ErrorRpc | null = null
+  let resuelto = false
+  if (cotizacion) {
+    ;({ data, error } = await supabase.rpc('crear_pedido', {
+      ...firma13,
+      p_cupon: codigoCupon,
+      p_cotizacion_envio: cotizacion,
+    }))
     if (error && esFirmaInexistente(error)) {
       console.warn(
-        `${PREFIJO_LOG} crear_pedido todavía no acepta p_cupon (falta aplicar la migración ` +
-          'de cupones): se cancela el alta para no cobrar sin el descuento.',
+        `${PREFIJO_LOG} crear_pedido todavía no acepta p_cotizacion_envio (falta aplicar la ` +
+          'migración de transportistas): se registra con el envío por zona.',
         error.message,
       )
-      throw new Error(MENSAJE_CUPON_NO_DISPONIBLE)
+    } else {
+      if (error && esCotizacionVencida(error)) throw new ErrorCotizacionVencida()
+      resuelto = true
     }
-  } else {
-    ;({ data, error } = await supabase.rpc('crear_pedido', firma13))
-    if (error && esFirmaInexistente(error)) {
-      console.warn(
-        `${PREFIJO_LOG} crear_pedido todavía no acepta p_provincia / p_idempotency_key ` +
-          '(falta aplicar la migración): se reintenta con la firma anterior.',
-        error.message,
-      )
-      ;({ data, error } = await supabase.rpc('crear_pedido', firma11))
+  }
+  if (!resuelto) {
+    if (codigoCupon) {
+      ;({ data, error } = await supabase.rpc('crear_pedido', { ...firma13, p_cupon: codigoCupon }))
+      if (error && esFirmaInexistente(error)) {
+        console.warn(
+          `${PREFIJO_LOG} crear_pedido todavía no acepta p_cupon (falta aplicar la migración ` +
+            'de cupones): se cancela el alta para no cobrar sin el descuento.',
+          error.message,
+        )
+        throw new Error(MENSAJE_CUPON_NO_DISPONIBLE)
+      }
+    } else {
+      ;({ data, error } = await supabase.rpc('crear_pedido', firma13))
+      if (error && esFirmaInexistente(error)) {
+        console.warn(
+          `${PREFIJO_LOG} crear_pedido todavía no acepta p_provincia / p_idempotency_key ` +
+            '(falta aplicar la migración): se reintenta con la firma anterior.',
+          error.message,
+        )
+        ;({ data, error } = await supabase.rpc('crear_pedido', firma11))
+      }
     }
   }
 
@@ -345,6 +384,43 @@ export async function leerPedidoCreado(numero: number, userId: string): Promise<
       .maybeSingle()
     if (error || !data) return null
     return data as Pedido
+  } catch {
+    return null
+  }
+}
+
+// ---- Mis pedidos -----------------------------------------------------------------
+
+// El RPC no existe todavía (migración *_mis_pedidos.sql sin aplicar).
+function faltaRpc(error: { code?: string } | null): boolean {
+  return error?.code === 'PGRST202' || error?.code === '42883'
+}
+
+/**
+ * Pedidos de la clienta logueada: los de la web con su cuenta y los cargados
+ * a mano (WhatsApp) con su email confirmado (RPC mis_pedidos). Si la base
+ * todavía no tiene el RPC, solo los de su cuenta, como antes. Lanza si falla.
+ */
+export async function cargarMisPedidos(userId: string): Promise<Pedido[]> {
+  const { data, error } = await supabase.rpc('mis_pedidos')
+  if (!error) return (data ?? []) as Pedido[]
+  if (!faltaRpc(error)) throw error
+  const viejo = await supabase
+    .from('pedidos')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (viejo.error) throw viejo.error
+  return (viejo.data ?? []) as Pedido[]
+}
+
+/** Un pedido de la clienta por número (comprobante). null si no es suyo o falla. */
+export async function leerMiPedido(numero: number, userId: string): Promise<Pedido | null> {
+  try {
+    const { data, error } = await supabase.rpc('mis_pedidos', { p_numero: numero })
+    if (error) return faltaRpc(error) ? await leerPedidoCreado(numero, userId) : null
+    const filas = (data ?? []) as Pedido[]
+    return filas[0] ?? null
   } catch {
     return null
   }

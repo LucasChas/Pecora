@@ -5,9 +5,25 @@ import { comprimirImagen } from '../../lib/imageCompress'
 import { BUCKET_PRODUCTOS } from '../../lib/images'
 import { subirOriginalConMiniatura } from '../../lib/thumbnails'
 import { useDialog } from '../../context/DialogContext'
+import {
+  esColumnaInexistente,
+  formMedidasDe,
+  hayMedidas,
+  parsearMedidas,
+  type FormMedidas,
+} from '../../lib/transportistas'
 import { guardarProductoSinPisarStock, mensajeConflictoStock } from '../../lib/stock'
 import ImagePicker, { type ImagenItem } from './ImagePicker'
 import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
+
+// El stock cambió mientras se editaba (una venta): se corta el guardado.
+class ConflictoStock extends Error {
+  stockActual: number
+  constructor(stockActual: number) {
+    super('El stock cambió mientras editabas')
+    this.stockActual = stockActual
+  }
+}
 
 interface Props {
   open: boolean
@@ -54,8 +70,9 @@ function firmaCampos(
   precio: string,
   stock: string,
   imagenes: ImagenItem[],
+  medidas: FormMedidas,
 ): string {
-  return JSON.stringify([nombre, categoriaId, descripcion, precio, stock, imagenes.map((i) => i.key)])
+  return JSON.stringify([nombre, categoriaId, descripcion, precio, stock, imagenes.map((i) => i.key), medidas])
 }
 
 // Hoja (bottom sheet) para crear o editar un producto.
@@ -76,6 +93,9 @@ export default function ProductFormSheet({
   const [descripcion, setDescripcion] = useState('')
   const [precio, setPrecio] = useState('')
   const [stock, setStock] = useState('')
+  // Peso y medidas del paquete (opcionales): se usan para cotizar el envío
+  // con Andreani / Correo Argentino.
+  const [medidas, setMedidas] = useState<FormMedidas>(formMedidasDe(null))
   // Stock que había en la base al abrir: el guardado no pisa ventas posteriores.
   const [stockLeido, setStockLeido] = useState(0)
   // Galería: lista única y ordenada (URLs existentes + archivos nuevos
@@ -87,7 +107,7 @@ export default function ProductFormSheet({
   const [mostrarNuevaCat, setMostrarNuevaCat] = useState(false)
   const [nuevaCat, setNuevaCat] = useState('')
 
-  const { confirmar, notificar } = useDialog()
+  const { confirmar, avisar, notificar } = useDialog()
   const [guardando, setGuardando] = useState(false)
   // Avance de la subida de fotos nuevas al guardar.
   const [subida, setSubida] = useState<{ hechas: number; total: number } | null>(null)
@@ -129,6 +149,7 @@ export default function ProductFormSheet({
     setPrecio(valores.precio)
     setStock(valores.stock)
     setStockLeido(producto?.stock ?? 0)
+    setMedidas(formMedidasDe(base))
     setImagenes(valores.imagenes)
     setMostrarNuevaCat(false)
     setNuevaCat('')
@@ -141,13 +162,14 @@ export default function ProductFormSheet({
         valores.precio,
         valores.stock,
         valores.imagenes,
+        formMedidasDe(base),
       ),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, producto, plantilla])
 
   const hayCambios =
-    open && firmaCampos(nombre, categoriaId, descripcion, precio, stock, imagenes) !== inicial
+    open && firmaCampos(nombre, categoriaId, descripcion, precio, stock, imagenes, medidas) !== inicial
 
   // Cerrar (Cancelar, tocar el fondo o "Atrás"): si hay cambios sin guardar,
   // pregunta antes de descartarlos (una foto a medio cargar se perdía con un
@@ -237,6 +259,11 @@ export default function ProductFormSheet({
       setError('Elegí o creá una categoría.')
       return
     }
+    const medidasParseadas = parsearMedidas(medidas)
+    if (!medidasParseadas.ok) {
+      setError(medidasParseadas.mensaje)
+      return
+    }
     setGuardando(true)
     setError(null)
     try {
@@ -288,25 +315,46 @@ export default function ProductFormSheet({
         imagen_url: imagenesFinal[0] ?? null, // portada para la grilla / compatibilidad (índice 0)
       }
 
-      if (producto) {
-        // Si no tocó el stock, no se manda: así una venta que entró mientras
-        // editaba (fotos, descripción...) no se deshace al guardar.
-        if (payload.stock === stockLeido) delete payload.stock
-        const r = await guardarProductoSinPisarStock(producto.id, payload, stockLeido)
-        if (!r.ok && r.conflicto) {
-          setStockLeido(r.stockActual)
-          setError(mensajeConflictoStock(stockLeido, r.stockActual))
-          return
+      // Si no tocó el stock, no se manda: así una venta que entró mientras
+      // editaba (fotos, descripción...) no se deshace al guardar.
+      if (producto && payload.stock === stockLeido) delete payload.stock
+      const guardar = async (datos: Record<string, unknown>): Promise<{ code?: string; message?: string } | null> => {
+        if (!producto) {
+          const { error } = await supabase.from('productos').insert(datos)
+          return error
         }
-        if (!r.ok) throw new Error(r.error)
-      } else {
-        const { error } = await supabase.from('productos').insert(payload)
-        if (error) throw error
+        const r = await guardarProductoSinPisarStock(producto.id, datos, stockLeido)
+        if (r.ok) return null
+        if (r.conflicto) throw new ConflictoStock(r.stockActual)
+        return { message: r.error }
       }
+
+      // Con peso y medidas; si la base todavía no tiene esas columnas (falta
+      // la migración de transportistas), se guarda el resto igual.
+      let error = await guardar({ ...payload, ...medidasParseadas.datos })
+      let medidasSinGuardar = false
+      if (error && esColumnaInexistente(error)) {
+        medidasSinGuardar = hayMedidas(medidasParseadas.datos)
+        error = await guardar(payload)
+      }
+      if (error) throw new Error(error.message ?? 'error desconocido')
       onChanged() // Refresca los datos para que el cambio se vea al instante.
       onClose()
       notificar(producto ? 'Cambios guardados' : plantilla ? 'Copia creada' : 'Producto creado')
+      if (medidasSinGuardar) {
+        await avisar({
+          titulo: 'El producto se guardó sin peso ni medidas',
+          mensaje:
+            'Falta aplicar la migración de envíos con transportistas en Supabase. ' +
+            'Cuando esté aplicada, volvé a cargar el peso y las medidas.',
+        })
+      }
     } catch (err) {
+      if (err instanceof ConflictoStock) {
+        setStockLeido(err.stockActual)
+        setError(mensajeConflictoStock(stockLeido, err.stockActual))
+        return
+      }
       setError('No se pudo guardar: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
       setGuardando(false)
@@ -456,6 +504,38 @@ export default function ProductFormSheet({
               />
             </div>
           </div>
+
+          <fieldset className="medidas-envio">
+            <legend>Peso y medidas del paquete (opcional)</legend>
+            <p className="medidas-envio-ayuda" id="medidas-envio-ayuda">
+              Se usan para cotizar el envío con Andreani y Correo Argentino. Cargalos para que el
+              precio que ve la clienta sea preciso.
+            </p>
+            <div className="medidas-envio-grilla">
+              {(
+                [
+                  { campo: 'peso', rotulo: 'Peso (g)', ejemplo: '300', decimales: false },
+                  { campo: 'alto', rotulo: 'Alto (cm)', ejemplo: '5', decimales: true },
+                  { campo: 'ancho', rotulo: 'Ancho (cm)', ejemplo: '25', decimales: true },
+                  { campo: 'largo', rotulo: 'Largo (cm)', ejemplo: '30', decimales: true },
+                ] as const
+              ).map(({ campo, rotulo, ejemplo, decimales }) => (
+                <div className="field" key={campo}>
+                  <label htmlFor={`producto-${campo}`}>{rotulo}</label>
+                  <input
+                    id={`producto-${campo}`}
+                    type="text"
+                    inputMode={decimales ? 'decimal' : 'numeric'}
+                    value={medidas[campo]}
+                    onChange={(e) => setMedidas((m) => ({ ...m, [campo]: e.target.value }))}
+                    placeholder={ejemplo}
+                    autoComplete="off"
+                    aria-describedby="medidas-envio-ayuda"
+                  />
+                </div>
+              ))}
+            </div>
+          </fieldset>
 
           {error && <p className="form-error">{error}</p>}
 

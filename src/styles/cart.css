@@ -1272,6 +1272,132 @@
   }
 }
 
+/* Opciones de envío con transportistas (checkout, paso 2): radios como
+   tarjetas, con el precio a la derecha. Objetivo táctil de 44px. */
+.envio-opciones {
+  border: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.envio-opciones:disabled {
+  opacity: 0.7;
+}
+.envio-opciones-titulo {
+  padding: 0;
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.envio-op-bloque {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  min-width: 0;
+}
+.envio-op-bloque.active {
+  border-color: var(--sage);
+  background: var(--sage-pale);
+}
+.envio-op {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 44px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  min-width: 0;
+}
+.envio-op.active {
+  border-color: var(--sage);
+  background: var(--sage-pale);
+}
+/* Dentro de un bloque (transportista), el borde lo pone el bloque. */
+.envio-op-bloque > .envio-op {
+  border: 0;
+  background: transparent;
+}
+.envio-op input {
+  accent-color: var(--sage);
+  margin: 0;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.envio-op-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.envio-op-txt strong {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+.envio-op-txt > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.envio-op-precio {
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.envio-op-precio--suave {
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.envio-badge {
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--success-pale);
+  color: #4f6e36;
+}
+.envio-badge--rapido {
+  background: var(--cream-deep);
+  color: var(--ink);
+}
+.envio-sucursal {
+  margin: 0;
+  padding: 0 14px 12px 43px;
+}
+.envio-sucursal select {
+  width: 100%;
+  min-height: 44px;
+}
+.envio-consultando {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+@media (max-width: 420px) {
+  .envio-sucursal {
+    padding-left: 14px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .envio-op:not(.active):hover,
+  .envio-op-bloque:not(.active):hover {
+    border-color: var(--sage);
+  }
+}
+
 /* Ficha: cuánto hay ya en el carrito y botones −/+ en el límite. */
 .add-cart-nota {
   flex-basis: 100%;

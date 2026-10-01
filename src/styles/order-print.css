@@ -551,3 +551,23 @@
   background: var(--sage-pale);
   outline: none;
 }
+
+/* Transportista (Andreani / Correo Argentino) en la etiqueta: franja entre
+   el destinatario y el remitente, en negro sobre blanco. */
+.op-etq-transporte {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6mm;
+  padding: 2.5mm 3.5mm;
+  border-top: 0.8mm solid #000;
+  overflow-wrap: anywhere;
+}
+.op-etq-transporte-nombre {
+  margin: 0;
+  font-size: 12pt;
+  font-weight: 700;
+}
+.op-etq-transporte p {
+  margin: 0;
+  font-size: 9pt;
+}

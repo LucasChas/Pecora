@@ -20,6 +20,13 @@ export interface Producto {
   // Galería de imágenes (columna "imagenes text[]", ver migración 0002).
   // Puede venir undefined si todavía no corriste esa migración.
   imagenes?: string[] | null
+  // Peso (gramos) y medidas del paquete (cm) para cotizar el envío con
+  // transportistas. Opcionales: null = sin cargar; undefined = la base todavía
+  // no tiene esas columnas (migración de transportistas).
+  peso_g?: number | null
+  alto_cm?: number | null
+  ancho_cm?: number | null
+  largo_cm?: number | null
   // Código interno opcional (carga masiva, ver 20260928144838_importar_productos).
   sku?: string | null
   created_at: string
@@ -105,6 +112,26 @@ export interface Pedido {
   cupon_codigo?: string | null
   zona_id?: string | null
   zona_nombre?: string | null
+
+  // ---- Envío con transportista (migración de transportistas) ----
+  // null si el envío se cobró por zona o se coordina. Para mostrarlo usar
+  // etiquetaEnvioPedido() (lib/transportistas).
+  transportista?: Transportista | null
+  servicio_envio?: ServicioEnvio | null
+  // Sucursal de destino (solo servicio 'sucursal'), como la guardó la base.
+  sucursal_envio?: string | null
+  cotizacion_envio_id?: string | null
+}
+
+// ---- Envíos con transportistas (Edge Function cotizar-envio) ----
+export type Transportista = 'andreani' | 'correo_argentino'
+
+export type ServicioEnvio = 'domicilio' | 'sucursal'
+
+export interface SucursalEnvio {
+  id: string
+  nombre: string
+  direccion: string
 }
 
 // ---- Cupones de descuento (migración de cupones / envíos) ----

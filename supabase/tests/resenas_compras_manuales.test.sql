@@ -26,6 +26,7 @@ insert into auth.users (
   ('b7000000-0000-4000-8000-0000000000ad', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'admin@manual.test',
    '{"provider":"email","providers":["email"]}', '{"nombre":"Admin"}', now(), now());
+update auth.users set email_confirmed_at = now() where id::text like 'b7000000-%';
 update public.profiles set rol = 'admin' where id = 'b7000000-0000-4000-8000-0000000000ad';
 
 insert into public.categorias (id, nombre) values ('b7c00000-0000-4000-8000-000000000001', 'Cat manual');

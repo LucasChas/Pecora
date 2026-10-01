@@ -158,3 +158,15 @@ export function catalogoUrl(): string {
   const base = CATALOG_URL.trim().replace(/\/+$/, '')
   return /^https?:\/\//i.test(base) ? base : `https://${base}`
 }
+
+// Usuario de Instagram de la marca (sin @), o cadena vacía si no está
+// configurado. Se imprime en el comprobante de compra.
+export function instagramUsuario(): string {
+  return INSTAGRAM_USER.trim().replace(/^@+/, '')
+}
+
+// Dirección de la tienda / remitente (VITE_REMITENTE_DIRECCION, opcional).
+// Cadena vacía si no está configurada: los documentos impresos la omiten.
+export function remitenteDireccion(): string {
+  return (import.meta.env.VITE_REMITENTE_DIRECCION ?? '').trim()
+}

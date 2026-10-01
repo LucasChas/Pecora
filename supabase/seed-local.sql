@@ -133,6 +133,18 @@ insert into public.productos (id, categoria_id, nombre, descripcion, precio, sto
   ('b0000000-0000-4000-8000-000000000012', 'c0000000-0000-4000-8000-000000000004',
    'Bolso maternal de lona', 'Bolso amplio con cambiador incluido y bolsillo térmico.', 42000, 2, null, now() - interval '140 days');
 
+-- Peso y medidas para cotizar con transportistas (el resto usa los defaults
+-- de la Edge Function cotizar-envio).
+update public.productos p
+   set peso_g = v.peso_g, alto_cm = v.alto_cm, ancho_cm = v.ancho_cm, largo_cm = v.largo_cm
+  from (values
+    ('b0000000-0000-4000-8000-000000000001'::uuid, 80, 2.0, 15.0, 20.0),
+    ('b0000000-0000-4000-8000-000000000004'::uuid, 350, 5.0, 25.0, 30.0),
+    ('b0000000-0000-4000-8000-000000000005'::uuid, 600, 10.0, 30.0, 35.0),
+    ('b0000000-0000-4000-8000-000000000012'::uuid, 900, 15.0, 35.0, 45.0)
+  ) as v(id, peso_g, alto_cm, ancho_cm, largo_cm)
+ where p.id = v.id;
+
 -- -----------------------------------------------------------------------------
 -- Zonas de envío y cupones
 -- -----------------------------------------------------------------------------
