@@ -49,6 +49,9 @@ export interface Perfil {
   telefono: string | null
   rol: Rol
   created_at: string
+  // Quiere recibir mails de novedades (migración *_mi_cuenta). false si la
+  // base todavía no tiene la columna.
+  acepta_novedades?: boolean
 }
 
 // ---- Pedidos (ver migraciones 0003 / 0005) ----

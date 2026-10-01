@@ -1,0 +1,272 @@
+/* ============================================================
+   "Mi cuenta" (/mi-cuenta): secciones en tarjetas, pensadas
+   primero para el celular.
+   ============================================================ */
+
+.catalog-root main.account.mi-cuenta {
+  max-width: 640px;
+  width: 100%;
+}
+.mi-cuenta .cart-title {
+  margin-bottom: 2px;
+}
+.mc-sub {
+  margin: 0 0 18px;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+/* Atajos arriba */
+.mc-atajos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.mc-atajo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 84px;
+  padding: 12px 8px;
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+.mc-atajo svg {
+  width: 24px;
+  height: 24px;
+  color: var(--sage-deep);
+}
+@media (hover: hover) {
+  .mc-atajo:hover {
+    box-shadow: 0 6px 14px rgba(51, 48, 42, 0.1);
+  }
+}
+
+/* Secciones */
+.mc-seccion {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.08);
+  scroll-margin-top: 16px;
+}
+.mc-seccion h2 {
+  margin: 0 0 4px;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+.mc-ayuda {
+  margin: 0 0 14px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.mc-vacio {
+  margin: 8px 0 0;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+.mc-vacio a {
+  color: var(--sage-deep);
+  font-weight: 600;
+}
+.mc-btn {
+  width: auto;
+  min-width: 180px;
+}
+.mc-ok {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--success-pale);
+  color: var(--ink);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+/* Listas (avisos, reseñas) */
+.mc-lista {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.mc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.mc-item:first-child {
+  border-top: none;
+}
+.mc-item--resena {
+  align-items: flex-start;
+}
+.mc-item-prod {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.mc-item-prod img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--cream-deep);
+  flex-shrink: 0;
+}
+.mc-item-prod > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+.mc-item-prod strong a {
+  color: inherit;
+  text-decoration: none;
+}
+.mc-item-prod small {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+.mc-item-prod .rs-estrella {
+  width: 15px;
+  height: 15px;
+}
+.mc-comentario {
+  font-size: 0.85rem;
+  color: var(--ink);
+  quotes: '“' '”';
+}
+.mc-acciones {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.mc-link {
+  border: none;
+  background: none;
+  padding: 8px 4px;
+  min-height: 40px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--sage-deep);
+  text-decoration: underline;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mc-link--peligro {
+  color: var(--danger);
+}
+
+/* Seguridad: desplegables */
+.mc-desplegables {
+  display: flex;
+  flex-direction: column;
+}
+.mc-desplegable {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0;
+  border: none;
+  border-top: 1px solid var(--line);
+  background: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+.mc-desplegable:first-child {
+  border-top: none;
+}
+.mc-desplegable span {
+  font-size: 1.3rem;
+  color: var(--sage-deep);
+}
+.mc-subform {
+  padding: 4px 0 16px;
+}
+
+/* Preferencias */
+.mc-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 0.92rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.mc-check input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--sage);
+  flex-shrink: 0;
+}
+.mc-check small {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+/* Eliminar cuenta */
+.mc-seccion--peligro {
+  border: 1px solid var(--danger-pale);
+}
+.mc-btn-peligro {
+  border: 1px solid var(--danger);
+  background: #fff;
+  color: var(--danger);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.88rem;
+  padding: 11px 18px;
+  border-radius: 100px;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .mc-btn-peligro:not(:disabled):hover {
+    background: var(--danger-pale);
+  }
+}
+
+@media (max-width: 420px) {
+  .mc-seccion {
+    padding: 16px;
+  }
+  .mc-btn {
+    width: 100%;
+  }
+}

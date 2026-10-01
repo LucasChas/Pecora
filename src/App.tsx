@@ -8,6 +8,7 @@ import AccountPage from './pages/AccountPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import MyOrdersPage from './pages/MyOrdersPage'
 import ComprobantePage from './pages/ComprobantePage'
+import MiCuentaPage from './pages/MiCuentaPage'
 import CartDrawer from './components/cart/CartDrawer'
 import Footer from './components/catalog/Footer'
 import ScrollManager from './components/ScrollManager'
@@ -62,6 +63,7 @@ function RutasCatalogo() {
       <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/cuenta" element={<AccountPage />} />
       <Route path="/restablecer-contrasena" element={<ResetPasswordPage />} />
+      <Route path="/mi-cuenta" element={<MiCuentaPage />} />
       <Route path="/mis-pedidos" element={<MyOrdersPage />} />
       <Route path="/mis-pedidos/:numero/comprobante" element={<ComprobantePage />} />
       <Route path="/privacidad" element={<PrivacyPage />} />
