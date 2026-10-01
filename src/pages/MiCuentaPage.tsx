@@ -23,6 +23,8 @@ import {
   guardarPreferencias,
   type MiAviso,
 } from '../lib/miCuenta'
+import { cargarCuponesDisponibles, textoBeneficio, type CuponDisponible } from '../lib/cupones'
+import { money } from '../lib/format'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 import '../styles/account.css'
@@ -91,6 +93,7 @@ export default function MiCuentaPage() {
           </a>
         </nav>
 
+        <MisCupones />
         <MisDatos />
         <MisAvisos />
         <MisResenas />
@@ -99,6 +102,70 @@ export default function MiCuentaPage() {
         <EliminarCuenta />
       </main>
     </div>
+  )
+}
+
+// ---- Cupones disponibles -----------------------------------------------------------
+
+function fechaCorta(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' })
+}
+
+// Solo aparece si la tienda marcó algún cupón como visible y la clienta
+// todavía lo puede usar (cupones_disponibles en la base).
+function MisCupones() {
+  const { notificar } = useDialog()
+  const [cupones, setCupones] = useState<CuponDisponible[]>([])
+
+  useEffect(() => {
+    let vigente = true
+    void cargarCuponesDisponibles().then((lista) => {
+      if (vigente) setCupones(lista)
+    })
+    return () => {
+      vigente = false
+    }
+  }, [])
+
+  if (cupones.length === 0) return null
+
+  async function copiar(codigo: string) {
+    try {
+      await navigator.clipboard.writeText(codigo)
+      notificar(`Código ${codigo} copiado: pegalo en el checkout`)
+    } catch {
+      notificar(`Tu código es ${codigo}`)
+    }
+  }
+
+  return (
+    <section className="mc-seccion mc-seccion--cupones" aria-labelledby="mc-cupones-titulo">
+      <h2 id="mc-cupones-titulo">Tus cupones</h2>
+      <ul className="mc-cupones">
+        {cupones.map((c) => (
+          <li key={c.codigo} className="mc-cupon">
+            <div>
+              <p className="mc-cupon-beneficio">{textoBeneficio(c)}</p>
+              {c.descripcion && <p className="mc-cupon-desc">{c.descripcion}</p>}
+              <p className="mc-cupon-cond">
+                {[
+                  c.minimoCompra > 0 ? `Compra mínima ${money(c.minimoCompra)}` : null,
+                  c.soloPrimeraCompra ? 'Para tu primera compra' : null,
+                  c.hasta ? `Vence el ${fechaCorta(c.hasta)}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            </div>
+            <button type="button" className="mc-cupon-codigo" onClick={() => copiar(c.codigo)} aria-label={`Copiar el código ${c.codigo}`}>
+              {c.codigo}
+              <small>Copiar</small>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

@@ -453,3 +453,72 @@
   width: 20px;
   height: 20px;
 }
+
+/* ---------- Mis pedidos: línea de tiempo y acciones ---------- */
+.mp-pasos {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 4px;
+  display: flex;
+}
+.mp-paso {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+/* Línea entre puntos: del centro de este paso al del anterior. */
+.mp-paso + .mp-paso::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--line);
+}
+.mp-paso--hecho + .mp-paso::before,
+.mp-paso--hecho + .mp-paso--actual::before {
+  background: var(--sage);
+}
+.mp-paso-punto {
+  position: relative;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--line);
+}
+.mp-paso--hecho .mp-paso-punto {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+.mp-paso--actual .mp-paso-punto {
+  border-color: var(--sage);
+  box-shadow: 0 0 0 4px var(--sage-pale);
+}
+.mp-paso--hecho .mp-paso-texto,
+.mp-paso--actual .mp-paso-texto {
+  color: var(--ink);
+  font-weight: 600;
+}
+.mp-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+button.mp-comprobante {
+  font-family: inherit;
+  cursor: pointer;
+}
+button.mp-comprobante:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

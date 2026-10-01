@@ -193,3 +193,20 @@ describe('validarDatosCupon', () => {
     ).toMatch(/anterior/)
   })
 })
+
+describe('cupones visibles en Mi cuenta', () => {
+  it('normaliza la lista y arma el texto del beneficio', async () => {
+    const { normalizarCuponesDisponibles, textoBeneficio } = await import('./cupones')
+    const lista = normalizarCuponesDisponibles([
+      { codigo: 'BIENVENIDA', descripcion: ' Para tu primera compra ', tipo: 'porcentaje', valor: '10', minimo_compra: '0', hasta: null, solo_primera_compra: true },
+      { codigo: 'X', tipo: 'raro', valor: 1 },
+      null,
+    ])
+    expect(lista).toEqual([
+      { codigo: 'BIENVENIDA', descripcion: 'Para tu primera compra', tipo: 'porcentaje', valor: 10, minimoCompra: 0, hasta: null, soloPrimeraCompra: true },
+    ])
+    expect(textoBeneficio({ tipo: 'porcentaje', valor: 10 })).toBe('10 % de descuento')
+    expect(textoBeneficio({ tipo: 'envio_gratis', valor: 0 })).toBe('Envío gratis')
+    expect(textoBeneficio({ tipo: 'monto', valor: 500 }).replace(/\s/g, ' ')).toMatch(/500 de descuento$/)
+  })
+})

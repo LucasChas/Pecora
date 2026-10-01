@@ -71,6 +71,7 @@ interface Formulario {
   usosPorCliente: string
   soloPrimeraCompra: boolean
   activo: boolean
+  visibleEnCuenta: boolean
 }
 
 const FORM_VACIO: Formulario = {
@@ -85,6 +86,7 @@ const FORM_VACIO: Formulario = {
   usosPorCliente: '1',
   soloPrimeraCompra: false,
   activo: true,
+  visibleEnCuenta: false,
 }
 
 function formDe(c: Cupon): Formulario {
@@ -101,6 +103,7 @@ function formDe(c: Cupon): Formulario {
     usosPorCliente: c.usos_por_cliente === null ? '' : String(c.usos_por_cliente),
     soloPrimeraCompra: c.solo_primera_compra,
     activo: c.activo,
+    visibleEnCuenta: c.visible_en_cuenta === true,
   }
 }
 
@@ -117,6 +120,7 @@ function datosDe(f: Formulario): DatosCupon {
     usos_por_cliente: enteroOpcional(f.usosPorCliente),
     solo_primera_compra: f.soloPrimeraCompra,
     activo: f.activo,
+    visible_en_cuenta: f.visibleEnCuenta,
   }
 }
 
@@ -281,6 +285,7 @@ export default function CuponesAdmin() {
                       : `${c.usos_por_cliente} por clienta`}
                   </li>
                   {c.solo_primera_compra && <li>Solo primera compra</li>}
+                  {c.visible_en_cuenta && <li>Visible en Mi cuenta</li>}
                 </ul>
                 <div className="ajuste-acciones">
                   <button type="button" className="ajuste-btn" onClick={() => abrirEdicion(c)}>
@@ -426,6 +431,14 @@ export default function CuponesAdmin() {
                 onChange={(e) => cambiar('soloPrimeraCompra', e.target.checked)}
               />
               Solo para la primera compra de la clienta
+            </label>
+            <label className="ajuste-check">
+              <input
+                type="checkbox"
+                checked={form.visibleEnCuenta}
+                onChange={(e) => cambiar('visibleEnCuenta', e.target.checked)}
+              />
+              Mostrarlo en "Mi cuenta" de las clientas (si no, solo lo usa quien conoce el código)
             </label>
             <label className="ajuste-check">
               <input type="checkbox" checked={form.activo} onChange={(e) => cambiar('activo', e.target.checked)} />
