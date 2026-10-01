@@ -18,6 +18,7 @@ import '../styles/account.css'
 const ESTADO_CLIENTE: Record<EstadoPedido, { texto: string; clase: string }> = {
   nuevo: { texto: 'Pedido recibido', clase: 'e-nuevo' },
   confirmado: { texto: 'Confirmado · en preparación', clase: 'e-confirmado' },
+  enviado: { texto: 'Enviado · en camino', clase: 'e-enviado' },
   entregado: { texto: 'Entregado', clase: 'e-entregado' },
   cancelado: { texto: 'Cancelado', clase: 'e-cancelado' },
 }
@@ -248,6 +249,23 @@ export default function MyOrdersPage() {
                       ? `Envío a ${p.direccion}, ${p.localidad} (CP ${p.cp})${p.provincia ? `, ${p.provincia}` : ''}`
                       : 'Retiro / a coordinar'}
                   </div>
+                  {(p.seguimiento || (p.pagado_at && estado !== 'cancelado')) && (
+                    <div className="mp-extra">
+                      {p.pagado_at && estado !== 'cancelado' && <span className="mp-pagado">Pago recibido ✓</span>}
+                      {p.seguimiento && (
+                        <span>
+                          Seguimiento:{' '}
+                          {/^https?:\/\//.test(p.seguimiento) ? (
+                            <a href={p.seguimiento} target="_blank" rel="noopener noreferrer">
+                              ver el envío
+                            </a>
+                          ) : (
+                            <strong className="mp-seguimiento">{p.seguimiento}</strong>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Un pedido cancelado siempre tiene una explicación del otro
                       lado: le damos a la clienta cómo pedirla. */}

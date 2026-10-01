@@ -122,6 +122,9 @@
 .order-card.estado-confirmado {
   border-left-color: var(--clay);
 }
+.order-card.estado-enviado {
+  border-left-color: var(--sage);
+}
 .order-card.estado-entregado {
   border-left-color: #7ba05b;
 }
@@ -2250,4 +2253,50 @@
   font-size: 0.82rem;
   color: var(--ink-soft);
   margin: 4px 0 0;
+}
+
+/* Pago y seguimiento en la card del pedido. */
+.order-pago {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 10px;
+}
+.order-pago-btn {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 100px;
+  padding: 8px 14px;
+  min-height: 40px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.order-pago-btn.pagado {
+  background: #e7f0de;
+  border-color: #b9d1a3;
+  color: #4c6b34;
+}
+.order-seguimiento {
+  flex: 1 1 180px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  background: #fff;
+  color: var(--ink);
+}
+.order-pill-pago {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: #fbe3df;
+  color: var(--danger);
+  margin-left: 6px;
 }

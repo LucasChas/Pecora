@@ -100,7 +100,7 @@ VITE_APP_MODE=                          # catalog | admin | vacío (local = toda
 `id` uuid PK · `numero` bigint **identity** (nº de orden legible) · `user_id` → auth.users
 `nombre` · `telefono` · `email` · `entrega` (`'envio'|'coordinar'`) · `direccion` · `localidad` · `cp` · `notas`
 `items` jsonb (foto de los ítems: `[{id,nombre,precio,cantidad}]`) · `subtotal` numeric
-`estado` (`'nuevo'|'confirmado'|'entregado'|'cancelado'`) · `created_at`
+`estado` (`'nuevo'|'confirmado'|'enviado'|'entregado'|'cancelado'`) · `pagado_at` (null = sin pagar) · `seguimiento` · `created_at`
 
 ### `profiles`
 `id` uuid PK → auth.users · `nombre` · `telefono` · `rol` (`'cliente'|'admin'`) · `created_at`
@@ -168,6 +168,7 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `20260928191953_gastos_rentabilidad.sql` | Gastos y rentabilidad (solo admin). Tabla `gastos` (`fecha` por defecto hoy en hora de Argentina, `concepto` recortado de 1 a 200, `categoria` `materiales`/`packaging`/`envios`/`otros`, `monto` > 0, `producto_id` opcional con `on delete set null`, `cantidad` opcional > 0 = unidades que cubre la compra, `notas`, `created_by` fijado por trigger con `auth.uid()`); RLS de select/insert/update/delete con `es_admin()`, sin permisos para `anon`. `rentabilidad(p_desde, p_hasta)`: jsonb solo admin (42501) con `por_mes` (ingresos = `pedidos.total` de ventas válidas, igual que `estadisticas()`; gastos por `fecha`; beneficio y margen; zona `America/Argentina/Cordoba`), `totales`, `productos` (unidades y ventas brutas de `ventas_validas`, costo unitario estimado = sum(monto)/sum(cantidad) de las compras del producto con cantidad hasta `p_hasta`, costo, beneficio y margen estimados, `gastos_periodo`), `gastos_por_categoria` y `gastos_generales` (sin producto). Tests: `supabase/tests/gastos_rentabilidad.test.sql`. |
 | `20261001020000_cerrar_ajustar_stock.sql` | Revoca EXECUTE de `ajustar_stock_pedido` a `public`/`anon`/`authenticated`: era `SECURITY DEFINER` y cualquiera podía cambiar el stock por `/rest/v1/rpc`. La usan solo los triggers de pedidos. Tests: `supabase/tests/funciones_internas.test.sql` (lista de funciones `SECURITY DEFINER` que puede llamar cada rol). |
 | `20261001020100_grants_explicitos.sql` | `GRANT`s explícitos de las tablas y funciones auxiliares de 0001→0014 (reemplaza el "auto expose" que se elimina el 2026-10-30). En producción no cambia nada. Tests: `privilegios_base.test.sql`. |
+| `20261001030000_pedido_enviado_pagado.sql` | `pedidos.estado` acepta `enviado` (no toca el stock), columnas `pagado_at` y `seguimiento` (≤ 300). El trigger `pedidos_limitar_empleado` deja a un empleado cambiar también esas dos. Tests: `supabase/tests/pedido_enviado_pagado.test.sql`. |
 
 ### Cómo se aplican
 

@@ -364,6 +364,7 @@ export function nuevaClaveIdempotencia(): string {
 export const ETIQUETA_ESTADO: Record<EstadoPedido, string> = {
   nuevo: 'Nuevo',
   confirmado: 'En preparación',
+  enviado: 'Enviado',
   entregado: 'Entregado',
   cancelado: 'Cancelado',
 }

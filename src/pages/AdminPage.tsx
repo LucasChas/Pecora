@@ -36,8 +36,10 @@ const FILTROS: { valor: FiltroEstado; texto: string }[] = [
   { valor: 'todos', texto: 'Todos' },
   { valor: 'nuevo', texto: 'Nuevos' },
   { valor: 'confirmado', texto: 'En preparación' },
+  { valor: 'enviado', texto: 'Enviados' },
   { valor: 'entregado', texto: 'Entregados' },
   { valor: 'cancelado', texto: 'Cancelados' },
+  { valor: 'sin-pagar', texto: 'Sin pagar' },
   { valor: 'eliminados', texto: 'Papelera' },
 ]
 

@@ -154,6 +154,9 @@
 .mp-card.e-confirmado {
   border-left-color: var(--clay);
 }
+.mp-card.e-enviado {
+  border-left-color: var(--sage);
+}
 .mp-card.e-entregado {
   border-left-color: var(--success);
 }
@@ -191,6 +194,10 @@
 .mp-estado.e-confirmado {
   background: #FBEBD8;
   color: var(--clay);
+}
+.mp-estado.e-enviado {
+  background: var(--sage-pale);
+  color: var(--sage-deep);
 }
 .mp-estado.e-entregado {
   background: var(--success-pale);
@@ -321,4 +328,22 @@
   gap: 12px;
   font-size: 0.85rem;
   color: var(--ink-soft);
+}
+
+/* Pago recibido y seguimiento del envío. */
+.mp-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.mp-pagado {
+  color: var(--success);
+  font-weight: 600;
+}
+.mp-seguimiento {
+  color: var(--ink);
+  user-select: all;
 }
