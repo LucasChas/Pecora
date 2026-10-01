@@ -120,6 +120,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [items],
   )
 
+  // Estables entre renders: el carrito lateral las usa en efectos y, si
+  // cambiaran con cada render, le robarían el foco a la clienta al tocar +/−.
+  const abrirDrawer = useCallback(() => setDrawerAbierto(true), [])
+  const cerrarDrawer = useCallback(() => setDrawerAbierto(false), [])
+
   const value: CartContextValue = {
     items,
     cantidadTotal,
@@ -130,8 +135,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     vaciar,
     reemplazar,
     drawerAbierto,
-    abrirDrawer: () => setDrawerAbierto(true),
-    cerrarDrawer: () => setDrawerAbierto(false),
+    abrirDrawer,
+    cerrarDrawer,
   }
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

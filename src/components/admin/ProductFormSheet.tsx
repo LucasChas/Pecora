@@ -253,17 +253,29 @@ export default function ProductFormSheet({
       setSubida({ hechas: 0, total: pendientes.length })
       let siguiente = 0
       let hechas = 0
+      // Si una foto falla, los otros dos dejan de tomar fotos y no tocan más el
+      // formulario (la hoja pudo cerrarse o pasar a otro producto).
+      let cortar = false
       const trabajador = async () => {
-        while (siguiente < pendientes.length) {
+        while (!cortar && siguiente < pendientes.length) {
           const { item, i } = pendientes[siguiente++]
-          const url = await subirImagen(item.file)
+          let url: string
+          try {
+            url = await subirImagen(item.file)
+          } catch (err) {
+            cortar = true
+            throw err
+          }
+          if (cortar) return
           URL.revokeObjectURL(item.preview)
           galeria[i] = { key: item.key, kind: 'url', url }
           setImagenes([...galeria])
           setSubida({ hechas: ++hechas, total: pendientes.length })
         }
       }
-      await Promise.all([trabajador(), trabajador(), trabajador()])
+      const resultados = await Promise.allSettled([trabajador(), trabajador(), trabajador()])
+      const fallo = resultados.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+      if (fallo) throw fallo.reason
       const imagenesFinal = galeria.map((it) => (it.kind === 'url' ? it.url : ''))
 
       const payload: Record<string, unknown> = {

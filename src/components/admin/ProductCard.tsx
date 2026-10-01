@@ -28,62 +28,68 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
   const editando = useRef<'precio' | 'stock' | null>(null)
   const stockAlEditar = useRef(producto.stock)
 
+  // Escrituras de stock en curso (−/+ o tipeado): se guardan de a una, en
+  // orden, cada una condicionada al valor que dejó la anterior.
+  const colaStock = useRef<Promise<void>>(Promise.resolve())
+  const stockPendientes = useRef(0)
+
   // Si el producto cambia desde afuera (Realtime), sincronizamos los inputs,
-  // salvo el que tiene el foco: no le borramos lo que está escribiendo.
+  // salvo el que tiene el foco (no le borramos lo que está escribiendo) y el
+  // stock mientras haya escrituras en cola (mostraría un valor intermedio).
   useEffect(() => {
     if (editando.current !== 'precio') setPrecio(String(producto.precio))
-    if (editando.current !== 'stock') setStock(String(producto.stock))
+    if (editando.current !== 'stock' && stockPendientes.current === 0) setStock(String(producto.stock))
   }, [producto.precio, producto.stock])
 
   function empezarEdicion(campo: 'precio' | 'stock') {
     editando.current = campo
-    stockAlEditar.current = producto.stock
+    // El valor en pantalla: si hay toques de −/+ en cola, ya los incluye.
+    const visible = Number(stock)
+    stockAlEditar.current = Number.isNaN(visible) ? producto.stock : visible
+  }
+
+  function encolarStock(nuevo: number, base: number, avisarGuardado: boolean) {
+    stockPendientes.current++
+    colaStock.current = colaStock.current.then(async () => {
+      try {
+        const r = await guardarProductoSinPisarStock(producto.id, { stock: nuevo }, base)
+        if (r.ok) {
+          if (avisarGuardado) notificar('Stock guardado')
+        } else if (r.conflicto) {
+          setStock(String(r.stockActual))
+          await avisar({ titulo: 'El stock cambió', mensaje: mensajeConflictoStock(base, r.stockActual) })
+        } else {
+          setStock(String(base))
+          await avisar({ titulo: 'No se pudo guardar el cambio', mensaje: r.error })
+        }
+      } finally {
+        stockPendientes.current--
+        onChanged()
+      }
+    })
   }
 
   // El stock se guarda solo si en la base sigue el valor que se veía al
   // empezar a escribir: si entró una venta en el medio, se avisa en vez de
   // pisarla.
   async function guardarCampo(campo: 'precio' | 'stock', valor: number) {
-    const leido = stockAlEditar.current
-    const r = await guardarProductoSinPisarStock(producto.id, { [campo]: valor }, leido)
+    if (campo === 'stock') return encolarStock(valor, stockAlEditar.current, true)
+    const r = await guardarProductoSinPisarStock(producto.id, { precio: valor }, producto.stock)
     if (r.ok) {
-      notificar(campo === 'precio' ? 'Precio guardado' : 'Stock guardado')
-      onChanged() // Refresca datos tras guardar (pill de stock, catálogo, etc.)
-      return
-    }
-    if (r.conflicto) {
-      setStock(String(r.stockActual))
-      await avisar({
-        titulo: 'El stock cambió',
-        mensaje: mensajeConflictoStock(leido, r.stockActual),
-      })
-      onChanged()
+      notificar('Precio guardado')
+      onChanged() // Refresca datos tras guardar (catálogo, etc.)
     } else {
-      await avisar({ titulo: 'No se pudo guardar el cambio', mensaje: r.error })
+      await avisar({ titulo: 'No se pudo guardar el cambio', mensaje: 'error' in r ? r.error : '' })
     }
   }
 
-  // Botones −/+ de stock: sumar o restar una unidad sin tipear. Los toques
-  // seguidos se guardan en orden, cada uno condicionado al valor que dejó el
-  // anterior (así una venta en el medio se detecta igual).
-  const colaStock = useRef<Promise<void>>(Promise.resolve())
+  // Botones −/+ de stock: sumar o restar una unidad sin tipear.
   function sumarStock(delta: 1 | -1) {
     const base = Number(stock)
     if (Number.isNaN(base) || base + delta < 0) return
     const nuevo = base + delta
     setStock(String(nuevo))
-    colaStock.current = colaStock.current.then(async () => {
-      const r = await guardarProductoSinPisarStock(producto.id, { stock: nuevo }, base)
-      if (r.ok) return onChanged()
-      if (r.conflicto) {
-        setStock(String(r.stockActual))
-        await avisar({ titulo: 'El stock cambió', mensaje: mensajeConflictoStock(base, r.stockActual) })
-      } else {
-        setStock(String(base))
-        await avisar({ titulo: 'No se pudo guardar el cambio', mensaje: r.error })
-      }
-      onChanged()
-    })
+    encolarStock(nuevo, base, false)
   }
 
   // Al salir del campo: si quedó vacío o inválido, revertimos al valor guardado
@@ -94,7 +100,9 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
     editando.current = null
     const n = Number(texto)
     if (texto.trim() === '' || Number.isNaN(n) || n < 0 || n === anterior) {
-      campo === 'precio' ? setPrecio(String(producto.precio)) : setStock(String(producto.stock))
+      if (campo === 'precio') setPrecio(String(producto.precio))
+      else if (stockPendientes.current === 0) setStock(String(producto.stock))
+      else setStock(String(anterior))
       return
     }
     guardarCampo(campo, n)

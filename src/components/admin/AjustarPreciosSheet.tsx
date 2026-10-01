@@ -174,7 +174,10 @@ export default function AjustarPreciosSheet({ open, categorias, onClose, onChang
 
           {cargando && !cambios && <p className="ajuste-nota">Calculando…</p>}
           {cambios && cambios.length === 0 && (
-            <p className="ajuste-nota">Con ese ajuste no cambia ningún precio.</p>
+            <p className="ajuste-nota">
+              Con ese ajuste no cambia ningún precio. Si redondeás a un monto grande, los
+              precios que se moverían al revés (o quedarían en $0) se dejan igual.
+            </p>
           )}
           {cambios && cambios.length > 0 && (
             <div className="ajuste-previa" aria-live="polite">
