@@ -3,7 +3,8 @@ import type { EstadoPedido, Pedido } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
 import { money } from '../../lib/format'
-import { detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
+import { ETIQUETA_ESTADO, detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
+import { linkWhatsappPedido } from '../../lib/whatsapp'
 import OrderPrintView, { type TipoImpresion } from './OrderPrintView'
 
 interface Props {
@@ -49,15 +50,6 @@ export function mailsPendientes(pedido: Pedido, ahora: number): MailsPendientes 
 
 type EstadoReenvio = 'listo' | 'enviando' | 'solicitado'
 
-// Arma un link de WhatsApp al teléfono de la clienta (normaliza el número a AR).
-function waCliente(telefono: string, numero: number): string {
-  let d = telefono.replace(/\D/g, '')
-  if (d.startsWith('0')) d = d.slice(1)
-  if (!d.startsWith('54')) d = '549' + d
-  const msg = `Hola! Te escribo por tu pedido #${numero} en Pecora 🐑`
-  return `https://wa.me/${d}?text=${encodeURIComponent(msg)}`
-}
-
 function fecha(iso: string): string {
   return new Date(iso).toLocaleString('es-AR', {
     day: '2-digit',
@@ -71,12 +63,18 @@ function fecha(iso: string): string {
 // un selector para cambiar el estado y el menú "Imprimir" (nota de entrega y,
 // si es envío, etiqueta).
 export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinitivo = false }: Props) {
-  const { confirmar, avisar } = useDialog()
+  const { confirmar, avisar, notificar } = useDialog()
   const enPapelera = pedido.eliminado_at !== null
   const totales = totalesDe(pedido)
   const detalle = detalleDe(pedido)
   const esEnvio = pedido.entrega === 'envio'
   const mails = mailsPendientes(pedido, ahora ?? Date.now())
+
+  // Estado que se muestra en el selector: cambia al instante al elegir (antes
+  // volvía al anterior hasta que respondía la base y parecía que no anduvo).
+  const [estadoVisible, setEstadoVisible] = useState<EstadoPedido>(pedido.estado)
+  useEffect(() => setEstadoVisible(pedido.estado), [pedido.estado])
+  const linkWa = linkWhatsappPedido({ ...pedido, estado: estadoVisible, total: totales.total })
 
   const [reenvio, setReenvio] = useState<EstadoReenvio>('listo')
   const [menuImprimir, setMenuImprimir] = useState(false)
@@ -153,14 +151,27 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
         textoCancelar: 'Volver',
         peligro: true,
       })
-      if (!ok) {
-        onChanged() // devuelve el select al estado real
-        return
-      }
+      if (!ok) return
     }
+    const anterior = pedido.estado
+    if (!(await guardarEstado(estado))) return
+    // Con un filtro activo el pedido puede desaparecer de la lista: el aviso
+    // dice a dónde fue y permite deshacer un toque equivocado.
+    notificar(`Pedido #${pedido.numero} → ${ETIQUETA_ESTADO[estado]}`, {
+      accion: { texto: 'Deshacer', onClick: () => void guardarEstado(anterior) },
+    })
+  }
+
+  async function guardarEstado(estado: EstadoPedido): Promise<boolean> {
+    setEstadoVisible(estado)
     const { error } = await supabase.from('pedidos').update({ estado }).eq('id', pedido.id)
-    if (error) await avisar({ titulo: 'No se pudo actualizar el estado', mensaje: error.message })
-    else onChanged()
+    if (error) {
+      setEstadoVisible(pedido.estado)
+      await avisar({ titulo: 'No se pudo actualizar el estado', mensaje: error.message })
+      return false
+    }
+    onChanged()
+    return true
   }
 
   // "Borrar" manda a la papelera: se puede recuperar desde el filtro Eliminados.
@@ -245,14 +256,15 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
         </div>
         {/* En la papelera no se cambia el estado: primero hay que restaurarlo. */}
         <select
-          className={`order-estado ${pedido.estado}`}
-          value={pedido.estado}
+          className={`order-estado ${estadoVisible}`}
+          value={estadoVisible}
           disabled={enPapelera}
+          aria-label={`Estado del pedido #${pedido.numero}`}
           onChange={(e) => cambiarEstado(e.target.value as EstadoPedido)}
         >
           {ESTADOS.map((es) => (
             <option key={es} value={es}>
-              {es}
+              {ETIQUETA_ESTADO[es]}
             </option>
           ))}
         </select>
@@ -260,9 +272,13 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
 
       <div className="order-cliente">
         <strong>{pedido.nombre}</strong>
-        <a className="order-wa" href={waCliente(pedido.telefono, pedido.numero)} target="_blank" rel="noopener noreferrer">
-          {pedido.telefono} · WhatsApp
-        </a>
+        {linkWa ? (
+          <a className="order-wa" href={linkWa} target="_blank" rel="noopener noreferrer">
+            {pedido.telefono} · WhatsApp
+          </a>
+        ) : (
+          <span className="order-email">{pedido.telefono || 'Sin teléfono'}</span>
+        )}
         {pedido.email && <span className="order-email">{pedido.email}</span>}
       </div>
 

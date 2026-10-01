@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Categoria, ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
+import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
 
 interface Props {
   open: boolean
@@ -69,6 +70,9 @@ export default function CategoryManagerSheet({
       onChanged() // Refresca la lista tras borrar.
     }
   }
+
+  // "Atrás" en el celular cierra la hoja en vez de salir del panel.
+  useCerrarConAtras(open, onClose)
 
   return (
     <div

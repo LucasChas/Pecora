@@ -16,6 +16,7 @@ import {
   type CuponConUsos,
   type DatosCupon,
 } from '../../lib/cupones'
+import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
 
 // ---- Fechas del formulario ------------------------------------------------------
 // El input date trabaja con "AAAA-MM-DD" en hora local; la base guarda
@@ -220,6 +221,9 @@ export default function CuponesAdmin() {
   }
 
   const ahora = Date.now()
+
+  // "Atrás" en el celular cierra la hoja en vez de salir del panel.
+  useCerrarConAtras(hojaAbierta, () => setHojaAbierta(false))
 
   return (
     <>
@@ -434,6 +438,11 @@ export default function CuponesAdmin() {
               </p>
             )}
 
+            {editando && (
+              <button type="button" className="btn-danger-text sheet-peligro" onClick={() => borrar(editando)}>
+                Borrar cupón
+              </button>
+            )}
             <div className="sheet-actions">
               <button type="submit" className="btn btn-primary" disabled={guardando}>
                 {guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear cupón'}
@@ -441,11 +450,6 @@ export default function CuponesAdmin() {
               <button type="button" className="btn btn-ghost" onClick={() => setHojaAbierta(false)}>
                 Cancelar
               </button>
-              {editando && (
-                <button type="button" className="btn-danger-text" onClick={() => borrar(editando)}>
-                  Borrar cupón
-                </button>
-              )}
             </div>
           </form>
         </div>

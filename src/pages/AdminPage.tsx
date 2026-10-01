@@ -21,6 +21,8 @@ import CatalogExport from '../components/admin/CatalogExport'
 import AjustesPanel from '../components/admin/AjustesPanel'
 import EstadisticasPanel from '../components/admin/EstadisticasPanel'
 import { permisosDe } from '../lib/roles'
+import { STOCK_BAJO } from '../lib/stock'
+import { coincideBusqueda } from '../lib/format'
 import '../styles/admin.css'
 
 // 'exportar' = lista de precios para imprimir/PDF (pantalla completa, sin pestañas).
@@ -90,21 +92,37 @@ export default function AdminPage() {
   // tenemos todos los productos cargados por useProducts).
   const [busquedaProducto, setBusquedaProducto] = useState('')
   const [categoriaProductoActiva, setCategoriaProductoActiva] = useState('Todos')
-  const [soloSinStock, setSoloSinStock] = useState(false)
+  // Filtro de stock: "Poco stock" avisa antes de que se agote (antes solo
+  // existía "Sin stock", y se enteraba cuando ya no había).
+  const [filtroStock, setFiltroStock] = useState<'todos' | 'poco' | 'sin'>('todos')
+  const conteoPocoStock = productos.filter((p) => p.stock > 0 && p.stock <= STOCK_BAJO).length
+  const conteoSinStock = productos.filter((p) => p.stock <= 0).length
 
   const productosFiltrados = useMemo(() => {
-    const term = busquedaProducto.trim().toLowerCase()
     return productos.filter((p) => {
       const coincideCat =
         categoriaProductoActiva === 'Todos' || p.categoria_nombre === categoriaProductoActiva
-      const coincideTexto =
-        !term ||
-        p.nombre.toLowerCase().includes(term) ||
-        (p.categoria_nombre ?? '').toLowerCase().includes(term)
-      const coincideStock = !soloSinStock || p.stock === 0
+      const coincideTexto = coincideBusqueda(
+        busquedaProducto,
+        p.nombre,
+        p.categoria_nombre,
+        p.sku,
+        p.descripcion,
+      )
+      const coincideStock =
+        filtroStock === 'todos' ||
+        (filtroStock === 'sin' && p.stock <= 0) ||
+        (filtroStock === 'poco' && p.stock > 0 && p.stock <= STOCK_BAJO)
       return coincideCat && coincideTexto && coincideStock
     })
-  }, [productos, busquedaProducto, categoriaProductoActiva, soloSinStock])
+  }, [productos, busquedaProducto, categoriaProductoActiva, filtroStock])
+  const filtrandoProductos =
+    busquedaProducto.trim() !== '' || categoriaProductoActiva !== 'Todos' || filtroStock !== 'todos'
+  function limpiarFiltrosProductos() {
+    setBusquedaProducto('')
+    setCategoriaProductoActiva('Todos')
+    setFiltroStock('todos')
+  }
 
   const {
     pedidos,
@@ -287,7 +305,7 @@ export default function AdminPage() {
               <SearchBar
                 value={busquedaProducto}
                 onChange={setBusquedaProducto}
-                placeholder="Buscar por nombre o categoría"
+                placeholder="Buscar por nombre, categoría o SKU"
                 className="orders-search"
               />
               <div className="orders-chips">
@@ -298,10 +316,20 @@ export default function AdminPage() {
                   className="chip"
                 />
                 <button
-                  className={soloSinStock ? 'chip active' : 'chip'}
-                  onClick={() => setSoloSinStock((v) => !v)}
+                  type="button"
+                  className={filtroStock === 'poco' ? 'chip active' : 'chip'}
+                  aria-pressed={filtroStock === 'poco'}
+                  onClick={() => setFiltroStock((f) => (f === 'poco' ? 'todos' : 'poco'))}
                 >
-                  Sin stock
+                  Poco stock{conteoPocoStock > 0 ? ` (${conteoPocoStock})` : ''}
+                </button>
+                <button
+                  type="button"
+                  className={filtroStock === 'sin' ? 'chip active' : 'chip'}
+                  aria-pressed={filtroStock === 'sin'}
+                  onClick={() => setFiltroStock((f) => (f === 'sin' ? 'todos' : 'sin'))}
+                >
+                  Sin stock{conteoSinStock > 0 ? ` (${conteoSinStock})` : ''}
                 </button>
               </div>
             </div>
@@ -333,7 +361,13 @@ export default function AdminPage() {
                 <div className="empty">Cargando productos…</div>
               </div>
             ) : (
-              <ProductList productos={productosFiltrados} onEditar={abrirEdicion} onChanged={refrescar} />
+              <ProductList
+                productos={productosFiltrados}
+                onEditar={abrirEdicion}
+                onChanged={refrescar}
+                filtrando={filtrandoProductos}
+                onLimpiarFiltros={limpiarFiltrosProductos}
+              />
             )}
             <button className="fab" aria-label="Nuevo producto" onClick={abrirNuevo}>
               +<span className="fab-label">Nuevo producto</span>

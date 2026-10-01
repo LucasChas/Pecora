@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { money } from './format'
+import { coincideBusqueda, money } from './format'
 
 // Intl separa "$" del número con un espacio duro (U+00A0 o U+202F según la
 // versión de ICU): se normaliza a un espacio común para comparar.
@@ -20,5 +20,23 @@ describe('money', () => {
 
   it('los negativos llevan el signo adelante', () => {
     expect(plano(money(-2500))).toBe('-$ 2.500')
+  })
+})
+
+describe('coincideBusqueda', () => {
+  it('ignora acentos y mayúsculas', () => {
+    expect(coincideBusqueda('algodon', 'Body de Algodón')).toBe(true)
+    expect(coincideBusqueda('BEBE', 'Manta bebé')).toBe(true)
+  })
+
+  it('cada palabra puede estar en cualquier texto y en cualquier orden', () => {
+    expect(coincideBusqueda('manta rosa', 'Manta tejida', 'Color rosa')).toBe(true)
+    expect(coincideBusqueda('rosa manta', 'Manta tejida rosa')).toBe(true)
+    expect(coincideBusqueda('manta azul', 'Manta tejida rosa')).toBe(false)
+  })
+
+  it('búsqueda vacía coincide con todo; textos nulos se ignoran', () => {
+    expect(coincideBusqueda('  ', 'lo que sea')).toBe(true)
+    expect(coincideBusqueda('body', null, undefined, 'Body')).toBe(true)
   })
 })

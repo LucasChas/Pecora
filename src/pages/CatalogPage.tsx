@@ -9,6 +9,8 @@ import MasVendidos from '../components/catalog/MasVendidos'
 import HeaderActions from '../components/account/HeaderActions'
 import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
+import { coincideBusqueda } from '../lib/format'
+import { OPCIONES_ORDEN, ordenDeUrl, ordenarCatalogo } from '../lib/ordenCatalogo'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 
@@ -40,6 +42,18 @@ export default function CatalogPage() {
   const [params, setParams] = useSearchParams()
   const busqueda = params.get('q') ?? ''
   const categoriaActiva = params.get('cat') ?? 'Todos'
+  const orden = ordenDeUrl(params.get('orden'))
+
+  const setOrden = (v: string) =>
+    setParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        if (v && v !== 'novedades') p.set('orden', v)
+        else p.delete('orden')
+        return p
+      },
+      { replace: true },
+    )
 
   // Actualiza un parámetro de la URL sin perder los demás.
   const setBusqueda = (v: string) =>
@@ -61,20 +75,16 @@ export default function CatalogPage() {
       return p
     })
 
-  // Filtrado por categoría + término de búsqueda (nombre, descripción, categoría).
+  // Filtrado por categoría + término de búsqueda (nombre, descripción,
+  // categoría; sin importar acentos ni el orden de las palabras) y orden.
   const visibles = useMemo(() => {
-    const term = busqueda.trim().toLowerCase()
-    return productos.filter((p) => {
+    const filtrados = productos.filter((p) => {
       const coincideCat =
         categoriaActiva === 'Todos' || p.categoria_nombre === categoriaActiva
-      const coincideTexto =
-        !term ||
-        p.nombre.toLowerCase().includes(term) ||
-        (p.descripcion ?? '').toLowerCase().includes(term) ||
-        (p.categoria_nombre ?? '').toLowerCase().includes(term)
-      return coincideCat && coincideTexto
+      return coincideCat && coincideBusqueda(busqueda, p.nombre, p.descripcion, p.categoria_nombre)
     })
-  }, [productos, busqueda, categoriaActiva])
+    return ordenarCatalogo(filtrados, orden)
+  }, [productos, busqueda, categoriaActiva, orden])
 
   // "Lo más vendido" solo en la portada: sin búsqueda ni categoría elegida.
   const sinFiltros = !busqueda.trim() && categoriaActiva === 'Todos'
@@ -156,6 +166,18 @@ export default function CatalogPage() {
               </div>
             )}
             {sinFiltros && <MasVendidos productos={productos} />}
+            {visibles.length > 1 && (
+              <div className="orden-catalogo">
+                <label htmlFor="orden-catalogo">Ordenar por</label>
+                <select id="orden-catalogo" value={orden} onChange={(e) => setOrden(e.target.value)}>
+                  {OPCIONES_ORDEN.map((o) => (
+                    <option key={o.valor} value={o.valor}>
+                      {o.texto}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <ProductGrid productos={visibles} />
           </>
         )}

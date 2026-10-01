@@ -7,6 +7,7 @@ import { subirOriginalConMiniatura } from '../../lib/thumbnails'
 import { useDialog } from '../../context/DialogContext'
 import { guardarProductoSinPisarStock, mensajeConflictoStock } from '../../lib/stock'
 import ImagePicker, { type ImagenItem } from './ImagePicker'
+import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
 
 interface Props {
   open: boolean
@@ -41,6 +42,18 @@ function imagenesGuardadas(p: ProductoConCategoria | null): ImagenItem[] {
   return urls.map((url) => ({ key: url, kind: 'url', url }))
 }
 
+// Resumen de los campos del formulario, para detectar cambios sin guardar.
+function firmaCampos(
+  nombre: string,
+  categoriaId: string,
+  descripcion: string,
+  precio: string,
+  stock: string,
+  imagenes: ImagenItem[],
+): string {
+  return JSON.stringify([nombre, categoriaId, descripcion, precio, stock, imagenes.map((i) => i.key)])
+}
+
 // Hoja (bottom sheet) para crear o editar un producto.
 // Incluye la carga de imagen (a Storage) y el selector de categoría con la
 // opción de crear una nueva sin salir del formulario.
@@ -68,8 +81,10 @@ export default function ProductFormSheet({
   const [mostrarNuevaCat, setMostrarNuevaCat] = useState(false)
   const [nuevaCat, setNuevaCat] = useState('')
 
-  const { confirmar } = useDialog()
+  const { confirmar, notificar } = useDialog()
   const [guardando, setGuardando] = useState(false)
+  // Foto de los campos al abrir, para saber si hay cambios sin guardar.
+  const [inicial, setInicial] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   // Referencia siempre actualizada al estado de imágenes, sólo para poder
@@ -98,8 +113,41 @@ export default function ProductFormSheet({
     setMostrarNuevaCat(false)
     setNuevaCat('')
     setError(null)
+    setInicial(
+      firmaCampos(
+        producto?.nombre ?? '',
+        producto?.categoria_id ?? categorias[0]?.id ?? '',
+        producto?.descripcion ?? '',
+        producto ? String(producto.precio) : '',
+        producto ? String(producto.stock) : '',
+        imagenesGuardadas(producto),
+      ),
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, producto])
+
+  const hayCambios =
+    open && firmaCampos(nombre, categoriaId, descripcion, precio, stock, imagenes) !== inicial
+
+  // Cerrar (Cancelar, tocar el fondo o "Atrás"): si hay cambios sin guardar,
+  // pregunta antes de descartarlos (una foto a medio cargar se perdía con un
+  // toque fuera de la hoja).
+  async function pedirCierre(): Promise<boolean> {
+    if (guardando) return false
+    if (hayCambios) {
+      const ok = await confirmar({
+        titulo: '¿Descartar los cambios?',
+        mensaje: 'Hay cambios sin guardar en este producto.',
+        textoOk: 'Descartar',
+        textoCancelar: 'Seguir editando',
+        peligro: true,
+      })
+      if (!ok) return false
+    }
+    onClose()
+    return true
+  }
+  useCerrarConAtras(open, pedirCierre)
 
   // Al desmontar el componente, liberamos cualquier preview de archivo nuevo
   // que haya quedado viva.
@@ -219,6 +267,7 @@ export default function ProductFormSheet({
       }
       onChanged() // Refresca los datos para que el cambio se vea al instante.
       onClose()
+      notificar(producto ? 'Cambios guardados' : 'Producto creado')
     } catch (err) {
       setError('No se pudo guardar: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
@@ -248,7 +297,7 @@ export default function ProductFormSheet({
     <div
       className={open ? 'overlay open' : 'overlay'}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        if (e.target === e.currentTarget) void pedirCierre()
       }}
     >
       <div className="sheet sheet--producto">
@@ -342,18 +391,18 @@ export default function ProductFormSheet({
 
           {error && <p className="form-error">{error}</p>}
 
+          {producto && (
+            <button type="button" className="btn-danger-text sheet-peligro" onClick={eliminar}>
+              Eliminar producto
+            </button>
+          )}
           <div className="sheet-actions">
             <button type="submit" className="btn btn-primary" disabled={guardando}>
               {guardando ? 'Guardando…' : 'Guardar producto'}
             </button>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+            <button type="button" className="btn btn-ghost" onClick={() => void pedirCierre()}>
               Cancelar
             </button>
-            {producto && (
-              <button type="button" className="btn-danger-text" onClick={eliminar}>
-                Eliminar producto
-              </button>
-            )}
           </div>
         </form>
       </div>

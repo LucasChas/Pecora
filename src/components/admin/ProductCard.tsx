@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ProductoConCategoria } from '../../types'
 import { useDialog } from '../../context/DialogContext'
 import { portadaDe } from '../../lib/images'
-import { guardarProductoSinPisarStock, mensajeConflictoStock } from '../../lib/stock'
+import { STOCK_BAJO, guardarProductoSinPisarStock, mensajeConflictoStock } from '../../lib/stock'
 import Miniatura from '../common/Miniatura'
 
 interface Props {
@@ -16,8 +16,9 @@ interface Props {
 // Los cambios se guardan al salir del campo (onBlur) y Realtime refresca la
 // vista (acá y en el catálogo público).
 export default function ProductCard({ producto, onEditar, onChanged }: Props) {
-  const { avisar } = useDialog()
+  const { avisar, notificar } = useDialog()
   const disponible = producto.stock > 0
+  const pocoStock = disponible && producto.stock <= STOCK_BAJO
 
   // Estado local para poder escribir libremente; se confirma al salir del input.
   const [precio, setPrecio] = useState(String(producto.precio))
@@ -46,6 +47,7 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
     const leido = stockAlEditar.current
     const r = await guardarProductoSinPisarStock(producto.id, { [campo]: valor }, leido)
     if (r.ok) {
+      notificar(campo === 'precio' ? 'Precio guardado' : 'Stock guardado')
       onChanged() // Refresca datos tras guardar (pill de stock, catálogo, etc.)
       return
     }
@@ -59,6 +61,29 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
     } else {
       await avisar({ titulo: 'No se pudo guardar el cambio', mensaje: r.error })
     }
+  }
+
+  // Botones −/+ de stock: sumar o restar una unidad sin tipear. Los toques
+  // seguidos se guardan en orden, cada uno condicionado al valor que dejó el
+  // anterior (así una venta en el medio se detecta igual).
+  const colaStock = useRef<Promise<void>>(Promise.resolve())
+  function sumarStock(delta: 1 | -1) {
+    const base = Number(stock)
+    if (Number.isNaN(base) || base + delta < 0) return
+    const nuevo = base + delta
+    setStock(String(nuevo))
+    colaStock.current = colaStock.current.then(async () => {
+      const r = await guardarProductoSinPisarStock(producto.id, { stock: nuevo }, base)
+      if (r.ok) return onChanged()
+      if (r.conflicto) {
+        setStock(String(r.stockActual))
+        await avisar({ titulo: 'El stock cambió', mensaje: mensajeConflictoStock(base, r.stockActual) })
+      } else {
+        setStock(String(base))
+        await avisar({ titulo: 'No se pudo guardar el cambio', mensaje: r.error })
+      }
+      onChanged()
+    })
   }
 
   // Al salir del campo: si quedó vacío o inválido, revertimos al valor guardado
@@ -85,16 +110,18 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
             <div className="prod-name">{producto.nombre}</div>
             <div className="prod-cat">{producto.categoria_nombre ?? 'Sin categoría'}</div>
           </div>
-          <span className={disponible ? 'status-pill ok' : 'status-pill off'}>
-            {disponible ? 'Disponible' : 'Sin stock'}
+          <span className={!disponible ? 'status-pill off' : pocoStock ? 'status-pill low' : 'status-pill ok'}>
+            {!disponible ? 'Sin stock' : pocoStock ? `Quedan ${producto.stock}` : 'Disponible'}
           </span>
         </div>
 
         <div className="prod-fields">
           <div className="mini-field">
-            <label>Precio</label>
+            <label htmlFor={`precio-${producto.id}`}>Precio</label>
             <input
+              id={`precio-${producto.id}`}
               type="number"
+              inputMode="decimal"
               min={0}
               value={precio}
               onChange={(e) => setPrecio(e.target.value)}
@@ -105,17 +132,36 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
               onWheel={(e) => e.currentTarget.blur()}
             />
           </div>
-          <div className="mini-field">
-            <label>Stock</label>
-            <input
-              type="number"
-              min={0}
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              onFocus={() => empezarEdicion('stock')}
-              onBlur={() => confirmarCampo('stock', stock, stockAlEditar.current)}
-              onWheel={(e) => e.currentTarget.blur()}
-            />
+          <div className="mini-field mini-field--stock">
+            <label htmlFor={`stock-${producto.id}`}>Stock</label>
+            <div className="stock-stepper">
+              <button
+                type="button"
+                aria-label={`Restar una unidad de ${producto.nombre}`}
+                onClick={() => sumarStock(-1)}
+                disabled={Number(stock) <= 0}
+              >
+                −
+              </button>
+              <input
+                id={`stock-${producto.id}`}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                onFocus={() => empezarEdicion('stock')}
+                onBlur={() => confirmarCampo('stock', stock, stockAlEditar.current)}
+                onWheel={(e) => e.currentTarget.blur()}
+              />
+              <button
+                type="button"
+                aria-label={`Sumar una unidad de ${producto.nombre}`}
+                onClick={() => sumarStock(1)}
+              >
+                +
+              </button>
+            </div>
           </div>
         </div>
 

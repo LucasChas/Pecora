@@ -9,6 +9,8 @@ import {
   nuevaClaveIdempotencia,
 } from '../../lib/orders'
 import { validarCupon, type ResultadoCupon } from '../../lib/cupones'
+import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
+import { useDialog } from '../../context/DialogContext'
 
 interface Props {
   open: boolean
@@ -183,13 +185,42 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     !guardando &&
     !validandoCupon
 
+  // Qué falta para poder crear el pedido (antes el botón quedaba gris sin
+  // decir por qué).
+  const faltantes = [
+    items.length === 0 && 'agregá al menos un producto',
+    !nombreValido && 'el nombre (2 letras o más)',
+    !telefonoValido && 'un teléfono de 8 dígitos o más',
+    !entregaValida && 'la dirección y la localidad del envío',
+  ].filter(Boolean) as string[]
+
+  const { confirmar, notificar } = useDialog()
+  const hayCambios = open && (items.length > 0 || nombre.trim() !== '' || telefono.trim() !== '')
+
+  async function pedirCierre(): Promise<boolean> {
+    if (guardando) return false
+    if (hayCambios) {
+      const ok = await confirmar({
+        titulo: '¿Descartar este pedido?',
+        mensaje: 'Todavía no lo creaste: se pierden los datos cargados.',
+        textoOk: 'Descartar',
+        textoCancelar: 'Seguir cargando',
+        peligro: true,
+      })
+      if (!ok) return false
+    }
+    onClose()
+    return true
+  }
+  useCerrarConAtras(open, pedirCierre)
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!puedeConfirmar) return
     setGuardando(true)
     setError(null)
     try {
-      await crearPedido({
+      const numero = await crearPedido({
         datos: { nombre, telefono, entrega, direccion, localidad, cp, provincia, notas },
         items,
         origen: 'admin',
@@ -199,6 +230,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
       claveRef.current = null
       onChanged()
       onClose()
+      notificar(`Pedido #${numero} creado`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo crear el pedido.')
     } finally {
@@ -210,7 +242,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     <div
       className={open ? 'overlay open' : 'overlay'}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        if (e.target === e.currentTarget) void pedirCierre()
       }}
     >
       <div className="sheet">
@@ -433,12 +465,15 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           </div>
 
           {error && <p className="form-error">{error}</p>}
+          {faltantes.length > 0 && (
+            <p className="manual-faltan">Para crear el pedido falta: {faltantes.join(', ')}.</p>
+          )}
 
           <div className="sheet-actions">
             <button type="submit" className="btn btn-primary" disabled={!puedeConfirmar}>
               {guardando ? 'Guardando…' : 'Crear pedido'}
             </button>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+            <button type="button" className="btn btn-ghost" onClick={() => void pedirCierre()}>
               Cancelar
             </button>
           </div>
