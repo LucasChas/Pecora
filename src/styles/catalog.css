@@ -1626,3 +1626,84 @@
   padding: 6px 12px;
   min-height: 40px;
 }
+
+/* ---------- Favoritos (corazón) ---------- */
+.card {
+  position: relative;
+}
+.fav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink-soft);
+}
+.fav-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+.fav-btn--activo {
+  color: var(--danger);
+}
+.fav-btn--activo svg {
+  fill: currentColor;
+}
+/* En la card: círculo blanco sobre la esquina de la foto. */
+.fav-btn--card {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  right: 8px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 4px rgba(51, 48, 42, 0.15);
+}
+@media (pointer: coarse) {
+  .fav-btn--card {
+    width: 44px;
+    height: 44px;
+    top: 4px;
+    right: 4px;
+  }
+}
+/* En la ficha: al lado del nombre. */
+.pd-titulo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.fav-btn--ficha {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+@media (hover: hover) {
+  .fav-btn--ficha:hover {
+    border-color: var(--sage);
+  }
+  .fav-btn--card:hover {
+    color: var(--danger);
+  }
+}
+/* El cartel de la foto no se mete debajo del corazón. */
+.card-img .badge {
+  max-width: calc(100% - 64px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

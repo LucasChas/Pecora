@@ -18,6 +18,7 @@ import AddToCart from '../cart/AddToCart'
 import ImageZoom from '../common/ImageZoom'
 import Miniatura from '../common/Miniatura'
 import { Estrellas } from './ResenasProducto'
+import BotonFavorito from './BotonFavorito'
 import { estrellasDePromedio, formatearPromedio, textoCantidad } from '../../lib/resenas'
 import { useResumenesResenas } from '../../hooks/useResumenesResenas'
 
@@ -185,7 +186,10 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
         {/* Información */}
         <div className="pd-info">
           {producto.categoria_nombre && <p className="pd-cat">{producto.categoria_nombre}</p>}
-          <h1 className="pd-name">{producto.nombre}</h1>
+          <div className="pd-titulo">
+            <h1 className="pd-name">{producto.nombre}</h1>
+            <BotonFavorito productoId={producto.id} nombre={producto.nombre} variante="ficha" />
+          </div>
           {resumen && resumen.cantidad > 0 && (
             <a className="pd-rating" href="#rs-titulo">
               <Estrellas

@@ -333,3 +333,79 @@
   letter-spacing: 0;
   opacity: 0.9;
 }
+
+/* Atajos: con favoritos son 4 (2×2 en celular). */
+.mc-atajos {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 520px) {
+  .mc-atajos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mc-atajo {
+    min-height: 72px;
+  }
+}
+
+/* Direcciones */
+.mc-dir {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.mc-dir small {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+.mc-dir-principal {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--sage-pale);
+  color: var(--sage-deep);
+  font-size: 0.7rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.mc-dir-form {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.mc-fila {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+}
+.mc-dir-form select {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.mc-form-botones {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.mc-agregar {
+  margin-top: 10px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px dashed var(--sage);
+  border-radius: 100px;
+  background: none;
+  color: var(--sage-deep);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+}

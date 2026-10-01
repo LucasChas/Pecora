@@ -25,6 +25,18 @@ import {
 } from '../lib/miCuenta'
 import { cargarCuponesDisponibles, textoBeneficio, type CuponDisponible } from '../lib/cupones'
 import { money } from '../lib/format'
+import { useFavoritos } from '../context/FavoritosContext'
+import { cargarProductosPorId } from '../lib/pedidoCliente'
+import { PROVINCIAS_AR } from '../lib/orders'
+import {
+  MAX_DIRECCIONES,
+  borrarDireccion,
+  cargarDirecciones,
+  guardarDireccion,
+  type DatosDireccion,
+  type Direccion,
+} from '../lib/direcciones'
+import type { ProductoConCategoria } from '../types'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 import '../styles/account.css'
@@ -78,6 +90,12 @@ export default function MiCuentaPage() {
             </svg>
             <span>Mis pedidos</span>
           </Link>
+          <a href="#mc-favoritos" className="mc-atajo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 20.5s-7.5-4.4-9.3-9.2C1.6 8.2 3.6 4.5 7.2 4.5c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.6 0 5.6 3.7 4.5 6.8-1.8 4.8-9.3 9.2-9.3 9.2z" />
+            </svg>
+            <span>Favoritos</span>
+          </a>
           <a href="#mc-avisos" className="mc-atajo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -95,6 +113,8 @@ export default function MiCuentaPage() {
 
         <MisCupones />
         <MisDatos />
+        <MisFavoritos />
+        <MisDirecciones />
         <MisAvisos />
         <MisResenas />
         <Seguridad />
@@ -224,6 +244,214 @@ function MisDatos() {
           {guardando ? 'Guardando…' : 'Guardar cambios'}
         </button>
       </form>
+    </section>
+  )
+}
+
+// ---- Favoritos ------------------------------------------------------------------------
+
+function MisFavoritos() {
+  const { ids, alternar } = useFavoritos()
+  const [productos, setProductos] = useState<ProductoConCategoria[] | null>(null)
+  const clave = ids ? [...ids].sort().join(',') : ''
+
+  useEffect(() => {
+    if (!ids) return
+    let vigente = true
+    void cargarProductosPorId([...ids]).then((lista) => {
+      if (vigente) setProductos(lista)
+    })
+    return () => {
+      vigente = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave])
+
+  if (!ids) return null
+  // Mismo orden que la lista de favoritos (los más nuevos primero).
+  const orden = [...ids]
+  const visibles = (productos ?? []).filter((p) => ids.has(p.id)).sort((a, b) => orden.indexOf(a.id) - orden.indexOf(b.id))
+
+  return (
+    <section className="mc-seccion" id="mc-favoritos" aria-labelledby="mc-favoritos-titulo">
+      <h2 id="mc-favoritos-titulo">Favoritos</h2>
+      {productos === null && ids.size > 0 ? (
+        <p className="mc-vacio">Cargando…</p>
+      ) : visibles.length === 0 ? (
+        <p className="mc-vacio">Todavía no guardaste favoritos. Tocá el corazón de un producto para guardarlo acá.</p>
+      ) : (
+        <ul className="mc-lista">
+          {visibles.map((p) => (
+            <li key={p.id} className="mc-item">
+              <Link to={`/producto/${p.slug ?? p.id}`} className="mc-item-prod">
+                <img src={portadaDe(p) || IMG_PLACEHOLDER} alt="" />
+                <span>
+                  <strong>{p.nombre}</strong>
+                  <small>
+                    {money(p.precio)}
+                    {p.stock > 0 ? '' : ' · Sin stock'}
+                  </small>
+                </span>
+              </Link>
+              <button type="button" className="mc-link" onClick={() => alternar(p.id)}>
+                Quitar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+// ---- Direcciones ---------------------------------------------------------------------
+
+const DIRECCION_VACIA: DatosDireccion = { alias: '', direccion: '', localidad: '', cp: '', provincia: '', principal: false }
+
+function MisDirecciones() {
+  const { confirmar, notificar } = useDialog()
+  const [lista, setLista] = useState<Direccion[] | null>(null)
+  const [editando, setEditando] = useState<{ id?: string; datos: DatosDireccion } | null>(null)
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const cargar = useCallback(async () => setLista(await cargarDirecciones()), [])
+  useEffect(() => {
+    void cargar()
+  }, [cargar])
+
+  function cambiar<K extends keyof DatosDireccion>(campo: K, valor: DatosDireccion[K]) {
+    setEditando((e) => (e ? { ...e, datos: { ...e.datos, [campo]: valor } } : e))
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editando) return
+    setGuardando(true)
+    setError(null)
+    const r = await guardarDireccion(editando.datos, editando.id)
+    setGuardando(false)
+    if (!r.ok) {
+      setError(r.error)
+      return
+    }
+    setEditando(null)
+    await cargar()
+    notificar('Dirección guardada')
+  }
+
+  async function borrar(d: Direccion) {
+    const ok = await confirmar({ titulo: `¿Borrar "${d.alias}"?`, textoOk: 'Borrar', peligro: true })
+    if (!ok) return
+    const r = await borrarDireccion(d.id)
+    if (!r.ok) {
+      notificar(r.error)
+      return
+    }
+    await cargar()
+  }
+
+  return (
+    <section className="mc-seccion" id="mc-direcciones" aria-labelledby="mc-direcciones-titulo">
+      <h2 id="mc-direcciones-titulo">Mis direcciones</h2>
+      <p className="mc-ayuda">Las elegís con un toque al comprar con envío a domicilio.</p>
+      {lista === null ? (
+        <p className="mc-vacio">Cargando…</p>
+      ) : (
+        <>
+          {lista.length === 0 && !editando && <p className="mc-vacio">Todavía no guardaste direcciones.</p>}
+          {lista.length > 0 && (
+            <ul className="mc-lista">
+              {lista.map((d) => (
+                <li key={d.id} className="mc-item">
+                  <div className="mc-dir">
+                    <strong>
+                      {d.alias}
+                      {d.principal && <span className="mc-dir-principal">Principal</span>}
+                    </strong>
+                    <small>
+                      {d.direccion}, {d.localidad}
+                      {d.cp ? ` (CP ${d.cp})` : ''}
+                      {d.provincia ? `, ${d.provincia}` : ''}
+                    </small>
+                  </div>
+                  <div className="mc-acciones">
+                    <button type="button" className="mc-link" onClick={() => { setError(null); setEditando({ id: d.id, datos: { ...d, cp: d.cp ?? '', provincia: d.provincia ?? '' } }) }}>
+                      Editar
+                    </button>
+                    <button type="button" className="mc-link mc-link--peligro" onClick={() => borrar(d)}>
+                      Borrar
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {editando ? (
+            <form className="account-form mc-subform mc-dir-form" onSubmit={onSubmit} noValidate>
+              <div className="field">
+                <label htmlFor="mc-dir-alias">Nombre (ej. Casa, Trabajo)</label>
+                <input id="mc-dir-alias" maxLength={40} value={editando.datos.alias} onChange={(e) => cambiar('alias', e.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="mc-dir-direccion">Calle y número</label>
+                <input id="mc-dir-direccion" maxLength={200} autoComplete="street-address" value={editando.datos.direccion} onChange={(e) => cambiar('direccion', e.target.value)} />
+              </div>
+              <div className="mc-fila">
+                <div className="field">
+                  <label htmlFor="mc-dir-localidad">Localidad</label>
+                  <input id="mc-dir-localidad" maxLength={100} autoComplete="address-level2" value={editando.datos.localidad} onChange={(e) => cambiar('localidad', e.target.value)} />
+                </div>
+                <div className="field">
+                  <label htmlFor="mc-dir-cp">Código postal</label>
+                  <input id="mc-dir-cp" maxLength={20} inputMode="numeric" autoComplete="postal-code" value={editando.datos.cp ?? ''} onChange={(e) => cambiar('cp', e.target.value)} />
+                </div>
+              </div>
+              <div className="field">
+                <label htmlFor="mc-dir-provincia">Provincia</label>
+                <select id="mc-dir-provincia" value={editando.datos.provincia ?? ''} onChange={(e) => cambiar('provincia', e.target.value)}>
+                  <option value="">Elegí una provincia</option>
+                  {PROVINCIAS_AR.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label className="mc-check">
+                <input type="checkbox" checked={editando.datos.principal} onChange={(e) => cambiar('principal', e.target.checked)} />
+                <span>Usarla como principal</span>
+              </label>
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
+              <div className="mc-form-botones">
+                <button type="submit" className="btn btn-primary mc-btn" disabled={guardando}>
+                  {guardando ? 'Guardando…' : 'Guardar dirección'}
+                </button>
+                <button type="button" className="mc-link" onClick={() => setEditando(null)} disabled={guardando}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          ) : (
+            lista.length < MAX_DIRECCIONES && (
+              <button
+                type="button"
+                className="mc-agregar"
+                onClick={() => {
+                  setError(null)
+                  setEditando({ datos: { ...DIRECCION_VACIA, principal: lista.length === 0 } })
+                }}
+              >
+                + Agregar dirección
+              </button>
+            )
+          )}
+        </>
+      )}
     </section>
   )
 }
