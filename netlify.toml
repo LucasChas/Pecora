@@ -1,6 +1,6 @@
 # Configuración de deploy para Netlify.
 [build]
-  command = "npm run build"
+  command = "pnpm run build"
   publish = "dist"
 
 # SPA: cualquier ruta (ej. /admin) la resuelve React Router, no el servidor.

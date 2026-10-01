@@ -61,8 +61,14 @@ OWNER_EMAIL=pecoraabril@gmail.com
 BRAND_NAME=Pecora
 BRAND_LOGO_URL=https://tu-dominio.com/logo.png
 STORE_URL=https://tu-dominio.com
+PUBLIC_ADMIN_URL=https://<url-del-panel>
 WHATSAPP_NUMBER=5493511234567
 ```
+
+- `PUBLIC_ADMIN_URL` es la dirección del panel (el deploy con
+  `VITE_APP_MODE=admin`): el botón "Abrir el panel" del mail de pedido nuevo
+  lleva ahí. Sin este secreto el botón apunta a `STORE_URL/admin`, que en el
+  muestrario publicado no existe. Es el mismo secreto que usa `gestionar-equipo`.
 
 Notas:
 - `OWNER_EMAIL` es a dónde llega el aviso de "Nuevo pedido". Acepta varias
@@ -105,7 +111,9 @@ pnpm dlx supabase@latest secrets set --env-file supabase/functions/.env.local
 #    (pegar TODO el contenido de supabase/migrations/0012_email_pedido.sql)
 ```
 
-También podés usar el script corto del `package.json`:
+También podés usar el script corto del `package.json`, que despliega **las tres
+funciones** (`enviar-recibo-pedido`, `avisar-reposicion` y `gestionar-equipo`,
+todas con la verificación JWT por defecto), así ninguna queda desactualizada:
 
 ```bash
 pnpm run deploy:fn

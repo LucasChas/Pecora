@@ -268,12 +268,17 @@ export async function crearPedido({
     p_localidad: envio ? textoOpcional(datos.localidad) : null,
     p_cp: envio ? textoOpcional(datos.cp) : null,
     p_notas: textoOpcional(datos.notas),
-    p_items: items.map((i) => ({
-      id: i.id,
-      nombre: i.nombre,
-      precio: i.precio,
-      cantidad: i.cantidad,
-    })),
+    // Ordenados por id: crear_pedido bloquea cada producto en este orden, y si
+    // dos compras simultáneas los bloquean en orden distinto se traban
+    // (deadlock) y una de las dos falla con un error técnico.
+    p_items: [...items]
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((i) => ({
+        id: i.id,
+        nombre: i.nombre,
+        precio: i.precio,
+        cantidad: i.cantidad,
+      })),
     p_subtotal: calcularSubtotal(items),
     p_origen: origen,
   }

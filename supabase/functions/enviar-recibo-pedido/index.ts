@@ -303,6 +303,10 @@ Deno.serve(async (req: Request) => {
   const brandName = Deno.env.get("BRAND_NAME") ?? "Pecora";
   const brandLogoUrl = Deno.env.get("BRAND_LOGO_URL") || null;
   const storeUrl = Deno.env.get("STORE_URL") ?? "";
+  // El panel es otro deploy (VITE_APP_MODE=admin), en su propia URL: en el
+  // muestrario /admin no existe. Es el mismo secreto que usa gestionar-equipo
+  // para las invitaciones; sin él, se cae a STORE_URL/admin (desarrollo local).
+  const adminUrl = Deno.env.get("PUBLIC_ADMIN_URL") ?? "";
   // Mismo número que usa el front (VITE_WHATSAPP_NUMBER) — como esta función
   // corre en otro runtime (Deno, no Vite), se repite como secreto propio en
   // vez de compartir el .env del frontend. Formato: código de país + área +
@@ -452,7 +456,7 @@ Deno.serve(async (req: Request) => {
         items,
         totales,
         whatsappClienteUrl: waClienteUrl(pedido.telefono, pedido.numero, brandName),
-        panelUrl: storeUrl ? `${storeUrl.replace(/\/+$/, "")}/admin` : null,
+        panelUrl: adminUrl || (storeUrl ? `${storeUrl.replace(/\/+$/, "")}/admin` : null),
       },
       branding,
     );
