@@ -12,6 +12,10 @@ export default function CartDrawer() {
   const navigate = useNavigate()
   const panelRef = useRef<HTMLElement>(null)
   const cerrarRef = useRef<HTMLButtonElement>(null)
+  // El efecto de foco depende solo de abierto/cerrado: si se volviera a correr
+  // al cambiar el carrito, movería el foco en cada toque de +/−.
+  const cerrarDrawerRef = useRef(cerrarDrawer)
+  cerrarDrawerRef.current = cerrarDrawer
 
   // Cerrado sigue en el DOM (por la animación): que no se pueda enfocar con
   // Tab ni lo lea un lector de pantalla. (React 18 no conoce la prop inert.)
@@ -28,7 +32,7 @@ export default function CartDrawer() {
     const anterior = document.activeElement as HTMLElement | null
     cerrarRef.current?.focus({ preventScroll: true })
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') return cerrarDrawer()
+      if (e.key === 'Escape') return cerrarDrawerRef.current()
       if (e.key !== 'Tab' || !panelRef.current) return
       const enfocables = panelRef.current.querySelectorAll<HTMLElement>(
         'a[href], button:not([disabled]), input, select, textarea',
@@ -51,7 +55,7 @@ export default function CartDrawer() {
       window.removeEventListener('keydown', onKey)
       anterior?.focus?.({ preventScroll: true })
     }
-  }, [drawerAbierto, cerrarDrawer])
+  }, [drawerAbierto])
 
   function irA(ruta: string) {
     cerrarDrawer()

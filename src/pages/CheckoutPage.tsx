@@ -431,11 +431,11 @@ export default function CheckoutPage() {
                   </h2>
                   <div className="field">
                     <label htmlFor="checkout-nombre">Nombre y apellido</label>
-                    <input id="checkout-nombre" type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" autoComplete="name" />
+                    <input id="checkout-nombre" maxLength={120} type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" autoComplete="name" />
                   </div>
                   <div className="field">
                     <label htmlFor="checkout-telefono">Teléfono (WhatsApp, con código de área)</label>
-                    <input id="checkout-telefono" ref={telefonoRef} type="tel" inputMode="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" autoComplete="tel" />
+                    <input id="checkout-telefono" maxLength={40} ref={telefonoRef} type="tel" inputMode="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" autoComplete="tel" />
                   </div>
                   {/* El comprobante va siempre al email de la cuenta (lo fija la
                       base, ver 20261001050000_pedidos_limites). */}
@@ -465,16 +465,16 @@ export default function CheckoutPage() {
                     <div className="entrega-datos">
                       <div className="field">
                         <label htmlFor="checkout-direccion">Dirección</label>
-                        <input id="checkout-direccion" type="text" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" autoComplete="street-address" />
+                        <input id="checkout-direccion" maxLength={200} type="text" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" autoComplete="street-address" />
                       </div>
                       <div className="row2">
                         <div className="field">
                           <label htmlFor="checkout-localidad">Localidad</label>
-                          <input id="checkout-localidad" type="text" required value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Ciudad" autoComplete="address-level2" />
+                          <input id="checkout-localidad" maxLength={100} type="text" required value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Ciudad" autoComplete="address-level2" />
                         </div>
                         <div className="field">
                           <label htmlFor="checkout-cp">Código postal</label>
-                          <input id="checkout-cp" type="text" required value={cp} onChange={(e) => setCp(e.target.value)} placeholder="CP" autoComplete="postal-code" inputMode="numeric" />
+                          <input id="checkout-cp" maxLength={20} type="text" required value={cp} onChange={(e) => setCp(e.target.value)} placeholder="CP" autoComplete="postal-code" inputMode="numeric" />
                         </div>
                       </div>
                       <div className="field">
@@ -524,7 +524,7 @@ export default function CheckoutPage() {
 
                 <div className="field">
                   <label htmlFor="checkout-notas">Notas (opcional)</label>
-                  <textarea id="checkout-notas" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Aclaraciones, horarios, etc." />
+                  <textarea id="checkout-notas" maxLength={1000} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Aclaraciones, horarios, etc." />
                 </div>
 
                 <div ref={mensajesRef}>

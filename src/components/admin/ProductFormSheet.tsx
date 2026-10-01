@@ -89,6 +89,8 @@ export default function ProductFormSheet({
 
   const { confirmar, notificar } = useDialog()
   const [guardando, setGuardando] = useState(false)
+  // Avance de la subida de fotos nuevas al guardar.
+  const [subida, setSubida] = useState<{ hechas: number; total: number } | null>(null)
   // Foto de los campos al abrir, para saber si hay cambios sin guardar.
   const [inicial, setInicial] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -243,20 +245,38 @@ export default function ProductFormSheet({
       // (ya no van todas al final como con keepUrls/newFiles separados).
       // Cada foto subida pasa a ser una URL en la galería: si después falla
       // algo y se reintenta, no se vuelve a subir (ni queda duplicada).
-      const imagenesFinal: string[] = []
+      // Se suben de a 3 en paralelo (antes de a una, sin avance visible).
       const galeria = [...imagenes]
-      for (let i = 0; i < galeria.length; i++) {
-        const item = galeria[i]
-        if (item.kind === 'url') {
-          imagenesFinal.push(item.url)
-          continue
+      const pendientes = galeria
+        .map((item, i) => ({ item, i }))
+        .filter((x): x is { item: Extract<ImagenItem, { kind: 'file' }>; i: number } => x.item.kind === 'file')
+      setSubida({ hechas: 0, total: pendientes.length })
+      let siguiente = 0
+      let hechas = 0
+      // Si una foto falla, los otros dos dejan de tomar fotos y no tocan más el
+      // formulario (la hoja pudo cerrarse o pasar a otro producto).
+      let cortar = false
+      const trabajador = async () => {
+        while (!cortar && siguiente < pendientes.length) {
+          const { item, i } = pendientes[siguiente++]
+          let url: string
+          try {
+            url = await subirImagen(item.file)
+          } catch (err) {
+            cortar = true
+            throw err
+          }
+          if (cortar) return
+          URL.revokeObjectURL(item.preview)
+          galeria[i] = { key: item.key, kind: 'url', url }
+          setImagenes([...galeria])
+          setSubida({ hechas: ++hechas, total: pendientes.length })
         }
-        const url = await subirImagen(item.file)
-        imagenesFinal.push(url)
-        URL.revokeObjectURL(item.preview)
-        galeria[i] = { key: item.key, kind: 'url', url }
-        setImagenes([...galeria])
       }
+      const resultados = await Promise.allSettled([trabajador(), trabajador(), trabajador()])
+      const fallo = resultados.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+      if (fallo) throw fallo.reason
+      const imagenesFinal = galeria.map((it) => (it.kind === 'url' ? it.url : ''))
 
       const payload: Record<string, unknown> = {
         nombre,
@@ -290,6 +310,7 @@ export default function ProductFormSheet({
       setError('No se pudo guardar: ' + (err instanceof Error ? err.message : String(err)))
     } finally {
       setGuardando(false)
+      setSubida(null)
     }
   }
 
@@ -450,7 +471,11 @@ export default function ProductFormSheet({
           )}
           <div className="sheet-actions">
             <button type="submit" className="btn btn-primary" disabled={guardando}>
-              {guardando ? 'Guardando…' : 'Guardar producto'}
+              {!guardando
+                ? 'Guardar producto'
+                : subida && subida.total > 0 && subida.hechas < subida.total
+                  ? `Subiendo fotos ${subida.hechas + 1} de ${subida.total}…`
+                  : 'Guardando…'}
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => void pedirCierre()}>
               Cancelar

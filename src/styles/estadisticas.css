@@ -797,3 +797,17 @@
     font-size: 1.45rem;
   }
 }
+
+/* Mes tocado en el gráfico de ventas. */
+.est-barra--elegida {
+  fill: var(--sage-deep);
+}
+.est-chart g {
+  cursor: pointer;
+}
+.est-chart-valor {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  min-height: 1.3em;
+}

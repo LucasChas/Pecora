@@ -253,7 +253,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           <div className="field">
             <label htmlFor="manual-nombre-de-la-clienta">Nombre de la clienta</label>
             <input
-              id="manual-nombre-de-la-clienta"
+              id="manual-nombre-de-la-clienta" maxLength={120}
               type="text"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
@@ -264,7 +264,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           <div className="field">
             <label htmlFor="manual-telefono">Teléfono</label>
             <input
-              id="manual-telefono"
+              id="manual-telefono" maxLength={40}
               type="tel"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
@@ -289,7 +289,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
               <div className="field">
                 <label htmlFor="manual-direccion">Dirección</label>
                 <input
-                  id="manual-direccion"
+                  id="manual-direccion" maxLength={200}
                   type="text"
                   value={direccion}
                   onChange={(e) => setDireccion(e.target.value)}
@@ -300,7 +300,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
                 <div className="field">
                   <label htmlFor="manual-localidad">Localidad</label>
                   <input
-                    id="manual-localidad"
+                    id="manual-localidad" maxLength={100}
                     type="text"
                     value={localidad}
                     onChange={(e) => setLocalidad(e.target.value)}
@@ -310,7 +310,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
                 <div className="field">
                   <label htmlFor="manual-cp">Código postal</label>
                   <input
-                    id="manual-cp"
+                    id="manual-cp" maxLength={20}
                     type="text"
                     inputMode="numeric"
                     value={cp}
@@ -461,7 +461,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           <div className="field">
             <label htmlFor="manual-notas">Notas</label>
             <textarea
-              id="manual-notas"
+              id="manual-notas" maxLength={1000}
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
               placeholder="Detalles del pedido..."

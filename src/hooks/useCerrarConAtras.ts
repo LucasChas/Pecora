@@ -12,7 +12,8 @@ import { useEffect, useRef } from 'react'
 // Con hojas una arriba de otra (categorías sobre producto), cada una tiene su
 // nivel: "Atrás" cierra solo la de arriba.
 //
-// `pedirCierre` devuelve (o resuelve) false si la hoja no se cerró.
+// `pedirCierre` puede preguntar antes de cerrar; si no cierra, la hoja sigue
+// abierta con su entrada en el historial.
 
 const CLAVE = 'pecoraHoja'
 let ultimoNivel = 0
@@ -31,26 +32,35 @@ export function useCerrarConAtras(
 
   useEffect(() => {
     if (!abierta) return
-    const nivel = ++ultimoNivel
+    // Después de recargar, el contador vuelve a 0 pero la entrada del
+    // historial conserva su nivel viejo: arrancamos por encima de ese.
+    const nivel = Math.max(ultimoNivel, nivelActual()) + 1
+    ultimoNivel = nivel
     window.history.pushState({ ...(window.history.state ?? {}), [CLAVE]: nivel }, '')
-    let activa = true
+    let preguntando = false
+    const ponerEntrada = () =>
+      window.history.pushState({ ...(window.history.state ?? {}), [CLAVE]: nivel }, '')
 
     const onPop = async () => {
-      if (!activa || nivelActual() >= nivel) return // "Atrás" no era para esta hoja
-      activa = false
-      const cerro = await pedirCierreRef.current()
-      if (cerro === false) {
-        // Se arrepintió: volvemos a dejar la entrada para el próximo "Atrás".
-        window.history.pushState({ ...(window.history.state ?? {}), [CLAVE]: nivel }, '')
-        activa = true
+      if (nivelActual() >= nivel) return // "Atrás" no era para esta hoja
+      // Volvemos a poner la entrada mientras se decide: si pregunta "¿Descartar
+      // cambios?" y vuelve a tocar Atrás, no se sale del panel sin contestar.
+      ponerEntrada()
+      if (preguntando) return
+      preguntando = true
+      try {
+        // Si cierra, la limpieza del efecto saca la entrada; si no, queda.
+        await pedirCierreRef.current()
+      } finally {
+        preguntando = false
       }
     }
     window.addEventListener('popstate', onPop)
 
     return () => {
       window.removeEventListener('popstate', onPop)
-      // Se cerró por la interfaz: sacamos nuestra entrada si sigue arriba.
-      if (activa && nivelActual() === nivel) window.history.back()
+      // Se cerró (por la interfaz o por Atrás): sacamos nuestra entrada si sigue arriba.
+      if (nivelActual() === nivel) window.history.back()
     }
   }, [abierta])
 }

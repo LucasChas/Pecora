@@ -23,15 +23,19 @@ export default function CategoryManagerSheet({
   onClose,
   onChanged,
 }: Props) {
-  const { confirmar } = useDialog()
+  const { confirmar, notificar } = useDialog()
   const [nueva, setNueva] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // Categoría que se está renombrando y el texto nuevo.
+  const [renombrando, setRenombrando] = useState<string | null>(null)
+  const [nombreNuevo, setNombreNuevo] = useState('')
 
   // Al abrir la hoja, limpiamos el input y cualquier error viejo.
   useEffect(() => {
     if (open) {
       setNueva('')
       setError(null)
+      setRenombrando(null)
     }
   }, [open])
 
@@ -51,6 +55,24 @@ export default function CategoryManagerSheet({
     setNueva('')
     setError(null)
     onChanged() // Refresca la lista de categorías.
+  }
+
+  // Renombrar: antes solo se podía borrar (y no si tenía productos), así que
+  // un error de tipeo quedaba para siempre en el muestrario.
+  async function renombrar(categoria: Categoria) {
+    const limpio = nombreNuevo.trim()
+    setRenombrando(null)
+    if (!limpio || limpio === categoria.nombre) return
+    const { error } = await supabase.from('categorias').update({ nombre: limpio }).eq('id', categoria.id)
+    if (error) {
+      setError(
+        error.code === '23505' ? `Ya existe una categoría "${limpio}".` : 'No se pudo renombrar: ' + error.message,
+      )
+      return
+    }
+    setError(null)
+    onChanged()
+    notificar(`Categoría renombrada a "${limpio}"`)
   }
 
   async function eliminar(categoria: Categoria) {
@@ -94,21 +116,43 @@ export default function CategoryManagerSheet({
               const enUso = cantidad > 0
               return (
                 <div className="cat-manage-item" key={c.id}>
-                  <div>
-                    <span className="cat-name">{c.nombre}</span>
-                    <span className="cat-count">
-                      {cantidad} producto{cantidad === 1 ? '' : 's'}
-                    </span>
-                  </div>
+                  {renombrando === c.id ? (
+                    <input
+                      className="cat-rename-input"
+                      autoFocus
+                      value={nombreNuevo}
+                      aria-label={`Nuevo nombre para ${c.nombre}`}
+                      onChange={(e) => setNombreNuevo(e.target.value)}
+                      onBlur={() => void renombrar(c)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur()
+                        if (e.key === 'Escape') setRenombrando(null)
+                      }}
+                    />
+                  ) : (
+                    <div>
+                      <span className="cat-name">{c.nombre}</span>
+                      <span className="cat-count">
+                        {cantidad} producto{cantidad === 1 ? '' : 's'}
+                        {enUso && ' · no se puede borrar'}
+                      </span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => {
+                      setNombreNuevo(c.nombre)
+                      setRenombrando(c.id)
+                    }}
+                  >
+                    Renombrar
+                  </button>
                   <button
                     type="button"
                     className="btn-del-cat"
                     disabled={enUso}
-                    title={
-                      enUso
-                        ? 'Reasigná o eliminá primero los productos de esta categoría'
-                        : 'Eliminar categoría'
-                    }
+                    aria-label={`Eliminar la categoría ${c.nombre}`}
                     onClick={() => eliminar(c)}
                   >
                     ✕

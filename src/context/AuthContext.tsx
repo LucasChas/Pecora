@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import type { Perfil } from '../types'
 import { esSinConfirmar, traducirErrorAuth } from '../lib/authErrores'
+import { borrarBorrador } from '../lib/borradorCheckout'
 
 interface AuthContextValue {
   session: Session | null
@@ -218,6 +219,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const salir = useCallback(async () => {
+    // En un celular compartido, la próxima cuenta no hereda los datos de envío
+    // que quedaron en el borrador del checkout.
+    borrarBorrador()
     await supabase.auth.signOut()
   }, [])
 
