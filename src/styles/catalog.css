@@ -1429,3 +1429,25 @@
     scroll-snap-align: start;
   }
 }
+
+/* Selector de orden del muestrario. */
+.orden-catalogo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px;
+  margin: 4px 0 10px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.orden-catalogo select {
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 6px 12px;
+  min-height: 40px;
+}

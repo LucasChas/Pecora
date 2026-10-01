@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient'
 import { money } from './format'
-import type { EntregaPedido, OrigenPedido, Pedido } from '../types'
+import type { EntregaPedido, EstadoPedido, OrigenPedido, Pedido } from '../types'
 
 // ============================================================================
 // Pedidos: cálculo de totales y alta vía la función crear_pedido.
@@ -357,4 +357,13 @@ export function nuevaClaveIdempotencia(): string {
   bytes[8] = (bytes[8] & 0x3f) | 0x80 // variante RFC 4122
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+// Nombre de cada estado en el panel (el mismo que usan los filtros y, del
+// lado de la clienta, "Mis pedidos").
+export const ETIQUETA_ESTADO: Record<EstadoPedido, string> = {
+  nuevo: 'Nuevo',
+  confirmado: 'En preparación',
+  entregado: 'Entregado',
+  cancelado: 'Cancelado',
 }

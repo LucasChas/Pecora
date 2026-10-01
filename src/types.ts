@@ -20,6 +20,8 @@ export interface Producto {
   // Galería de imágenes (columna "imagenes text[]", ver migración 0002).
   // Puede venir undefined si todavía no corriste esa migración.
   imagenes?: string[] | null
+  // Código interno opcional (carga masiva, ver 20260928144838_importar_productos).
+  sku?: string | null
   created_at: string
   updated_at: string
 }

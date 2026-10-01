@@ -15,6 +15,7 @@ import {
   validarDatosZona,
   type DatosZona,
 } from '../../lib/envios'
+import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
 
 interface Formulario {
   nombre: string
@@ -177,6 +178,9 @@ export default function ZonasEnvioAdmin() {
     if (error) await avisar({ titulo: 'No se pudo guardar el orden', mensaje: error })
     cargar()
   }
+
+  // "Atrás" en el celular cierra la hoja en vez de salir del panel.
+  useCerrarConAtras(hojaAbierta, () => setHojaAbierta(false))
 
   return (
     <>
@@ -367,6 +371,11 @@ export default function ZonasEnvioAdmin() {
               </p>
             )}
 
+            {editando && (
+              <button type="button" className="btn-danger-text sheet-peligro" onClick={() => borrar(editando)}>
+                Borrar zona
+              </button>
+            )}
             <div className="sheet-actions">
               <button type="submit" className="btn btn-primary" disabled={guardando}>
                 {guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear zona'}
@@ -374,11 +383,6 @@ export default function ZonasEnvioAdmin() {
               <button type="button" className="btn btn-ghost" onClick={() => setHojaAbierta(false)}>
                 Cancelar
               </button>
-              {editando && (
-                <button type="button" className="btn-danger-text" onClick={() => borrar(editando)}>
-                  Borrar zona
-                </button>
-              )}
             </div>
           </form>
         </div>
