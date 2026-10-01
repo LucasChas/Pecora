@@ -389,6 +389,43 @@ export async function leerPedidoCreado(numero: number, userId: string): Promise<
   }
 }
 
+// ---- Mis pedidos -----------------------------------------------------------------
+
+// El RPC no existe todavía (migración *_mis_pedidos.sql sin aplicar).
+function faltaRpc(error: { code?: string } | null): boolean {
+  return error?.code === 'PGRST202' || error?.code === '42883'
+}
+
+/**
+ * Pedidos de la clienta logueada: los de la web con su cuenta y los cargados
+ * a mano (WhatsApp) con su email confirmado (RPC mis_pedidos). Si la base
+ * todavía no tiene el RPC, solo los de su cuenta, como antes. Lanza si falla.
+ */
+export async function cargarMisPedidos(userId: string): Promise<Pedido[]> {
+  const { data, error } = await supabase.rpc('mis_pedidos')
+  if (!error) return (data ?? []) as Pedido[]
+  if (!faltaRpc(error)) throw error
+  const viejo = await supabase
+    .from('pedidos')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (viejo.error) throw viejo.error
+  return (viejo.data ?? []) as Pedido[]
+}
+
+/** Un pedido de la clienta por número (comprobante). null si no es suyo o falla. */
+export async function leerMiPedido(numero: number, userId: string): Promise<Pedido | null> {
+  try {
+    const { data, error } = await supabase.rpc('mis_pedidos', { p_numero: numero })
+    if (error) return faltaRpc(error) ? await leerPedidoCreado(numero, userId) : null
+    const filas = (data ?? []) as Pedido[]
+    return filas[0] ?? null
+  } catch {
+    return null
+  }
+}
+
 // Clave de idempotencia (UUID v4). crypto.randomUUID solo existe en contextos
 // seguros (https / localhost): si falta (ej. probando desde el celular por la
 // IP de la red local), se arma con crypto.getRandomValues.
