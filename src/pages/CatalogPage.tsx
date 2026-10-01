@@ -13,6 +13,7 @@ import { coincideBusqueda } from '../lib/format'
 import { OPCIONES_ORDEN, ordenDeUrl, ordenarCatalogo } from '../lib/ordenCatalogo'
 import '../styles/catalog.css'
 import '../styles/cart.css'
+import { useTitulo } from '../hooks/useTitulo'
 
 // Vista CLIENTE: muestrario público, sin login.
 // La categoría y la búsqueda viven en la URL (?cat=...&q=...): así el filtro es
@@ -43,6 +44,7 @@ export default function CatalogPage() {
   const busqueda = params.get('q') ?? ''
   const categoriaActiva = params.get('cat') ?? 'Todos'
   const orden = ordenDeUrl(params.get('orden'))
+  useTitulo(busqueda.trim() ? `Buscar "${busqueda.trim()}"` : categoriaActiva !== 'Todos' ? categoriaActiva : null)
 
   const setOrden = (v: string) =>
     setParams(

@@ -13,6 +13,7 @@ import ImageZoom from '../components/common/ImageZoom'
 import type { EstadoPedido, Pedido } from '../types'
 import '../styles/catalog.css'
 import '../styles/account.css'
+import { useTitulo } from '../hooks/useTitulo'
 
 // Cómo se le muestra el estado a la clienta (más amable que el interno).
 const ESTADO_CLIENTE: Record<EstadoPedido, { texto: string; clase: string }> = {
@@ -37,6 +38,7 @@ function fecha(iso: string): string {
 // Cuando la admin cambia el estado de un pedido, acá se actualiza solo (Realtime).
 export default function MyOrdersPage() {
   const { session, loading: cargandoSesion } = useAuth()
+  useTitulo('Mis pedidos')
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [cargando, setCargando] = useState(true)
   // Si la carga falla no decimos "todavía no hiciste pedidos" (falso y

@@ -340,8 +340,9 @@ export default function ProductFormSheet({
           <ImagePicker items={imagenes} onChange={onImagenesChange} onAddFiles={agregarFiles} />
 
           <div className="field">
-            <label>Nombre</label>
+            <label htmlFor="producto-nombre">Nombre</label>
             <input
+              id="producto-nombre"
               type="text"
               required
               value={nombre}
@@ -352,12 +353,13 @@ export default function ProductFormSheet({
 
           <div className="field">
             <div className="field-label-row">
-              <label>Categoría</label>
+              <label htmlFor="producto-categoria">Categoría</label>
               <button type="button" className="link-btn" onClick={onGestionarCategorias}>
                 Gestionar categorías
               </button>
             </div>
             <select
+              id="producto-categoria"
               value={mostrarNuevaCat ? '__new__' : categoriaId}
               onChange={(e) => onCategoriaChange(e.target.value)}
             >
@@ -395,8 +397,9 @@ export default function ProductFormSheet({
           </div>
 
           <div className="field">
-            <label>Descripción breve</label>
+            <label htmlFor="producto-descripcion-breve">Descripción breve</label>
             <textarea
+              id="producto-descripcion-breve"
               required
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
@@ -406,9 +409,11 @@ export default function ProductFormSheet({
 
           <div className="row2">
             <div className="field">
-              <label>Precio (ARS)</label>
+              <label htmlFor="producto-precio-ars">Precio (ARS)</label>
               <input
+                id="producto-precio-ars"
                 type="number"
+                inputMode="decimal"
                 min={0}
                 required
                 value={precio}
@@ -417,9 +422,11 @@ export default function ProductFormSheet({
               />
             </div>
             <div className="field">
-              <label>Stock</label>
+              <label htmlFor="producto-stock">Stock</label>
               <input
+                id="producto-stock"
                 type="number"
+                inputMode="numeric"
                 min={0}
                 required
                 value={stock}

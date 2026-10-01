@@ -14,7 +14,8 @@ export default function ProductGrid({ productos }: Props) {
           No encontramos productos que coincidan con tu búsqueda.
         </div>
       ) : (
-        productos.map((p) => <ProductCard key={p.id} producto={p} />)
+        // Las primeras se ven de entrada: se piden ya (no en diferido).
+        productos.map((p, i) => <ProductCard key={p.id} producto={p} prioritaria={i < 4} />)
       )}
     </div>
   )
