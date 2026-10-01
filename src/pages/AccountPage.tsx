@@ -10,7 +10,7 @@ import '../styles/account.css'
 // Página de cuenta de clientas (/cuenta): ingresar o crear cuenta. Al entrar,
 // redirige a "next" (ej. el checkout desde el que vino) o a "Mis pedidos".
 export default function AccountPage() {
-  const { session, ingresar, registrar, recuperarPassword } = useAuth()
+  const { session, ingresar, registrar, recuperarPassword, reenviarConfirmacion } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const next = params.get('next') || '/'
@@ -24,6 +24,28 @@ export default function AccountPage() {
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  // Email de una cuenta que existe pero no confirmó: ofrece reenviar el mail.
+  const [sinConfirmar, setSinConfirmar] = useState<string | null>(null)
+
+  function cambiarModo(m: typeof modo) {
+    setModo(m)
+    setError(null)
+    setAviso(null)
+    setSinConfirmar(null)
+  }
+
+  async function reenviar() {
+    if (!sinConfirmar) return
+    setCargando(true)
+    const { error } = await reenviarConfirmacion(sinConfirmar, next)
+    setCargando(false)
+    if (error) setError(error)
+    else {
+      setError(null)
+      setSinConfirmar(null)
+      setAviso(`Te reenviamos el mail de confirmación a ${sinConfirmar}. Revisá también spam.`)
+    }
+  }
 
   // Si ya está logueada, no tiene sentido esta página: la mandamos a "next".
   useEffect(() => {
@@ -34,6 +56,7 @@ export default function AccountPage() {
     e.preventDefault()
     setError(null)
     setAviso(null)
+    setSinConfirmar(null)
     setCargando(true)
     try {
       if (modo === 'recuperar') {
@@ -43,16 +66,16 @@ export default function AccountPage() {
         // para no revelar qué emails están registrados.
         else setAviso('Si ese email tiene una cuenta, te mandamos un link para restablecer la contraseña. Revisá también la carpeta de spam.')
       } else if (modo === 'ingresar') {
-        const { error } = await ingresar(email, password)
-        if (error) setError(error)
-        else navigate(next, { replace: true })
+        const { error, sinConfirmar } = await ingresar(email, password)
+        if (error) {
+          setError(error)
+          if (sinConfirmar) setSinConfirmar(email)
+        } else navigate(next, { replace: true })
       } else {
-        const { error, necesitaConfirmar, yaRegistrado } = await registrar({
-          email,
-          password,
-          nombre,
-          telefono,
-        })
+        const { error, necesitaConfirmar, yaRegistrado } = await registrar(
+          { email, password, nombre, telefono },
+          next,
+        )
         if (error) setError(error)
         else if (yaRegistrado) {
           // La saltamos directo a "Ingresar" con el email ya cargado: es un
@@ -62,7 +85,9 @@ export default function AccountPage() {
           setAviso('Ese email ya tiene una cuenta. Ingresá tu contraseña para entrar.')
         } else if (necesitaConfirmar)
           setAviso(
-            'Ya casi está: te mandamos un email para confirmar tu cuenta. Abrilo y tocá el enlace para poder ingresar. ¿No lo ves? Revisá también la carpeta de spam.',
+            next.startsWith('/checkout')
+              ? 'Ya casi está: te mandamos un email para confirmar tu cuenta. Tocá el enlace y volvés directo a terminar tu compra (tu carrito queda guardado). ¿No lo ves? Revisá también spam.'
+              : 'Ya casi está: te mandamos un email para confirmar tu cuenta. Abrilo y tocá el enlace para poder ingresar. ¿No lo ves? Revisá también la carpeta de spam.',
           )
         else navigate(next, { replace: true })
       }
@@ -86,10 +111,10 @@ export default function AccountPage() {
         <div className="account-card">
           {modo !== 'recuperar' && (
             <div className="account-tabs">
-              <button className={modo === 'ingresar' ? 'active' : ''} onClick={() => { setModo('ingresar'); setError(null); setAviso(null) }}>
+              <button className={modo === 'ingresar' ? 'active' : ''} onClick={() => cambiarModo('ingresar')}>
                 Ingresar
               </button>
-              <button className={modo === 'registrar' ? 'active' : ''} onClick={() => { setModo('registrar'); setError(null); setAviso(null) }}>
+              <button className={modo === 'registrar' ? 'active' : ''} onClick={() => cambiarModo('registrar')}>
                 Crear cuenta
               </button>
             </div>
@@ -137,14 +162,27 @@ export default function AccountPage() {
               <button
                 type="button"
                 className="account-link-btn"
-                onClick={() => { setModo('recuperar'); setError(null); setAviso(null) }}
+                onClick={() => cambiarModo('recuperar')}
               >
                 ¿Olvidaste tu contraseña?
               </button>
             )}
 
-            {aviso && <p className="account-aviso">{aviso}</p>}
-            {error && <p className="form-error">{error}</p>}
+            {aviso && (
+              <p className="account-aviso" role="status">
+                {aviso}
+              </p>
+            )}
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
+            {sinConfirmar && (
+              <button type="button" className="account-link-btn" onClick={reenviar} disabled={cargando}>
+                Reenviar el mail de confirmación
+              </button>
+            )}
 
             <button type="submit" className="btn btn-primary" disabled={cargando}>
               {cargando
@@ -158,7 +196,7 @@ export default function AccountPage() {
           </form>
 
           {modo === 'recuperar' ? (
-            <button type="button" className="pp-back" onClick={() => { setModo('ingresar'); setError(null); setAviso(null) }}>
+            <button type="button" className="pp-back" onClick={() => cambiarModo('ingresar')}>
               ← Volver a ingresar
             </button>
           ) : (
