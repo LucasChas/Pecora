@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ProductoConCategoria } from '../../types'
-import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
 import { portadaDe } from '../../lib/images'
+import { guardarProductoSinPisarStock, mensajeConflictoStock } from '../../lib/stock'
 import Miniatura from '../common/Miniatura'
 
 interface Props {
@@ -23,31 +23,55 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
   const [precio, setPrecio] = useState(String(producto.precio))
   const [stock, setStock] = useState(String(producto.stock))
 
-  // Si el producto cambia desde afuera (Realtime), sincronizamos los inputs.
+  // Campo que se está editando y el stock que se veía al empezar a escribir.
+  const editando = useRef<'precio' | 'stock' | null>(null)
+  const stockAlEditar = useRef(producto.stock)
+
+  // Si el producto cambia desde afuera (Realtime), sincronizamos los inputs,
+  // salvo el que tiene el foco: no le borramos lo que está escribiendo.
   useEffect(() => {
-    setPrecio(String(producto.precio))
-    setStock(String(producto.stock))
+    if (editando.current !== 'precio') setPrecio(String(producto.precio))
+    if (editando.current !== 'stock') setStock(String(producto.stock))
   }, [producto.precio, producto.stock])
 
+  function empezarEdicion(campo: 'precio' | 'stock') {
+    editando.current = campo
+    stockAlEditar.current = producto.stock
+  }
+
+  // El stock se guarda solo si en la base sigue el valor que se veía al
+  // empezar a escribir: si entró una venta en el medio, se avisa en vez de
+  // pisarla.
   async function guardarCampo(campo: 'precio' | 'stock', valor: number) {
-    const { error } = await supabase
-      .from('productos')
-      .update({ [campo]: valor })
-      .eq('id', producto.id)
-    if (error) await avisar({ titulo: 'No se pudo guardar el cambio', mensaje: error.message })
-    else onChanged() // Refresca datos tras guardar (pill de stock, catálogo, etc.)
+    const leido = stockAlEditar.current
+    const r = await guardarProductoSinPisarStock(producto.id, { [campo]: valor }, leido)
+    if (r.ok) {
+      onChanged() // Refresca datos tras guardar (pill de stock, catálogo, etc.)
+      return
+    }
+    if (r.conflicto) {
+      setStock(String(r.stockActual))
+      await avisar({
+        titulo: 'El stock cambió',
+        mensaje: mensajeConflictoStock(leido, r.stockActual),
+      })
+      onChanged()
+    } else {
+      await avisar({ titulo: 'No se pudo guardar el cambio', mensaje: r.error })
+    }
   }
 
   // Al salir del campo: si quedó vacío o inválido, revertimos al valor guardado
   // (evita que un borrado accidental deje el precio/stock en 0). Si no cambió,
-  // no escribimos de más.
-  function confirmarCampo(campo: 'precio' | 'stock', texto: string, actual: number) {
+  // no escribimos de más. En ambos casos mostramos el valor actual de la base
+  // (pudo cambiar por Realtime mientras tenía el foco).
+  function confirmarCampo(campo: 'precio' | 'stock', texto: string, anterior: number) {
+    editando.current = null
     const n = Number(texto)
-    if (texto.trim() === '' || Number.isNaN(n) || n < 0) {
-      campo === 'precio' ? setPrecio(String(actual)) : setStock(String(actual))
+    if (texto.trim() === '' || Number.isNaN(n) || n < 0 || n === anterior) {
+      campo === 'precio' ? setPrecio(String(producto.precio)) : setStock(String(producto.stock))
       return
     }
-    if (n === actual) return
     guardarCampo(campo, n)
   }
 
@@ -74,6 +98,7 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
               min={0}
               value={precio}
               onChange={(e) => setPrecio(e.target.value)}
+              onFocus={() => empezarEdicion('precio')}
               onBlur={() => confirmarCampo('precio', precio, producto.precio)}
               // En desktop la rueda del mouse cambiaría el número sin querer
               // (y se guardaría al salir): soltamos el foco antes de que pase.
@@ -87,7 +112,8 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
               min={0}
               value={stock}
               onChange={(e) => setStock(e.target.value)}
-              onBlur={() => confirmarCampo('stock', stock, producto.stock)}
+              onFocus={() => empezarEdicion('stock')}
+              onBlur={() => confirmarCampo('stock', stock, stockAlEditar.current)}
               onWheel={(e) => e.currentTarget.blur()}
             />
           </div>
