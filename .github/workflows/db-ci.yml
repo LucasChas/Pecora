@@ -53,7 +53,7 @@ jobs:
         run: supabase db start
 
       # Includes privilegios_base.test.sql: fails if the table privileges the
-      # app relies on drift (e.g. when auto_expose_new_tables goes away).
+      # app relies on drift (the database runs without auto expose).
       - name: Run pgTAP tests
         run: supabase test db
 

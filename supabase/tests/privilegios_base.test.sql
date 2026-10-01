@@ -2,11 +2,11 @@
 -- pgTAP: table privileges the app relies on (Data API roles).
 --
 -- Why this file exists: migrations 0001-0014 never GRANT table privileges to
--- anon/authenticated. They rely on the legacy "auto expose" defaults of the
--- production project, reproduced locally by `auto_expose_new_tables = true` in
--- supabase/config.toml (a deprecated field, removed on 2026-10-30). If those
--- defaults go away, the public catalog or the admin panel stops working. This
--- file pins the access the app needs, so that drift fails CI.
+-- anon/authenticated; they relied on the legacy "auto expose" defaults of the
+-- production project (removed on 2026-10-30). 20261001020100_grants_explicitos.sql
+-- now grants them explicitly and the local/CI database runs without auto
+-- expose. If that access drifts, the public catalog or the admin panel stops
+-- working. This file pins the access the app needs, so that drift fails CI.
 --
 -- Two kinds of checks:
 --   * privileges (has_table_privilege / has_column_privilege): what each role

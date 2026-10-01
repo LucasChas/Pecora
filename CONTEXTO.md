@@ -166,6 +166,8 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `20260928144838_importar_productos.sql` | `productos.sku` y `importar_productos(p_filas jsonb, p_simular default true)`: solo staff, hasta 500 filas, todo o nada, errores con número de fila (desde 1); `p_simular = true` es la vista previa. Tests: `supabase/tests/importar_productos.test.sql`. |
 | `20260928155636_resenas.sql` | Reseñas con estrellas de compradoras verificadas: tabla `resenas` (una por producto y cuenta, `estrellas` 1–5, `comentario` ≤ 1000 recortado, `oculta`). Compra verificada = pedido propio del checkout, no cancelado ni en la papelera, que incluye el producto (`compra_verificada`, misma regla que `ventas_validas`; las cargas manuales no cuentan). Escritura solo por RPC: `guardar_resena` / `borrar_resena` (propia; 42501 sin login o sin compra), `ocultar_resena` y `resenas_moderacion` solo admin. Lectura pública: `resenas_de_producto` (solo el primer nombre, nunca email), `resumen_resenas`; `puede_resenar` y `mi_resena` para la clienta. RLS: visibles para todos, ocultas para el staff; `user_id` no se otorga a `anon`/`authenticated`. Tests: `supabase/tests/resenas.test.sql`. |
 | `20260928191953_gastos_rentabilidad.sql` | Gastos y rentabilidad (solo admin). Tabla `gastos` (`fecha` por defecto hoy en hora de Argentina, `concepto` recortado de 1 a 200, `categoria` `materiales`/`packaging`/`envios`/`otros`, `monto` > 0, `producto_id` opcional con `on delete set null`, `cantidad` opcional > 0 = unidades que cubre la compra, `notas`, `created_by` fijado por trigger con `auth.uid()`); RLS de select/insert/update/delete con `es_admin()`, sin permisos para `anon`. `rentabilidad(p_desde, p_hasta)`: jsonb solo admin (42501) con `por_mes` (ingresos = `pedidos.total` de ventas válidas, igual que `estadisticas()`; gastos por `fecha`; beneficio y margen; zona `America/Argentina/Cordoba`), `totales`, `productos` (unidades y ventas brutas de `ventas_validas`, costo unitario estimado = sum(monto)/sum(cantidad) de las compras del producto con cantidad hasta `p_hasta`, costo, beneficio y margen estimados, `gastos_periodo`), `gastos_por_categoria` y `gastos_generales` (sin producto). Tests: `supabase/tests/gastos_rentabilidad.test.sql`. |
+| `20261001020000_cerrar_ajustar_stock.sql` | Revoca EXECUTE de `ajustar_stock_pedido` a `public`/`anon`/`authenticated`: era `SECURITY DEFINER` y cualquiera podía cambiar el stock por `/rest/v1/rpc`. La usan solo los triggers de pedidos. Tests: `supabase/tests/funciones_internas.test.sql` (lista de funciones `SECURITY DEFINER` que puede llamar cada rol). |
+| `20261001020100_grants_explicitos.sql` | `GRANT`s explícitos de las tablas y funciones auxiliares de 0001→0014 (reemplaza el "auto expose" que se elimina el 2026-10-30). En producción no cambia nada. Tests: `privilegios_base.test.sql`. |
 
 ### Cómo se aplican
 
@@ -225,12 +227,12 @@ bash .github/scripts/db-push-guard.sh --linked
 - **Esquema**: nunca editar una migración aplicada; crear una migración nueva que deshaga el cambio. El esquema previo está en el artifact del run: `gpg --decrypt --output esquema.sql public-schema-before-run-<id>.sql.gpg` (pide `SCHEMA_BACKUP_PASSPHRASE`; `gpg` viene con Git for Windows).
 - **Datos**: solo se recuperan desde los backups / PITR de Supabase (*Dashboard → Database → Backups*).
 
-**Permisos de tablas — tarea con fecha: antes del 2026-10-30**
+**Permisos de tablas**
 
-Las 0001→0014 nunca hacen `GRANT` de tablas a `anon`/`authenticated`: dependen de los permisos automáticos ("auto expose") con los que se creó el proyecto, que en local reproduce `auto_expose_new_tables = true` de `supabase/config.toml`. Ese campo se elimina el **2026-10-30**. `supabase/tests/privilegios_base.test.sql` fija los permisos que necesita la app y falla si cambian.
+Las 0001→0014 nunca hicieron `GRANT` de tablas a `anon`/`authenticated`: dependían de los permisos automáticos ("auto expose") con los que se creó el proyecto. Ese comportamiento se elimina el **2026-10-30**, así que `20261001020100_grants_explicitos.sql` otorga esos permisos de forma explícita y `supabase/config.toml` ya no tiene `auto_expose_new_tables` (la base local y la de CI usan el default nuevo: nada nuevo en `public` es accesible sin `GRANT`). En producción la migración no cambia nada: los permisos ya existían. `supabase/tests/privilegios_base.test.sql` fija los permisos que necesita la app y `funciones_internas.test.sql` las funciones `SECURITY DEFINER` que cada rol puede llamar; ambos fallan si cambian.
 
-- [ ] **Antes del 2026-10-30**: crear una migración con `GRANT`s explícitos y quitar `auto_expose_new_tables` de `supabase/config.toml`. `privilegios_base.test.sql` tiene que seguir pasando sin tocarlo.
-- [ ] Antes de escribirla, comparar producción con lo que espera el test (SQL Editor). Resultado esperado: **0 filas**. `falta` = producción no tiene un permiso que la app necesita; `sobra` = permiso que tiene que estar revocado. Los permisos por columna de `profiles` se revisan con la consulta (a) al final de `0014_proteger_rol.sql`.
+- [x] Migración con `GRANT`s explícitos y `auto_expose_new_tables` fuera de `config.toml`.
+- [ ] Antes de aprobar el deploy, comparar producción con lo que espera el test (SQL Editor). Resultado esperado: **0 filas**. `falta` = producción no tiene un permiso que la app necesita; `sobra` = permiso que tiene que estar revocado. Los permisos por columna de `profiles` se revisan con la consulta (a) al final de `0014_proteger_rol.sql`.
 
 ```sql
 with requerido(rol, tabla, privilegio) as (values
@@ -280,7 +282,7 @@ Siempre con `--local` (ver la advertencia de arriba). Si otro proyecto de Supaba
 **Reglas**
 - **Nunca editar ni renombrar una migración ya aplicada**: para corregir algo, crear una migración nueva.
 - Migraciones idempotentes (ver §12.2). Si tocan permisos o RLS, agregar un test en `supabase/tests/` (y actualizar `privilegios_base.test.sql` si cambia el acceso a una tabla).
-- `supabase/config.toml` tiene `auto_expose_new_tables = true` para que la base local tenga los mismos permisos que producción (ver el comentario en el archivo). Hay que reemplazarlo antes del 2026-10-30 (ver *Permisos de tablas*).
+- Toda tabla o función nueva en `public` necesita su `GRANT` explícito (no hay "auto expose"). Una función `SECURITY DEFINER` que no sea una RPC pública lleva `revoke execute ... from public, anon, authenticated` (lo controla `funciones_internas.test.sql`).
 - Siguen siendo manuales: los secretos de Vault de la 0012 y el deploy de Edge Functions (`supabase functions deploy`).
 
 ---
