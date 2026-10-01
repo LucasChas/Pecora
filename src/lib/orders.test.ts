@@ -211,6 +211,13 @@ describe('crearPedido', () => {
     rpc.mockReset()
   })
 
+  it('manda los ítems ordenados por id (evita bloqueos entre compras simultáneas)', async () => {
+    rpc.mockResolvedValueOnce({ data: 7, error: null })
+    await crearPedido({ ...base, items: [...base.items].reverse() })
+    const args = rpc.mock.calls[0][1] as { p_items: { id: string }[] }
+    expect(args.p_items.map((i) => i.id)).toEqual(['a', 'b'])
+  })
+
   it('llama a crear_pedido con la firma nueva y devuelve el número', async () => {
     rpc.mockResolvedValueOnce({ data: 42, error: null })
     await expect(crearPedido(base)).resolves.toBe(42)

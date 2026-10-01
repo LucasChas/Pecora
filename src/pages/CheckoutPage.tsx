@@ -437,10 +437,13 @@ export default function CheckoutPage() {
                     <label htmlFor="checkout-telefono">Teléfono (WhatsApp, con código de área)</label>
                     <input id="checkout-telefono" ref={telefonoRef} type="tel" inputMode="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" autoComplete="tel" />
                   </div>
-                  <div className="field">
-                    <label htmlFor="checkout-email">Email (te mandamos el comprobante)</label>
-                    <input id="checkout-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" autoComplete="email" />
-                  </div>
+                  {/* El comprobante va siempre al email de la cuenta (lo fija la
+                      base, ver 20261001050000_pedidos_limites). */}
+                  {session.user.email && (
+                    <p className="cart-note">
+                      Te mandamos el comprobante a <strong>{session.user.email}</strong>.
+                    </p>
+                  )}
                 </section>
 
                 <section className="checkout-card">
