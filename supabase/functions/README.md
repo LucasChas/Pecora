@@ -53,10 +53,8 @@ Creá `supabase/functions/.env.local` (NO se sube al repo — ya está en
 `.gitignore`) con este contenido, reemplazando los valores:
 
 ```
-GMAIL_CLIENT_ID=xxxxxxxxxxxx.apps.googleusercontent.com
-GMAIL_CLIENT_SECRET=xxxxxxxxxxxx
-GMAIL_REFRESH_TOKEN=1//xxxxxxxxxxxx
 GMAIL_SENDER=pecoraabril@gmail.com
+GMAIL_APP_PASSWORD=abcd efgh ijkl mnop
 OWNER_EMAIL=pecoraabril@gmail.com
 BRAND_NAME=Pecora
 BRAND_LOGO_URL=https://tu-dominio.com/logo.png
@@ -76,11 +74,15 @@ Notas:
   cargado, el recibo a la clienta sale igual y la función deja un warning en
   los logs (`OWNER_EMAIL no está configurado`). Conviene que sea una casilla
   que la dueña mire seguido; puede ser la misma cuenta que `GMAIL_SENDER`.
-- `GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET`/`GMAIL_REFRESH_TOKEN` salen de un
-  proyecto de Google Cloud propio, autorizado UNA vez contra la cuenta
-  `pecoraabril@gmail.com` (ver "Setup completo" abajo) — no requieren un
-  dominio propio verificado, a diferencia de un proveedor transaccional como
-  Resend.
+- `GMAIL_APP_PASSWORD` es una **contraseña de aplicación** de Google (ver
+  "Mails por Gmail con contraseña de aplicación" abajo). Con ella las
+  funciones mandan por SMTP (`smtp.gmail.com`, puerto 465) y no vence.
+  Se puede pegar con o sin los espacios.
+- Alternativa vieja (OAuth): en lugar de `GMAIL_APP_PASSWORD`, los tres
+  secretos `GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET`/`GMAIL_REFRESH_TOKEN` de un
+  proyecto de Google Cloud (ver "Setup con OAuth" abajo). Si están las dos
+  cosas, se usa la contraseña de aplicación. El envío vive en
+  `_shared/correo.ts` y lo usan `enviar-recibo-pedido` y `avisar-reposicion`.
 - `GMAIL_SENDER` es la dirección `pecoraabril@gmail.com` — vive como secreto
   (y no hardcodeada en el código) para no fijarla en el código fuente.
 - `WHATSAPP_NUMBER` es opcional: el mismo número que usás en
@@ -192,13 +194,45 @@ select vault.create_secret(
   `select vault.update_secret(...)` en vez de `create_secret` (que falla si
   el nombre ya existe).
 
-### Setup completo desde cero (checklist para la dueña de la tienda)
+### Mails por Gmail con contraseña de aplicación (recomendado)
 
-Este mail se manda desde `pecoraabril@gmail.com` vía la API de Gmail, no
-desde un proveedor transaccional — porque no hay un dominio propio
-verificable (solo la cuenta de Gmail y un subdominio de Vercel, que no se
-puede verificar como dominio de envío). El único costo es un setup de Google
-Cloud que se hace UNA sola vez.
+Gratis, hasta ~500 mails por día, y no vence (salvo que se cambie la
+contraseña de la cuenta de Google o se borre la contraseña de aplicación).
+
+1. En la cuenta `pecoraabril@gmail.com`: <https://myaccount.google.com> →
+   **Seguridad** → activar la **Verificación en dos pasos** (es requisito).
+2. Entrar a <https://myaccount.google.com/apppasswords>, poner un nombre
+   (ej. "Pecora tienda") → **Crear**. Google muestra 16 letras: es
+   `GMAIL_APP_PASSWORD` (se ve una sola vez; si se pierde, se crea otra).
+3. Cargar los secretos y listo (no hace falta volver a desplegar):
+
+   ```bash
+   supabase secrets set GMAIL_SENDER=pecoraabril@gmail.com GMAIL_APP_PASSWORD="abcd efgh ijkl mnop"
+   ```
+
+   O en el dashboard: Edge Functions → **Secrets**.
+4. Probar: en el panel, **Reenviar** el mail de un pedido; para el aviso de
+   stock, en el SQL Editor:
+   `select public.invocar_aviso_stock(producto_id) from avisos_stock where notificado_at is null group by producto_id;`
+   y mirar `net._http_response` (tiene que dar `200`).
+5. Opcional pero recomendado: usar la misma cuenta para los mails de
+   **registro y recuperar contraseña** (Supabase → Authentication → Emails →
+   **SMTP Settings** → Enable custom SMTP): host `smtp.gmail.com`, puerto
+   `465`, usuario `pecoraabril@gmail.com`, contraseña = la de aplicación,
+   remitente `pecoraabril@gmail.com`. El servicio de mails de fábrica de
+   Supabase solo manda a las cuentas del equipo del proyecto y muy pocos por
+   hora.
+
+Si Gmail rechaza el login, los logs de la función dicen `SMTP EAUTH 535` con
+la explicación: revisar que `GMAIL_SENDER` sea la cuenta que creó la
+contraseña y que la verificación en dos pasos siga activa.
+
+### Setup con OAuth (alternativa vieja)
+
+Antes los mails salían por la API de Gmail con OAuth. Sigue funcionando si no
+se carga `GMAIL_APP_PASSWORD`, pero el refresh token vence (cada 7 días si la
+app de Google Cloud queda en modo Testing). Para una tienda nueva, usar la
+contraseña de aplicación de arriba.
 
 **Parte 1 — Google Cloud (una sola vez):**
 
@@ -268,8 +302,8 @@ cumplió 7 días. Solución:
 4. En el panel (Pedidos), tocar **Reenviar** en cada pedido que quedó con
    "no enviado": sale solo el mail que faltaba.
 
-Si esto se repite, la alternativa es pasar a un proveedor transaccional
-(Resend, Brevo, etc.), que usa una API key que no vence.
+Si esto se repite, pasar a la contraseña de aplicación (sección de arriba):
+no vence.
 
 **Parte 2 — Supabase (igual que antes, solo cambian los secretos):**
 
@@ -329,7 +363,7 @@ Reglas:
   reserva. La reintenta la próxima reposición del producto o, a mano:
   `select public.invocar_aviso_stock('<producto_id>');`. No hay reintento
   automático programado.
-- Cada `fetch` (Google OAuth, Gmail y las llamadas a la base) tiene timeout de
+- Cada llamada (SMTP o Google OAuth/Gmail, y las llamadas a la base) tiene timeout de
   15 s (`AbortSignal.timeout`), así una respuesta colgada no deja la
   invocación esperando.
 - Si el mail salió pero no se pudo guardar `notificado_at`, el log lo avisa con

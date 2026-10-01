@@ -3,8 +3,8 @@
 //
 // Disparada por el trigger AFTER INSERT de la migración 0012 (pg_net,
 // fire-and-forget). Recibe solo { pedido_id }, vuelve a leer el pedido del
-// lado del servidor con un cliente service-role y manda, vía la API de Gmail
-// (enviando como pecoraabril@gmail.com por OAuth2), dos mails independientes:
+// lado del servidor con un cliente service-role y manda desde la cuenta de
+// Gmail de la tienda (GMAIL_SENDER) dos mails independientes:
 //   1) El recibo a la clienta.
 //   2) El aviso de "nuevo pedido" a la dueña (secreto OWNER_EMAIL).
 // Si uno falla, el otro se intenta igual. Cada uno se marca en la base
@@ -32,14 +32,13 @@
 //     la función. El trigger 0012 manda el secreto de Vault
 //     'pecora_email_function_token', que tiene que ser la service-role key.
 //
-// Envío vía Gmail API: flujo OAuth2 de dos pasos por request:
-//   1) POST a oauth2.googleapis.com/token con el refresh token para conseguir
-//      un access token de corta duración (uno solo, para los dos mails).
-//   2) POST a gmail.googleapis.com/.../messages/send con ese access token,
-//      mandando el mensaje crudo en formato RFC 2822 codificado en base64url.
+// Envío: _shared/correo.ts. Por SMTP de Gmail con contraseña de aplicación
+// (GMAIL_APP_PASSWORD, no vence) o, si no está, por la API de Gmail con OAuth
+// (vence cada 7 días si la app de Google Cloud está en modo "Testing").
 //
 // Secretos usados (ver supabase/functions/README.md para setearlos):
-//   GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN, GMAIL_SENDER,
+//   GMAIL_SENDER + GMAIL_APP_PASSWORD (o GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET,
+//   GMAIL_REFRESH_TOKEN para OAuth),
 //   OWNER_EMAIL (uno o varios, separados por coma — sin este no sale el aviso
 //   a la dueña), BRAND_NAME, BRAND_LOGO_URL, STORE_URL, WHATSAPP_NUMBER
 //   (opcional), SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY (estas dos las
@@ -57,7 +56,6 @@ import {
   formatFromHeader,
   parseItems,
   parseOwnerEmails,
-  toBase64Url,
   tokensIguales,
   toNumber,
   waClienteUrl,
@@ -68,6 +66,8 @@ import {
   type Entrega,
   type TotalesPedido,
 } from "./template.ts";
+import { abrirCorreo, type Correo } from "../_shared/correo.ts";
+import { leerConfigCorreo, MENSAJE_FALTAN_SECRETOS } from "../_shared/correoConfig.ts";
 
 const LOG_PREFIX = "[enviar-recibo-pedido]";
 
@@ -117,98 +117,17 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-// ----------------------------------------------------------------------------
-// Gmail.
-// ----------------------------------------------------------------------------
-
-/**
- * Explica qué hacer cuando Google no renueva el acceso. Se loguea tal cual en
- * los logs de la función para que la dueña (o quien mire) sepa cómo arreglarlo.
- */
-function logOauthRefreshFailed(pedidoId: string, detalle: string): void {
-  console.error(
-    `${LOG_PREFIX} gmail_oauth_refresh_failed (pedido ${pedidoId}): ${detalle}`,
-  );
-  console.error(
-    `${LOG_PREFIX} ACCIÓN REQUERIDA: no se pudo renovar el acceso a Gmail, así que ` +
-      `NO sale ningún mail (ni el recibo a la clienta ni el aviso a la dueña). ` +
-      `Si Google respondió "invalid_grant", el refresh token venció o fue revocado. ` +
-      `Causa más común: la app OAuth de Google Cloud está en modo "Testing", y en ` +
-      `ese modo Google hace vencer los refresh tokens a los 7 días. Solución: ` +
-      `publicar la app (Google Cloud → APIs & Services → OAuth consent screen → ` +
-      `"Publish app") y generar un refresh token nuevo (OAuth Playground), o pasar ` +
-      `a un proveedor transaccional. Después: ` +
-      `supabase secrets set GMAIL_REFRESH_TOKEN=<nuevo>. ` +
-      `Detalle en supabase/functions/README.md.`,
-  );
-}
-
-/**
- * Paso A: refresca el access token de corta duración a partir del refresh
- * token. Nunca lanza: devuelve el token o una descripción del error.
- */
-async function refreshAccessToken(
-  clientId: string,
-  clientSecret: string,
-  refreshToken: string,
-): Promise<{ token: string } | { error: string }> {
-  try {
-    const params = new URLSearchParams({
-      grant_type: "refresh_token",
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-    });
-
-    const res = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      return { error: `Google respondió ${res.status}: ${errorText}` };
-    }
-
-    const data = await res.json();
-    if (!data || typeof data.access_token !== "string" || !data.access_token) {
-      return { error: `respuesta de refresh sin access_token: ${JSON.stringify(data)}` };
-    }
-
-    return { token: data.access_token };
-  } catch (err) {
-    return { error: `excepción llamando a oauth2.googleapis.com: ${String(err)}` };
-  }
-}
-
-/** Paso B: manda un mensaje. Nunca lanza: devuelve true/false y loguea. */
-async function enviarGmail(
-  accessToken: string,
-  mensaje: { from: string; to: string; subject: string; html: string },
+/** Manda un mensaje. Nunca lanza: devuelve true/false y loguea. */
+async function enviarMail(
+  correo: Correo,
+  mensaje: { from: string; to: string | readonly string[]; subject: string; html: string },
   contexto: string,
 ): Promise<boolean> {
-  const raw = toBase64Url(buildMimeMessage(mensaje));
-  try {
-    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ raw }),
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error(`${LOG_PREFIX} ${contexto}: Gmail API respondió ${res.status}:`, errorText);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error(`${LOG_PREFIX} ${contexto}: excepción llamando a Gmail API:`, err);
-    return false;
-  }
+  const to = typeof mensaje.to === "string" ? mensaje.to : mensaje.to.join(", ");
+  const mime = buildMimeMessage({ from: mensaje.from, to, subject: mensaje.subject, html: mensaje.html });
+  const r = await correo.enviar(mensaje.to, mime);
+  if (!r.ok) console.error(`${LOG_PREFIX} ${contexto}: ${r.error}`);
+  return r.ok;
 }
 
 /**
@@ -296,10 +215,6 @@ Deno.serve(async (req: Request) => {
 
   console.log(`${LOG_PREFIX} recibido pedido_id=${pedidoId}`);
 
-  const gmailClientId = Deno.env.get("GMAIL_CLIENT_ID");
-  const gmailClientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
-  const gmailRefreshToken = Deno.env.get("GMAIL_REFRESH_TOKEN");
-  const gmailSender = Deno.env.get("GMAIL_SENDER");
   const brandName = Deno.env.get("BRAND_NAME") ?? "Pecora";
   const brandLogoUrl = Deno.env.get("BRAND_LOGO_URL") || null;
   const storeUrl = Deno.env.get("STORE_URL") ?? "";
@@ -315,10 +230,8 @@ Deno.serve(async (req: Request) => {
   const whatsappUrl = whatsappNumber ? `https://wa.me/${whatsappNumber}` : null;
   const branding = { brandName, brandLogoUrl, storeUrl, whatsappUrl };
 
-  if (!gmailClientId || !gmailClientSecret || !gmailRefreshToken || !gmailSender) {
-    console.error(
-      `${LOG_PREFIX} faltan GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET/GMAIL_REFRESH_TOKEN/GMAIL_SENDER — no se puede enviar`,
-    );
+  if (!leerConfigCorreo(Deno.env.get)) {
+    console.error(`${LOG_PREFIX} ${MENSAJE_FALTAN_SECRETOS} — no se puede enviar`);
     // No es un error del pedido: respondemos ok igual, el trigger ya ignora
     // cualquier resultado. Solo logueamos para que la dueña lo detecte.
     return jsonResponse({ ok: true, skipped: "missing_email_secrets" });
@@ -360,9 +273,8 @@ Deno.serve(async (req: Request) => {
   const owner = parseOwnerEmails(Deno.env.get("OWNER_EMAIL"));
 
   // --------------------------------------------------------------------------
-  // Qué hay que mandar (logica.ts). Se decide antes de pedir el token a
-  // Google, así una re-invocación sin nada pendiente no consume una llamada
-  // OAuth.
+  // Qué hay que mandar (logica.ts). Se decide antes de conectarse a Gmail,
+  // así una re-invocación sin nada pendiente no abre ninguna conexión.
   // --------------------------------------------------------------------------
   const decision = decidirEnvios({
     origen: pedido.origen,
@@ -401,13 +313,16 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: true, recibo: estadoRecibo, aviso: estadoAviso });
   }
 
-  const oauth = await refreshAccessToken(gmailClientId, gmailClientSecret, gmailRefreshToken);
-  if ("error" in oauth) {
-    logOauthRefreshFailed(pedidoId, oauth.error);
+  const apertura = await abrirCorreo(Deno.env.get);
+  if (!apertura.ok) {
+    console.error(
+      `${LOG_PREFIX} ACCIÓN REQUERIDA (pedido ${pedidoId}): ${apertura.detalle} ` +
+        `NO sale ningún mail (ni el recibo a la clienta ni el aviso a la dueña).`,
+    );
     return jsonResponse({ ok: false, error: "gmail_oauth_refresh_failed" }, 502);
   }
-
-  const from = formatFromHeader(brandName, gmailSender);
+  const correo = apertura.correo;
+  const from = formatFromHeader(brandName, correo.remitente);
 
   // 1) Recibo a la clienta.
   if (estadoRecibo === "pending") {
@@ -422,8 +337,8 @@ Deno.serve(async (req: Request) => {
       },
       branding,
     );
-    const ok = await enviarGmail(
-      oauth.token,
+    const ok = await enviarMail(
+      correo,
       { from, to: emailCliente, subject, html },
       `recibo pedido ${pedidoId}`,
     );
@@ -460,9 +375,9 @@ Deno.serve(async (req: Request) => {
       },
       branding,
     );
-    const ok = await enviarGmail(
-      oauth.token,
-      { from, to: owner.validos.join(", "), subject, html },
+    const ok = await enviarMail(
+      correo,
+      { from, to: owner.validos, subject, html },
       `aviso a la dueña pedido ${pedidoId}`,
     );
     if (ok) {
@@ -474,6 +389,7 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  correo.cerrar();
   const huboFalla = estadoRecibo === "send_failed" || estadoAviso === "send_failed";
   return jsonResponse(
     { ok: !huboFalla, recibo: estadoRecibo, aviso: estadoAviso },
