@@ -26,11 +26,12 @@
 // Auth (dos capas):
 //   * Supabase valida el JWT antes de que este código corra (se despliega con
 //     verificación JWT default, sin --no-verify-jwt).
-//   * Además, acá se exige que el Bearer sea EXACTAMENTE la service-role key.
-//     La verificación de Supabase sola también deja pasar la anon key, que es
-//     pública (está en el bundle del front): con ella cualquiera podía invocar
-//     la función. El trigger 0012 manda el secreto de Vault
-//     'pecora_email_function_token', que tiene que ser la service-role key.
+//   * Además, acá se exige que el Bearer sea la service-role key
+//     (_shared/autorizacion.ts). La verificación de Supabase sola también deja
+//     pasar la anon key, que es pública (está en el bundle del front): con
+//     ella cualquiera podía invocar la función. El trigger 0012 manda el
+//     secreto de Vault 'pecora_email_function_token', que tiene que ser la
+//     service-role key.
 //
 // Envío: _shared/correo.ts. Por SMTP de Gmail con contraseña de aplicación
 // (GMAIL_APP_PASSWORD, no vence) o, si no está, por la API de Gmail con OAuth
@@ -56,7 +57,6 @@ import {
   formatFromHeader,
   parseItems,
   parseOwnerEmails,
-  tokensIguales,
   toNumber,
   waClienteUrl,
 } from "./logica.ts";
@@ -66,6 +66,7 @@ import {
   type Entrega,
   type TotalesPedido,
 } from "./template.ts";
+import { esLlamadaInterna } from "../_shared/autorizacion.ts";
 import { abrirCorreo, type Correo } from "../_shared/correo.ts";
 import { leerConfigCorreo, MENSAJE_FALTAN_SECRETOS } from "../_shared/correoConfig.ts";
 
@@ -190,12 +191,14 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: false, error: "missing_supabase_env" }, 500);
   }
 
+  // Solo la base (con la service_role key) puede invocarla: ver
+  // _shared/autorizacion.ts.
   const token = bearerToken(req);
-  if (!token || !(await tokensIguales(token, serviceRoleKey))) {
-    console.error(
-      `${LOG_PREFIX} request rechazada (401): el Bearer no es la service-role key. ` +
-        `Si viene del trigger 0012, revisar el secreto de Vault 'pecora_email_function_token'.`,
-    );
+  const autorizacion = token
+    ? await esLlamadaInterna(token, Deno.env.get)
+    : { ok: false as const, motivo: "falta el header Authorization: Bearer" };
+  if (!autorizacion.ok) {
+    console.error(`${LOG_PREFIX} request rechazada (401): ${autorizacion.motivo}`);
     return jsonResponse({ ok: false, error: "unauthorized" }, 401);
   }
 
@@ -237,7 +240,9 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: true, skipped: "missing_email_secrets" });
   }
 
-  const supabase = crearClienteAdmin(supabaseUrl, serviceRoleKey);
+  // Con la clave que llegó (ya verificada como service_role): es la que el
+  // gateway acepta, aunque SUPABASE_SERVICE_ROLE_KEY tenga otro formato.
+  const supabase = crearClienteAdmin(supabaseUrl, token!);
 
   const { data: pedido, error: pedidoError } = await supabase
     .from("pedidos")
