@@ -32,8 +32,9 @@ export default function LoginForm() {
       {error && <p className="form-error">{error}</p>}
 
       <div className="field">
-        <label>Email</label>
+        <label htmlFor="panel-email">Email</label>
         <input
+          id="panel-email"
           type="email"
           autoComplete="email"
           required
@@ -44,8 +45,9 @@ export default function LoginForm() {
       </div>
 
       <div className="field">
-        <label>Contraseña</label>
+        <label htmlFor="panel-password">Contraseña</label>
         <PasswordInput
+          id="panel-password"
           autoComplete="current-password"
           required
           value={password}

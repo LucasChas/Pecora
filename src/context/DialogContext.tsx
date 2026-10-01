@@ -7,6 +7,8 @@ import '../styles/dialog.css'
 //
 //   if (!(await confirmar({ titulo: '¿Borrar?' }))) return
 //   await avisar({ titulo: 'No se pudo guardar' })
+//   notificar('Guardado')                       // aviso breve, no bloquea
+//   notificar('Pedido borrado', { accion: { texto: 'Deshacer', onClick } })
 
 interface OpcionesConfirmar {
   titulo: string
@@ -23,9 +25,21 @@ interface OpcionesAvisar {
   textoOk?: string
 }
 
+interface OpcionesNotificar {
+  // Botón opcional dentro del aviso (ej. "Deshacer", "Ver").
+  accion?: { texto: string; onClick: () => void }
+  duracionMs?: number
+}
+
 interface DialogContextValue {
   confirmar: (opciones: OpcionesConfirmar) => Promise<boolean>
   avisar: (opciones: OpcionesAvisar) => Promise<void>
+  notificar: (texto: string, opciones?: OpcionesNotificar) => void
+}
+
+interface Notificacion extends OpcionesNotificar {
+  id: number
+  texto: string
 }
 
 interface DialogoAbierto extends OpcionesConfirmar {
@@ -59,6 +73,22 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     }).then(() => undefined)
   }, [])
 
+  // Avisos breves abajo de la pantalla (uno a la vez: el nuevo reemplaza al
+  // anterior). Se anuncian a lectores de pantalla con role="status".
+  const [notificacion, setNotificacion] = useState<Notificacion | null>(null)
+  const secuencia = useRef(0)
+  const notificar = useCallback((texto: string, opciones: OpcionesNotificar = {}) => {
+    setNotificacion({ ...opciones, texto, id: ++secuencia.current })
+  }, [])
+  useEffect(() => {
+    if (!notificacion) return
+    const t = setTimeout(
+      () => setNotificacion((n) => (n?.id === notificacion.id ? null : n)),
+      notificacion.duracionMs ?? (notificacion.accion ? 6000 : 3000),
+    )
+    return () => clearTimeout(t)
+  }, [notificacion])
+
   // Escape cancela (en un aviso simplemente lo cierra).
   useEffect(() => {
     if (!dialogo) return
@@ -74,8 +104,27 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   }, [dialogo, cerrar])
 
   return (
-    <DialogContext.Provider value={{ confirmar, avisar }}>
+    <DialogContext.Provider value={{ confirmar, avisar, notificar }}>
       {children}
+      <div className="toast-zona" role="status" aria-live="polite">
+        {notificacion && (
+          <div className="toast" key={notificacion.id}>
+            <span>{notificacion.texto}</span>
+            {notificacion.accion && (
+              <button
+                type="button"
+                className="toast-accion"
+                onClick={() => {
+                  notificacion.accion?.onClick()
+                  setNotificacion(null)
+                }}
+              >
+                {notificacion.accion.texto}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       {dialogo && (
         <div className="dlg-overlay" onClick={() => cerrar(false)}>
           <div

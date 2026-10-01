@@ -8,8 +8,9 @@
 //
 // Por cada suscripción pendiente (sin notificado_at y sin reserva vigente:
 // aviso_stock_pendiente en la migración) manda un
-// mail "¡Volvió <producto>!" vía la API de Gmail (mismos secretos OAuth que
-// enviar-recibo-pedido) con el link al producto y un link de baja
+// mail "¡Volvió <producto>!" desde la cuenta de Gmail de la tienda (mismos
+// secretos que enviar-recibo-pedido, ver _shared/correo.ts) con el link al
+// producto y un link de baja
 // (<sitio>/aviso/baja?token=...).
 //
 // Sin mails duplicados ni avisos perdidos:
@@ -21,8 +22,8 @@
 //   * Si la función se cae o la cortan entre la reserva y el envío, la reserva
 //     vence a los RESERVA_VENCE_MINUTOS y la fila vuelve a ser pendiente (la
 //     toma la próxima reposición o select public.invocar_aviso_stock(...)).
-//   * Toda llamada a Google tiene timeout (FETCH_TIMEOUT_MS), así una
-//     respuesta colgada no deja la invocación esperando para siempre.
+//   * Toda llamada a Google o a Gmail tiene timeout, así una respuesta
+//     colgada no deja la invocación esperando para siempre.
 //   * Si el producto se volvió a agotar antes de que corra la función, no se
 //     manda nada (las suscripciones siguen pendientes).
 //
@@ -30,10 +31,10 @@
 // quedan pendientes, se loguea cómo volver a invocarla.
 //
 // Auth: igual que enviar-recibo-pedido (verificación JWT de Supabase + el
-// Bearer tiene que ser EXACTAMENTE la service-role key, en tiempo constante).
+// Bearer tiene que ser la service-role key, ver _shared/autorizacion.ts).
 //
-// Secretos: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN,
-// GMAIL_SENDER, BRAND_NAME, BRAND_LOGO_URL (opcional), PUBLIC_SITE_URL
+// Secretos: GMAIL_SENDER + GMAIL_APP_PASSWORD (o GMAIL_CLIENT_ID,
+// GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN para OAuth), BRAND_NAME, BRAND_LOGO_URL (opcional), PUBLIC_SITE_URL
 // (opcional; si falta usa STORE_URL y, si tampoco, el muestrario en Vercel),
 // más SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY que inyecta Supabase.
 // ============================================================================
@@ -52,12 +53,13 @@ import {
   separarDestinatarios,
   sqlReintentarAviso,
   type Suscripcion,
-  toBase64Url,
-  tokensIguales,
   urlBaja,
   urlProducto,
 } from "./logica.ts";
 import { renderAvisoReposicion } from "./template.ts";
+import { esLlamadaInterna } from "../_shared/autorizacion.ts";
+import { abrirCorreo } from "../_shared/correo.ts";
+import { leerConfigCorreo, MENSAJE_FALTAN_SECRETOS } from "../_shared/correoConfig.ts";
 
 const LOG_PREFIX = "[avisar-reposicion]";
 
@@ -91,57 +93,6 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
-}
-
-async function refreshAccessToken(
-  clientId: string,
-  clientSecret: string,
-  refreshToken: string,
-): Promise<{ token: string } | { error: string }> {
-  try {
-    const res = await fetch(
-      "https://oauth2.googleapis.com/token",
-      conTimeout({
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "refresh_token",
-          client_id: clientId,
-          client_secret: clientSecret,
-          refresh_token: refreshToken,
-        }).toString(),
-      }),
-    );
-    if (!res.ok) return { error: `Google respondió ${res.status}: ${await res.text()}` };
-    const data = await res.json();
-    if (!data || typeof data.access_token !== "string" || !data.access_token) {
-      return { error: `respuesta de refresh sin access_token: ${JSON.stringify(data)}` };
-    }
-    return { token: data.access_token };
-  } catch (err) {
-    return { error: `excepción llamando a oauth2.googleapis.com: ${String(err)}` };
-  }
-}
-
-async function enviarGmail(accessToken: string, raw: string, contexto: string): Promise<boolean> {
-  try {
-    const res = await fetch(
-      "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-      conTimeout({
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ raw }),
-      }),
-    );
-    if (!res.ok) {
-      console.error(`${LOG_PREFIX} ${contexto}: Gmail API respondió ${res.status}:`, await res.text());
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error(`${LOG_PREFIX} ${contexto}: excepción llamando a Gmail API:`, err);
-    return false;
-  }
 }
 
 /**
@@ -204,12 +155,14 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: false, error: "missing_supabase_env" }, 500);
   }
 
+  // Solo la base (con la service_role key) puede invocarla: ver
+  // _shared/autorizacion.ts.
   const token = bearerToken(req);
-  if (!token || !(await tokensIguales(token, serviceRoleKey))) {
-    console.error(
-      `${LOG_PREFIX} request rechazada (401): el Bearer no es la service-role key. ` +
-        `Revisar el secreto de Vault 'pecora_email_function_token'.`,
-    );
+  const autorizacion = token
+    ? await esLlamadaInterna(token, Deno.env.get)
+    : { ok: false as const, motivo: "falta el header Authorization: Bearer" };
+  if (!autorizacion.ok) {
+    console.error(`${LOG_PREFIX} request rechazada (401): ${autorizacion.motivo}`);
     return jsonResponse({ ok: false, error: "unauthorized" }, 401);
   }
 
@@ -228,14 +181,9 @@ Deno.serve(async (req: Request) => {
 
   console.log(`${LOG_PREFIX} recibido producto_id=${productoId}`);
 
-  const gmailClientId = Deno.env.get("GMAIL_CLIENT_ID");
-  const gmailClientSecret = Deno.env.get("GMAIL_CLIENT_SECRET");
-  const gmailRefreshToken = Deno.env.get("GMAIL_REFRESH_TOKEN");
-  const gmailSender = Deno.env.get("GMAIL_SENDER");
-  if (!gmailClientId || !gmailClientSecret || !gmailRefreshToken || !gmailSender) {
+  if (!leerConfigCorreo(Deno.env.get)) {
     console.error(
-      `${LOG_PREFIX} faltan GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET/GMAIL_REFRESH_TOKEN/GMAIL_SENDER — ` +
-        `no se manda ningún aviso (las suscripciones quedan pendientes).`,
+      `${LOG_PREFIX} ${MENSAJE_FALTAN_SECRETOS} — no se manda ningún aviso (las suscripciones quedan pendientes).`,
     );
     return jsonResponse({ ok: true, skipped: "missing_email_secrets" });
   }
@@ -244,7 +192,9 @@ Deno.serve(async (req: Request) => {
   const brandLogoUrl = Deno.env.get("BRAND_LOGO_URL") || null;
   const sitio = resolverSitio(Deno.env.get("PUBLIC_SITE_URL"), Deno.env.get("STORE_URL"));
 
-  const supabase = crearClienteAdmin(supabaseUrl, serviceRoleKey);
+  // Con la clave que llegó (ya verificada como service_role): es la que el
+  // gateway acepta, aunque SUPABASE_SERVICE_ROLE_KEY tenga otro formato.
+  const supabase = crearClienteAdmin(supabaseUrl, token!);
 
   const { data: producto, error: productoError } = await supabase
     .from("productos")
@@ -285,18 +235,16 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: true, skipped: "sin_pendientes" });
   }
 
-  const oauth = await refreshAccessToken(gmailClientId, gmailClientSecret, gmailRefreshToken);
-  if ("error" in oauth) {
-    console.error(`${LOG_PREFIX} gmail_oauth_refresh_failed (producto ${productoId}): ${oauth.error}`);
+  const apertura = await abrirCorreo(Deno.env.get);
+  if (!apertura.ok) {
     console.error(
-      `${LOG_PREFIX} ACCIÓN REQUERIDA: no se pudo renovar el acceso a Gmail, así que NO sale ` +
-        `ningún aviso (quedan pendientes). Mismo arreglo que para enviar-recibo-pedido: ver ` +
-        `"El refresh token vence" en supabase/functions/README.md.`,
+      `${LOG_PREFIX} ACCIÓN REQUERIDA (producto ${productoId}): ${apertura.detalle} ` +
+        `NO sale ningún aviso (quedan pendientes).`,
     );
     return jsonResponse({ ok: false, error: "gmail_oauth_refresh_failed" }, 502);
   }
-
-  const from = formatFromHeader(brandName, gmailSender);
+  const correo = apertura.correo;
+  const from = formatFromHeader(brandName, correo.remitente);
   const linkProducto = urlProducto(sitio, producto);
   const foto = primeraFoto(producto);
   const precio = Number(producto.precio);
@@ -332,11 +280,12 @@ Deno.serve(async (req: Request) => {
         { nombreProducto: producto.nombre, precio, fotoUrl: foto, urlProducto: linkProducto, urlBaja: baja },
         { brandName, brandLogoUrl, sitioUrl: sitio },
       );
-      const raw = toBase64Url(
+      const envio = await correo.enviar(
+        fila.email,
         buildMimeMessageConBaja({ from, to: fila.email, subject, html, urlBaja: baja }),
       );
-      const ok = await enviarGmail(oauth.token, raw, `aviso ${fila.id}`);
-      if (ok) {
+      if (!envio.ok) console.error(`${LOG_PREFIX} aviso ${fila.id}: ${envio.error}`);
+      if (envio.ok) {
         enviados++;
         fallasSeguidas = 0;
         await marcarNotificado(supabase, fila.id);
@@ -361,9 +310,11 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  correo.cerrar();
+
   if (cortado) {
     console.warn(
-      `${LOG_PREFIX} producto ${productoId}: se cortó por ${cortado === "tiempo" ? "tiempo" : `${MAX_FALLAS_SEGUIDAS} fallas seguidas de Gmail`}; ` +
+      `${LOG_PREFIX} producto ${productoId}: se cortó por ${cortado === "tiempo" ? "tiempo" : `${MAX_FALLAS_SEGUIDAS} fallas seguidas de envío`}; ` +
         `quedan suscripciones pendientes. Para reintentar, en el SQL Editor: ` +
         `select public.invocar_aviso_stock('${productoId}');`,
     );

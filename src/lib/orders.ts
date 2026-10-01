@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient'
 import { money } from './format'
 import { ErrorCotizacionVencida, esCotizacionVencida, etiquetaEnvioPedido } from './transportistas'
-import type { EntregaPedido, OrigenPedido, Pedido } from '../types'
+import type { EntregaPedido, EstadoPedido, OrigenPedido, Pedido } from '../types'
 
 // ============================================================================
 // Pedidos: cálculo de totales y alta vía la función crear_pedido.
@@ -286,12 +286,17 @@ export async function crearPedido({
     p_localidad: envio ? textoOpcional(datos.localidad) : null,
     p_cp: envio ? textoOpcional(datos.cp) : null,
     p_notas: textoOpcional(datos.notas),
-    p_items: items.map((i) => ({
-      id: i.id,
-      nombre: i.nombre,
-      precio: i.precio,
-      cantidad: i.cantidad,
-    })),
+    // Ordenados por id: crear_pedido bloquea cada producto en este orden, y si
+    // dos compras simultáneas los bloquean en orden distinto se traban
+    // (deadlock) y una de las dos falla con un error técnico.
+    p_items: [...items]
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((i) => ({
+        id: i.id,
+        nombre: i.nombre,
+        precio: i.precio,
+        cantidad: i.cantidad,
+      })),
     p_subtotal: calcularSubtotal(items),
     p_origen: origen,
   }
@@ -396,4 +401,14 @@ export function nuevaClaveIdempotencia(): string {
   bytes[8] = (bytes[8] & 0x3f) | 0x80 // variante RFC 4122
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+// Nombre de cada estado en el panel (el mismo que usan los filtros y, del
+// lado de la clienta, "Mis pedidos").
+export const ETIQUETA_ESTADO: Record<EstadoPedido, string> = {
+  nuevo: 'Nuevo',
+  confirmado: 'En preparación',
+  enviado: 'Enviado',
+  entregado: 'Entregado',
+  cancelado: 'Cancelado',
 }

@@ -263,3 +263,23 @@ describe('tituloDocumento', () => {
     expect(tituloDocumento(42)).toBe('Pecora - Comprobante pedido #42')
   })
 })
+
+describe('estado del pedido en el comprobante', () => {
+  it('muestra "Enviado", la fecha de pago (hora de la tienda) y el seguimiento', () => {
+    const c = armarComprobante(
+      pedido({ estado: 'enviado', pagado_at: '2026-09-23T01:00:00Z', seguimiento: ' AR123 ' }),
+      TIENDA,
+    )
+    expect(c.estadoTexto).toBe('Enviado · en camino')
+    expect(c.estadoDetalle).toEqual(['Pago recibido el 22/09/2026', 'Seguimiento: AR123'])
+  })
+
+  it('sin pago ni seguimiento no agrega nada', () => {
+    expect(armarComprobante(pedido(), TIENDA).estadoDetalle).toEqual([])
+  })
+
+  it('en un pedido cancelado no muestra pago ni seguimiento', () => {
+    const c = armarComprobante(pedido({ estado: 'cancelado', pagado_at: '2026-09-23T01:00:00Z', seguimiento: 'X' }), TIENDA)
+    expect(c.estadoDetalle).toEqual([])
+  })
+})

@@ -7,6 +7,7 @@ import { catalogoHost, remitenteDireccion, whatsappVisible } from '../../lib/con
 import { lineaLocalidad, lineasTotales } from '../../lib/comprobante'
 import { etiquetaEnvioPedido, sucursalDePedido } from '../../lib/transportistas'
 import { useVistaImpresion } from '../../hooks/useVistaImpresion'
+import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
 import '../../styles/order-print.css'
 
 export type TipoImpresion = 'nota' | 'etiqueta'
@@ -63,6 +64,9 @@ export default function OrderPrintView({ pedido, tipo, onClose }: Props) {
   }, [onClose])
 
   const listo = useVistaImpresion(raizRef, titulo, PREFIJO_LOG)
+
+  // El botón Atrás del celular cierra la vista en vez de salir del panel.
+  useCerrarConAtras(true, () => onCloseRef.current())
 
   // Escape cierra la vista.
   useEffect(() => {

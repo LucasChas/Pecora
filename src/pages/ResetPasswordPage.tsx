@@ -6,6 +6,7 @@ import PasswordInput from '../components/common/PasswordInput'
 import { useAuth } from '../context/AuthContext'
 import '../styles/catalog.css'
 import '../styles/account.css'
+import { useTitulo } from '../hooks/useTitulo'
 
 // Página que abre el link del mail de recuperación (/restablecer-contrasena).
 // Al cargar esta URL, supabase-js detecta el token del hash y crea una
@@ -13,6 +14,7 @@ import '../styles/account.css'
 // llamar updateUser({ password }) sin pedir la contraseña vieja.
 export default function ResetPasswordPage() {
   const { session, actualizarPassword } = useAuth()
+  useTitulo('Nueva contraseña')
   const navigate = useNavigate()
 
   const [password, setPassword] = useState('')
@@ -23,15 +25,20 @@ export default function ResetPasswordPage() {
   const [linkInvalido, setLinkInvalido] = useState(false)
 
   // Le damos un margen a Supabase para procesar el token del hash antes de
-  // asumir que el link es inválido o ya venció.
+  // asumir que el link es inválido o ya venció. Si la sesión llega tarde
+  // (conexión lenta), se corrige: el link era válido. Si Supabase ya marcó el
+  // link como vencido en la URL (#error_code=otp_expired), se avisa al toque.
   useEffect(() => {
     if (session) {
+      setLinkInvalido(false)
       setListo(true)
       return
     }
-    const timer = setTimeout(() => {
-      if (!session) setLinkInvalido(true)
-    }, 2500)
+    if (/error_code=|error=access_denied/.test(window.location.hash + window.location.search)) {
+      setLinkInvalido(true)
+      return
+    }
+    const timer = setTimeout(() => setLinkInvalido(true), 4000)
     return () => clearTimeout(timer)
   }, [session])
 
@@ -85,8 +92,9 @@ export default function ResetPasswordPage() {
             <form onSubmit={onSubmit} className="account-form">
               <p className="account-intro">Elegí tu nueva contraseña.</p>
               <div className="field">
-                <label>Contraseña nueva</label>
+                <label htmlFor="reset-password">Contraseña nueva</label>
                 <PasswordInput
+                  id="reset-password"
                   required
                   minLength={6}
                   value={password}
@@ -96,8 +104,9 @@ export default function ResetPasswordPage() {
                 />
               </div>
               <div className="field">
-                <label>Repetir contraseña</label>
+                <label htmlFor="reset-confirmar">Repetir contraseña</label>
                 <PasswordInput
+                  id="reset-confirmar"
                   required
                   minLength={6}
                   value={confirmar}
@@ -107,7 +116,11 @@ export default function ResetPasswordPage() {
                 />
               </div>
 
-              {error && <p className="form-error">{error}</p>}
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
 
               <button type="submit" className="btn btn-primary" disabled={cargando}>
                 {cargando ? 'Guardando…' : 'Guardar contraseña'}

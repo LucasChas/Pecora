@@ -50,10 +50,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(leerStorage)
   const [drawerAbierto, setDrawerAbierto] = useState(false)
 
-  // Persistimos el carrito en localStorage ante cualquier cambio.
+  // Persistimos el carrito en localStorage ante cualquier cambio. Puede fallar
+  // (modo privado, sin espacio): el carrito sigue andando en memoria.
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    } catch {
+      /* sin persistencia */
+    }
   }, [items])
+
+  // Con la tienda abierta en dos pestañas, lo que se agrega en una aparece en
+  // la otra (antes la última en escribir pisaba a la otra).
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY) setItems(leerStorage())
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   const agregar = useCallback((producto: ProductoConCategoria, cantidad = 1) => {
     setItems((prev) => {
@@ -105,6 +120,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [items],
   )
 
+  // Estables entre renders: el carrito lateral las usa en efectos y, si
+  // cambiaran con cada render, le robarían el foco a la clienta al tocar +/−.
+  const abrirDrawer = useCallback(() => setDrawerAbierto(true), [])
+  const cerrarDrawer = useCallback(() => setDrawerAbierto(false), [])
+
   const value: CartContextValue = {
     items,
     cantidadTotal,
@@ -115,8 +135,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     vaciar,
     reemplazar,
     drawerAbierto,
-    abrirDrawer: () => setDrawerAbierto(true),
-    cerrarDrawer: () => setDrawerAbierto(false),
+    abrirDrawer,
+    cerrarDrawer,
   }
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

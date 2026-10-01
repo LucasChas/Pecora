@@ -41,8 +41,11 @@ import {
 import { useCotizacionTransportistas } from '../hooks/useCotizacionTransportistas'
 import OrderSuccess from '../components/cart/OrderSuccess'
 import OpcionesEnvio from '../components/cart/OpcionesEnvio'
+import Miniatura from '../components/common/Miniatura'
+import { borrarBorrador, errorTelefono, guardarBorrador, leerBorrador } from '../lib/borradorCheckout'
 import '../styles/catalog.css'
 import '../styles/cart.css'
+import { useTitulo } from '../hooks/useTitulo'
 
 interface PedidoConfirmado {
   numero: number
@@ -70,16 +73,25 @@ type MetodoPago = 'whatsapp' | 'mercadopago'
 export default function CheckoutPage() {
   const { items, subtotal, reemplazar, vaciar } = useCart()
   const { session, perfil, loading: cargandoSesion } = useAuth()
+  useTitulo('Finalizar compra')
 
-  const [nombre, setNombre] = useState('')
-  const [telefono, setTelefono] = useState('')
-  const [email, setEmail] = useState('')
-  const [entrega, setEntrega] = useState<'coordinar' | 'envio'>('coordinar')
-  const [direccion, setDireccion] = useState('')
-  const [localidad, setLocalidad] = useState('')
-  const [cp, setCp] = useState('')
-  const [provincia, setProvincia] = useState('')
-  const [notas, setNotas] = useState('')
+  // Arranca con el borrador de la pestaña (si recargó o volvió del carrito).
+  const [borrador] = useState(() => leerBorrador())
+  const [nombre, setNombre] = useState(borrador.nombre ?? '')
+  const [telefono, setTelefono] = useState(borrador.telefono ?? '')
+  const [email, setEmail] = useState(borrador.email ?? '')
+  const [entrega, setEntrega] = useState<'coordinar' | 'envio'>(borrador.entrega ?? 'coordinar')
+  const [direccion, setDireccion] = useState(borrador.direccion ?? '')
+  const [localidad, setLocalidad] = useState(borrador.localidad ?? '')
+  const [cp, setCp] = useState(borrador.cp ?? '')
+  const [provincia, setProvincia] = useState(borrador.provincia ?? '')
+  const [notas, setNotas] = useState(borrador.notas ?? '')
+  const telefonoRef = useRef<HTMLInputElement>(null)
+  const mensajesRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    guardarBorrador({ nombre, telefono, email, entrega, direccion, localidad, cp, provincia, notas })
+  }, [nombre, telefono, email, entrega, direccion, localidad, cp, provincia, notas])
   const [metodoPago, setMetodoPago] = useState<MetodoPago>('whatsapp')
 
   const [enviando, setEnviando] = useState(false)
@@ -329,6 +341,42 @@ export default function CheckoutPage() {
     setTelefono((t) => t || perfil.telefono || '')
   }, [perfil])
 
+  // El email de la cuenta (ya lo tenemos: para comprar hay que estar logueada)
+  // y la dirección del último envío, para no tipear todo en cada compra. Solo
+  // completa campos vacíos.
+  const uid = session?.user.id
+  useEffect(() => {
+    if (!uid) return
+    const mail = session?.user.email
+    if (mail) setEmail((e) => e || mail)
+    let vigente = true
+    supabase
+      .from('pedidos')
+      .select('direccion, localidad, cp, provincia')
+      .eq('user_id', uid)
+      .eq('entrega', 'envio')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        const ultimo = data?.[0]
+        if (!vigente || !ultimo) return
+        setDireccion((d) => d || ultimo.direccion || '')
+        setLocalidad((l) => l || ultimo.localidad || '')
+        setCp((c) => c || ultimo.cp || '')
+        setProvincia((p) => p || ultimo.provincia || '')
+      })
+    return () => {
+      vigente = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid])
+
+  // Los avisos (carrito ajustado, error) aparecen al pie del formulario: los
+  // traemos a la vista para que no pase desapercibido que hay que reconfirmar.
+  useEffect(() => {
+    if (aviso || error) mensajesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [aviso, error])
+
   // Revalida el carrito contra la base: precios vigentes y stock disponible.
   async function revalidarCarrito(): Promise<{ corregidos: CartItem[]; cambios: string[] }> {
     const ids = items.map((i) => i.id)
@@ -369,6 +417,12 @@ export default function CheckoutPage() {
     e.preventDefault()
     setError(null)
     setAviso(null)
+    const errTel = errorTelefono(telefono)
+    if (errTel) {
+      setError(errTel)
+      telefonoRef.current?.focus()
+      return
+    }
     setEnviando(true)
     try {
       const { corregidos, cambios } = await revalidarCarrito()
@@ -455,6 +509,7 @@ export default function CheckoutPage() {
         detalle,
       })
       vaciar()
+      borrarBorrador()
     } catch (err) {
       if (err instanceof ErrorCotizacionVencida && opcionElegida) {
         await recotizarVencida(opcionElegida)
@@ -473,7 +528,16 @@ export default function CheckoutPage() {
   }
 
   // Para comprar hay que estar logueada: si no, va a /cuenta y vuelve al checkout.
-  if (cargandoSesion) return null
+  if (cargandoSesion) {
+    return (
+      <div className="catalog-root">
+        <div className="loading-state">
+          <span className="loading-spinner" aria-hidden="true" />
+          Cargando…
+        </div>
+      </div>
+    )
+  }
   if (!session) return <Navigate to="/cuenta?next=/checkout" replace />
 
   return (
@@ -506,17 +570,20 @@ export default function CheckoutPage() {
                     <span className="paso">1</span> Tus datos
                   </h2>
                   <div className="field">
-                    <label>Nombre y apellido</label>
-                    <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" autoComplete="name" />
+                    <label htmlFor="checkout-nombre">Nombre y apellido</label>
+                    <input id="checkout-nombre" maxLength={120} type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" autoComplete="name" />
                   </div>
                   <div className="field">
-                    <label>Teléfono (WhatsApp)</label>
-                    <input type="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" autoComplete="tel" />
+                    <label htmlFor="checkout-telefono">Teléfono (WhatsApp, con código de área)</label>
+                    <input id="checkout-telefono" maxLength={40} ref={telefonoRef} type="tel" inputMode="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" autoComplete="tel" />
                   </div>
-                  <div className="field">
-                    <label>Email (opcional)</label>
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" autoComplete="email" />
-                  </div>
+                  {/* El comprobante va siempre al email de la cuenta (lo fija la
+                      base, ver 20261001050000_pedidos_limites). */}
+                  {session.user.email && (
+                    <p className="cart-note">
+                      Te mandamos el comprobante a <strong>{session.user.email}</strong>.
+                    </p>
+                  )}
                 </section>
 
                 <section className="checkout-card">
@@ -537,22 +604,22 @@ export default function CheckoutPage() {
                   {entrega === 'envio' && (
                     <div className="entrega-datos">
                       <div className="field">
-                        <label>Dirección</label>
-                        <input type="text" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" autoComplete="street-address" />
+                        <label htmlFor="checkout-direccion">Dirección</label>
+                        <input id="checkout-direccion" maxLength={200} type="text" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" autoComplete="street-address" />
                       </div>
                       <div className="row2">
                         <div className="field">
-                          <label>Localidad</label>
-                          <input type="text" required value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Ciudad" autoComplete="address-level2" />
+                          <label htmlFor="checkout-localidad">Localidad</label>
+                          <input id="checkout-localidad" maxLength={100} type="text" required value={localidad} onChange={(e) => setLocalidad(e.target.value)} placeholder="Ciudad" autoComplete="address-level2" />
                         </div>
                         <div className="field">
-                          <label>Código postal</label>
-                          <input type="text" required value={cp} onChange={(e) => setCp(e.target.value)} placeholder="CP" autoComplete="postal-code" inputMode="numeric" />
+                          <label htmlFor="checkout-cp">Código postal</label>
+                          <input id="checkout-cp" maxLength={20} type="text" required value={cp} onChange={(e) => setCp(e.target.value)} placeholder="CP" autoComplete="postal-code" inputMode="numeric" />
                         </div>
                       </div>
                       <div className="field">
                         <label htmlFor="checkout-provincia">Provincia</label>
-                        <select id="checkout-provincia" value={provincia} onChange={(e) => setProvincia(e.target.value)} autoComplete="address-level1">
+                        <select id="checkout-provincia" required value={provincia} onChange={(e) => setProvincia(e.target.value)} autoComplete="address-level1">
                           <option value="">Elegí una provincia</option>
                           {PROVINCIAS_AR.map((p) => (
                             <option key={p} value={p}>
@@ -622,20 +689,22 @@ export default function CheckoutPage() {
                 </section>
 
                 <div className="field">
-                  <label>Notas (opcional)</label>
-                  <textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Aclaraciones, horarios, etc." />
+                  <label htmlFor="checkout-notas">Notas (opcional)</label>
+                  <textarea id="checkout-notas" maxLength={1000} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Aclaraciones, horarios, etc." />
                 </div>
 
-                {aviso && (
-                  <p className="checkout-aviso" role="status">
-                    {aviso}
-                  </p>
-                )}
-                {error && (
-                  <p className="form-error" role="alert">
-                    {error}
-                  </p>
-                )}
+                <div ref={mensajesRef}>
+                  {aviso && (
+                    <p className="checkout-aviso" role="alert">
+                      {aviso}
+                    </p>
+                  )}
+                  {error && (
+                    <p className="form-error" role="alert">
+                      {error}
+                    </p>
+                  )}
+                </div>
 
                 <button
                   type="submit"
@@ -657,7 +726,7 @@ export default function CheckoutPage() {
                     {items.map((i) => (
                       <div className="summary-item" key={i.id}>
                         <div className="summary-thumb">
-                          <img src={i.imagen} alt={i.nombre} />
+                          <Miniatura src={i.imagen} alt={i.nombre} width={60} height={60} />
                           <span className="summary-qty">{i.cantidad}</span>
                         </div>
                         <span className="summary-name">{i.nombre}</span>

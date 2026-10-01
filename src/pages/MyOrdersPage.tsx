@@ -11,10 +11,22 @@ import { detalleDe, lineasDesglose, montoLinea, totalesDe } from '../lib/orders'
 import { IMG_PLACEHOLDER, portadaDe } from '../lib/images'
 import ImageZoom from '../components/common/ImageZoom'
 import { ESTADO_CLIENTE, estadoVisible } from '../lib/comprobante'
+import CalificarProducto from '../components/account/CalificarProducto'
+import { Estrellas } from '../components/catalog/ResenasProducto'
+import { cargarMisResenas, textoEstrellas, type MiResenaDeProducto } from '../lib/resenas'
+import { invalidarResumenesResenas } from '../hooks/useResumenesResenas'
+import { useDialog } from '../context/DialogContext'
 import type { Pedido } from '../types'
 import '../styles/catalog.css'
 import '../styles/account.css'
 import '../styles/comprobante.css'
+import { useTitulo } from '../hooks/useTitulo'
+
+interface ProductoACalificar {
+  id: string
+  nombre: string
+  imagen: string
+}
 
 function fecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -24,8 +36,12 @@ function fecha(iso: string): string {
 // Cuando la admin cambia el estado de un pedido, acá se actualiza solo (Realtime).
 export default function MyOrdersPage() {
   const { session, loading: cargandoSesion } = useAuth()
+  useTitulo('Mis pedidos')
   const [pedidos, setPedidos] = useState<Pedido[]>([])
   const [cargando, setCargando] = useState(true)
+  // Si la carga falla no decimos "todavía no hiciste pedidos" (falso y
+  // alarmante justo después de comprar): mostramos el error con reintento.
+  const [errorCarga, setErrorCarga] = useState(false)
   // Miniatura por producto (id -> url). El pedido solo guarda nombre/precio,
   // no imagen (foto "de época"), así que la traemos del producto actual —
   // igual que "por categoría" en las estadísticas, es una aproximación: si
@@ -33,18 +49,39 @@ export default function MyOrdersPage() {
   // placeholder, no la que tenía el día de la compra.
   const [imagenes, setImagenes] = useState<Record<string, string>>({})
   const [zoomSrc, setZoomSrc] = useState<string | null>(null)
+  // Productos que todavía existen (los borrados no se pueden calificar).
+  const [existentes, setExistentes] = useState<Set<string>>(new Set())
+  // Reseñas propias por producto. null = no disponible (no se ofrece calificar).
+  const [misResenas, setMisResenas] = useState<Map<string, MiResenaDeProducto> | null>(null)
+  const [calificando, setCalificando] = useState<ProductoACalificar | null>(null)
+  const { notificar } = useDialog()
+
+  const fetchMisResenas = useCallback(async () => {
+    const r = await cargarMisResenas()
+    setMisResenas(r.ok ? new Map(r.valor.map((x) => [x.producto_id, x])) : null)
+  }, [])
 
   const fetchPedidos = useCallback(async (uid: string) => {
     // Filtramos por user_id explícitamente. No alcanza con confiar en RLS: la
     // política permite leer "los propios O todos si sos admin", así que la
     // administradora vería acá los pedidos de todas las clientas como si fueran
     // suyos. "Mis pedidos" siempre son los de la cuenta logueada.
-    const { data } = await supabase
-      .from('pedidos')
-      .select('*')
-      .eq('user_id', uid)
-      .order('created_at', { ascending: false })
-    const lista = (data ?? []) as Pedido[]
+    let lista: Pedido[]
+    try {
+      const { data, error } = await supabase
+        .from('pedidos')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      lista = (data ?? []) as Pedido[]
+    } catch (e) {
+      console.error('No se pudieron cargar los pedidos:', e)
+      setErrorCarga(true)
+      setCargando(false)
+      return
+    }
+    setErrorCarga(false)
     setPedidos(lista)
     setCargando(false)
 
@@ -57,14 +94,16 @@ export default function MyOrdersPage() {
     const mapa: Record<string, string> = {}
     for (const prod of productos ?? []) mapa[prod.id] = portadaDe(prod)
     setImagenes(mapa)
+    setExistentes(new Set((productos ?? []).map((prod) => prod.id)))
   }, [])
 
   useEffect(() => {
     if (!session) return
     const uid = session.user.id
     fetchPedidos(uid)
+    void fetchMisResenas()
     const canal = supabase
-      .channel('mis-pedidos')
+      .channel(`mis-pedidos-${uid}-${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, () =>
         fetchPedidos(uid),
       )
@@ -72,11 +111,25 @@ export default function MyOrdersPage() {
     return () => {
       supabase.removeChannel(canal)
     }
-  }, [session, fetchPedidos])
+  }, [session, fetchPedidos, fetchMisResenas])
 
   // Requiere estar logueada.
-  if (cargandoSesion) return null
+  if (cargandoSesion) {
+    return (
+      <div className="catalog-root">
+        <div className="loading-state">
+          <span className="loading-spinner" aria-hidden="true" />
+          Cargando…
+        </div>
+      </div>
+    )
+  }
   if (!session) return <Navigate to="/cuenta?next=/mis-pedidos" replace />
+
+  const reintentar = () => {
+    setCargando(true)
+    fetchPedidos(session.user.id)
+  }
 
   return (
     <div className="catalog-root">
@@ -95,6 +148,18 @@ export default function MyOrdersPage() {
           <div className="loading-state">
             <span className="loading-spinner" aria-hidden="true" />
             Cargando tus pedidos…
+          </div>
+        ) : errorCarga && pedidos.length === 0 ? (
+          <div className="load-error" role="alert">
+            <p className="load-error-title">No pudimos cargar tus pedidos</p>
+            <p className="load-error-text">
+              Puede ser un problema de conexión. Tus pedidos están guardados: volvé a intentar.
+            </p>
+            <div className="load-error-actions">
+              <button type="button" className="load-error-btn" onClick={reintentar}>
+                Reintentar
+              </button>
+            </div>
           </div>
         ) : pedidos.length === 0 ? (
           <div className="no-results">
@@ -116,16 +181,26 @@ export default function MyOrdersPage() {
                 <div className={`mp-card ${est.clase}`} key={p.id}>
                   <div className="mp-top">
                     <div>
-                      {/* El número de pedido es un dato interno del admin
-                          (lo usa para ubicarlo en el panel); a la clienta le
-                          alcanza con la fecha para reconocer cuál es cuál. */}
-                      <span className="mp-num">Pedido del {fecha(p.created_at)}</span>
+                      {/* El número va en segundo plano: sirve para nombrar el
+                          pedido al escribir por WhatsApp (el mensaje del
+                          checkout ya lo usa) o si hay dos el mismo día. */}
+                      <span className="mp-num">
+                        Pedido del {fecha(p.created_at)} <small>· N.º {p.numero}</small>
+                      </span>
                     </div>
                     <span className={`mp-estado ${est.clase}`}>{est.texto}</span>
                   </div>
                   <div className="mp-items">
                     {p.items.map((i, idx) => {
                       const src = imagenes[i.id] ?? IMG_PLACEHOLDER
+                      // Se ofrece calificar lo comprado por la web, no cancelado y
+                      // que siga en el muestrario (la base exige lo mismo).
+                      const calificable =
+                        misResenas !== null &&
+                        p.origen === 'checkout' &&
+                        estado !== 'cancelado' &&
+                        existentes.has(i.id)
+                      const resena = misResenas?.get(i.id) ?? null
                       return (
                         <div className="mp-item" key={idx}>
                           <span className="mp-item-info">
@@ -137,7 +212,34 @@ export default function MyOrdersPage() {
                             >
                               <img className="mp-item-img" src={src} alt="" />
                             </button>
-                            {i.cantidad}x {i.nombre}
+                            <span className="mp-item-texto">
+                              <span>
+                                {i.cantidad}x {i.nombre}
+                              </span>
+                              {calificable &&
+                                (resena ? (
+                                  <button
+                                    type="button"
+                                    className="mp-calificado"
+                                    onClick={() => setCalificando({ id: i.id, nombre: i.nombre, imagen: src })}
+                                    aria-label={`Tu reseña de ${i.nombre}: ${textoEstrellas(resena.estrellas)}. Editar`}
+                                  >
+                                    <Estrellas llenas={resena.estrellas} etiqueta={textoEstrellas(resena.estrellas)} />
+                                    <span>Editar</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="mp-calificar"
+                                    onClick={() => setCalificando({ id: i.id, nombre: i.nombre, imagen: src })}
+                                  >
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                      <path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" />
+                                    </svg>
+                                    Calificar
+                                  </button>
+                                ))}
+                            </span>
                           </span>
                           <span>{money(i.precio * i.cantidad)}</span>
                         </div>
@@ -195,6 +297,23 @@ export default function MyOrdersPage() {
                       ? `Envío a ${p.direccion}, ${p.localidad} (CP ${p.cp})${p.provincia ? `, ${p.provincia}` : ''}`
                       : 'Retiro / a coordinar'}
                   </div>
+                  {(p.seguimiento || (p.pagado_at && estado !== 'cancelado')) && (
+                    <div className="mp-extra">
+                      {p.pagado_at && estado !== 'cancelado' && <span className="mp-pagado">Pago recibido ✓</span>}
+                      {p.seguimiento && (
+                        <span>
+                          Seguimiento:{' '}
+                          {/^https?:\/\//.test(p.seguimiento) ? (
+                            <a href={p.seguimiento} target="_blank" rel="noopener noreferrer">
+                              ver el envío
+                            </a>
+                          ) : (
+                            <strong className="mp-seguimiento">{p.seguimiento}</strong>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Comprobante de compra imprimible (no es factura). También
                       para los cancelados: queda constancia de lo que se pidió. */}
@@ -247,6 +366,23 @@ export default function MyOrdersPage() {
       </main>
 
       {zoomSrc && <ImageZoom src={zoomSrc} alt="" onClose={() => setZoomSrc(null)} />}
+
+      {calificando && (
+        <CalificarProducto
+          productoId={calificando.id}
+          nombre={calificando.nombre}
+          imagen={calificando.imagen}
+          inicial={misResenas?.get(calificando.id) ?? null}
+          onClose={() => setCalificando(null)}
+          onGuardada={() => {
+            setCalificando(null)
+            invalidarResumenesResenas()
+            void fetchMisResenas()
+            notificar('¡Gracias! Tu reseña quedó guardada.')
+          }}
+        />
+      )}
+
     </div>
   )
 }

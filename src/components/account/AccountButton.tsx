@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
@@ -8,6 +8,22 @@ export default function AccountButton() {
   const { session, perfil, salir } = useAuth()
   const [abierto, setAbierto] = useState(false)
   const navigate = useNavigate()
+  const menuRef = useRef<HTMLDivElement>(null)
+  const botonRef = useRef<HTMLButtonElement>(null)
+
+  // Teclado: al abrir, el foco va a la primera opción; Escape cierra y vuelve
+  // al botón.
+  useEffect(() => {
+    if (!abierto) return
+    menuRef.current?.querySelector<HTMLElement>('a, button')?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setAbierto(false)
+      botonRef.current?.focus()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [abierto])
 
   const icono = (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
@@ -32,13 +48,21 @@ export default function AccountButton() {
 
   return (
     <div className="account-menu-wrap">
-      <button className="cart-icon" onClick={() => setAbierto((v) => !v)} aria-label="Mi cuenta" title="Mi cuenta">
+      <button
+        ref={botonRef}
+        className="cart-icon"
+        onClick={() => setAbierto((v) => !v)}
+        aria-label="Mi cuenta"
+        title="Mi cuenta"
+        aria-haspopup="menu"
+        aria-expanded={abierto}
+      >
         {icono}
       </button>
       {abierto && (
         <>
           <div className="account-menu-backdrop" onClick={() => setAbierto(false)} />
-          <div className="account-menu">
+          <div className="account-menu" ref={menuRef}>
             {/* Identidad de la cuenta: nombre y email de quien está logueada. */}
             <div className="account-menu-id">
               <span className="account-menu-nombre">

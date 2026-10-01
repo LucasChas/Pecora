@@ -8,7 +8,9 @@ import {
   MAX_COMENTARIO,
   MENSAJE_ERROR_GENERICO,
   MENSAJE_NO_DISPONIBLE,
+  agruparResumenes,
   borrarResena,
+  cargarMisResenas,
   cargarEstadoPropio,
   cargarResenas,
   estrellasDePromedio,
@@ -271,5 +273,45 @@ describe('llamadas', () => {
   it('una excepción de red no se propaga', async () => {
     rpc.mockRejectedValue(new Error('offline'))
     expect(await borrarResena(PRODUCTO)).toEqual({ ok: false, error: MENSAJE_ERROR_GENERICO })
+  })
+})
+
+describe('mis reseñas y resúmenes por producto', () => {
+  it('cargarMisResenas devuelve las propias con su producto y descarta filas rotas', async () => {
+    rpc.mockResolvedValueOnce({
+      data: [
+        { id: RESENA, producto_id: PRODUCTO, estrellas: 4, comentario: 'Lindo', oculta: false, created_at: 'x' },
+        { id: 'sin-producto', estrellas: 5 },
+        { id: 'r3', producto_id: PRODUCTO, estrellas: 9 },
+      ],
+      error: null,
+    })
+    const r = await cargarMisResenas()
+    expect(rpc).toHaveBeenCalledWith('mis_resenas')
+    expect(r).toEqual({
+      ok: true,
+      valor: [expect.objectContaining({ id: RESENA, producto_id: PRODUCTO, estrellas: 4, comentario: 'Lindo' })],
+    })
+  })
+
+  it('cargarMisResenas sin la migración avisa que no está disponible', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'no existe' } })
+    expect(await cargarMisResenas()).toEqual({ ok: false, error: MENSAJE_NO_DISPONIBLE, noDisponible: true })
+  })
+
+  it('agruparResumenes promedia por producto, ignora ocultas y filas inválidas', () => {
+    const m = agruparResumenes([
+      { producto_id: 'a', estrellas: 5 },
+      { producto_id: 'a', estrellas: 4 },
+      { producto_id: 'a', estrellas: 4 },
+      { producto_id: 'a', estrellas: 1, oculta: true },
+      { producto_id: 'b', estrellas: 3 },
+      { producto_id: 'c', estrellas: 0 },
+      null,
+    ])
+    expect(m.get('a')).toEqual({ cantidad: 3, promedio: 4.3 })
+    expect(m.get('b')).toEqual({ cantidad: 1, promedio: 3 })
+    expect(m.has('c')).toBe(false)
+    expect(agruparResumenes(null).size).toBe(0)
   })
 })

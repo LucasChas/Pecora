@@ -23,6 +23,7 @@ export const ZONA_HORARIA_TIENDA = 'America/Argentina/Cordoba'
 export const ESTADO_CLIENTE: Record<EstadoPedido, { texto: string; clase: string }> = {
   nuevo: { texto: 'Pedido recibido', clase: 'e-nuevo' },
   confirmado: { texto: 'Confirmado · en preparación', clase: 'e-confirmado' },
+  enviado: { texto: 'Enviado · en camino', clase: 'e-enviado' },
   entregado: { texto: 'Entregado', clase: 'e-entregado' },
   cancelado: { texto: 'Cancelado', clase: 'e-cancelado' },
 }
@@ -161,6 +162,9 @@ export interface Comprobante {
   fecha: string
   estado: EstadoPedido
   estadoTexto: string
+  // Debajo del estado: "Pago recibido el 22/09/2026" y el código de
+  // seguimiento del envío, si los hay (no en un pedido cancelado).
+  estadoDetalle: string[]
   cancelado: boolean
   leyenda: string
   tienda: string[]
@@ -170,6 +174,18 @@ export interface Comprobante {
   items: ItemComprobante[]
   totales: LineaTotal[]
   notas: string | null
+}
+
+function detalleEstado(pedido: Pedido, estado: EstadoPedido): string[] {
+  if (estado === 'cancelado') return []
+  const lineas: string[] = []
+  if (pedido.pagado_at) {
+    const fecha = fechaHoraTienda(pedido.pagado_at).split(' ')[0]
+    lineas.push(fecha ? `Pago recibido el ${fecha}` : 'Pago recibido')
+  }
+  const seguimiento = limpio(pedido.seguimiento)
+  if (seguimiento) lineas.push(`Seguimiento: ${seguimiento}`)
+  return lineas
 }
 
 export function armarComprobante(pedido: Pedido, tienda: DatosTienda): Comprobante {
@@ -190,6 +206,7 @@ export function armarComprobante(pedido: Pedido, tienda: DatosTienda): Comproban
     fecha: fechaHoraTienda(pedido.created_at),
     estado,
     estadoTexto: estado === 'cancelado' ? 'Pedido cancelado' : ESTADO_CLIENTE[estado].texto,
+    estadoDetalle: detalleEstado(pedido, estado),
     cancelado: estado === 'cancelado',
     leyenda: LEYENDA_NO_FACTURA,
     tienda: contactoTienda(tienda),

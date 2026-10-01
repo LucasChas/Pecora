@@ -399,6 +399,11 @@ select results_eq(
   $$ values (0::numeric, null::text, null::uuid, true) $$,
   'entrega = coordinar: no shipping cost, quote not consumed'
 );
+-- This file creates more checkout orders for one account than the rate limit
+-- of 20261001050000_pedidos_limites allows (5 per 10 minutes). The limit is
+-- not under test here, so the earlier orders are moved two days back.
+update public.pedidos set created_at = created_at - interval '2 days'
+ where user_id = 'a5000000-0000-4000-8000-000000000001';
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"a5000000-0000-4000-8000-000000000001","role":"authenticated"}';
 set local request.jwt.claim.sub = 'a5000000-0000-4000-8000-000000000001';
