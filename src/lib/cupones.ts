@@ -221,11 +221,65 @@ export function mensajeErrorCupon(error: ErrorSupabase): string {
 }
 
 export async function guardarCupon(datos: DatosCupon, id?: string): Promise<string | null> {
-  const fila = { ...datos, codigo: normalizarCodigo(datos.codigo) }
-  const { error } = id
-    ? await supabase.from('cupones').update(fila).eq('id', id)
-    : await supabase.from('cupones').insert(fila)
+  const guardar = (fila: Record<string, unknown>) =>
+    id ? supabase.from('cupones').update(fila).eq('id', id) : supabase.from('cupones').insert(fila)
+  const fila: Record<string, unknown> = { ...datos, codigo: normalizarCodigo(datos.codigo) }
+  let { error } = await guardar(fila)
+  // Sin la migración *_cupones_visibles la columna no existe: se guarda el resto.
+  if (error && (error.code === 'PGRST204' || error.code === '42703') && 'visible_en_cuenta' in fila) {
+    delete fila.visible_en_cuenta
+    ;({ error } = await guardar(fila))
+  }
   return error ? mensajeErrorCupon(error) : null
+}
+
+// ---- Cupones que ve la clienta en "Mi cuenta" ----------------------------------
+
+export interface CuponDisponible {
+  codigo: string
+  descripcion: string | null
+  tipo: TipoCupon
+  valor: number
+  minimoCompra: number
+  hasta: string | null
+  soloPrimeraCompra: boolean
+}
+
+/** "10 % de descuento" / "$ 500 de descuento" / "Envío gratis". */
+export function textoBeneficio(c: Pick<CuponDisponible, 'tipo' | 'valor'>): string {
+  if (c.tipo === 'envio_gratis') return 'Envío gratis'
+  if (c.tipo === 'porcentaje') return `${aNumero(c.valor).toLocaleString('es-AR')} % de descuento`
+  return `${money(aNumero(c.valor))} de descuento`
+}
+
+export function normalizarCuponesDisponibles(data: unknown): CuponDisponible[] {
+  if (!Array.isArray(data)) return []
+  const lista: CuponDisponible[] = []
+  for (const fila of data) {
+    const f = (fila ?? {}) as Record<string, unknown>
+    if (typeof f.codigo !== 'string' || !['porcentaje', 'monto', 'envio_gratis'].includes(f.tipo as string)) continue
+    lista.push({
+      codigo: f.codigo,
+      descripcion: typeof f.descripcion === 'string' && f.descripcion.trim() ? f.descripcion.trim() : null,
+      tipo: f.tipo as TipoCupon,
+      valor: aNumero(f.valor),
+      minimoCompra: aNumero(f.minimo_compra),
+      hasta: typeof f.hasta === 'string' ? f.hasta : null,
+      soloPrimeraCompra: f.solo_primera_compra === true,
+    })
+  }
+  return lista
+}
+
+/** Cupones visibles que la cuenta logueada puede usar hoy. [] si falla o falta la migración. */
+export async function cargarCuponesDisponibles(): Promise<CuponDisponible[]> {
+  try {
+    const { data, error } = await supabase.rpc('cupones_disponibles')
+    if (error) return []
+    return normalizarCuponesDisponibles(data)
+  } catch {
+    return []
+  }
 }
 
 // Pausa / reactiva un cupón sin tocar el resto de sus datos.

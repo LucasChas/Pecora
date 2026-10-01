@@ -28,6 +28,8 @@ interface AuthContextValue {
   reenviarConfirmacion: (email: string, volverA?: string) => Promise<{ error: string | null }>
   recuperarPassword: (email: string) => Promise<{ error: string | null }>
   actualizarPassword: (password: string) => Promise<{ error: string | null }>
+  // Vuelve a leer el perfil (después de editarlo en Mi cuenta).
+  recargarPerfil: () => Promise<void>
   salir: () => Promise<void>
 }
 
@@ -126,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       telefono: fila?.telefono || (meta.telefono as string) || null,
       rol: fila?.rol ?? 'cliente',
       created_at: fila?.created_at ?? '',
+      acepta_novedades: fila?.acepta_novedades === true,
     })
   }, [])
 
@@ -218,6 +221,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: traducirErrorAuth(error) }
   }, [])
 
+  const recargarPerfil = useCallback(async () => {
+    const { data } = await supabase.auth.getUser()
+    await cargarPerfil(data.user ?? undefined)
+  }, [cargarPerfil])
+
   const salir = useCallback(async () => {
     // En un celular compartido, la próxima cuenta no hereda los datos de envío
     // que quedaron en el borrador del checkout.
@@ -235,6 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     reenviarConfirmacion,
     recuperarPassword,
     actualizarPassword,
+    recargarPerfil,
     salir,
   }
 

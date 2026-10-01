@@ -176,6 +176,9 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `20261001060000_resenas_compras_manuales.sql` | Reseñas: `compra_verificada` también cuenta los pedidos manuales (origen `admin`, no cancelados ni en la papelera) cuyo email coincide con el de la cuenta (sin importar mayúsculas ni espacios). Antes las ventas por WhatsApp nunca habilitaban a opinar porque su `user_id` es el del staff. El pedido manual tiene un campo Email opcional para esto (no manda mails). Tests: `supabase/tests/resenas_compras_manuales.test.sql`. |
 | `20261001070000_mis_resenas.sql` | RPC `mis_resenas()` (solo `authenticated`): todas las reseñas de la cuenta (también las ocultas) en una llamada, para mostrar en "Mis pedidos" qué productos ya calificó. Tests: `supabase/tests/mis_resenas.test.sql`. |
 | `20261001080000_mis_pedidos.sql` | RPC `mis_pedidos(p_numero default null)` (solo `authenticated`): los pedidos del checkout de la cuenta más los pedidos manuales (WhatsApp) cargados con el email de la cuenta, **solo si ese email está confirmado** (si no, alguien registrado con un email ajeno vería esos pedidos). Lo usan "Mis pedidos" y el comprobante. `compra_verificada` también exige email confirmado para contar los manuales. Helper interno `email_confirmado_de`. Tests: `supabase/tests/mis_pedidos.test.sql`. |
+| `20261002010000_mi_cuenta.sql` | `profiles.acepta_novedades` (mails de novedades; UPDATE permitido solo sobre nombre, teléfono y esa columna) y largos máximos de nombre/teléfono. RPC `eliminar_mi_cuenta()` (solo `authenticated`, no staff): borra la cuenta; perfil, reseñas y avisos se van, los pedidos quedan con `user_id` null. Tests: `supabase/tests/mi_cuenta.test.sql`. |
+| `20261002020000_cupones_visibles.sql` | `cupones.visible_en_cuenta` (default false; la admin lo marca en Ajustes → Cupones). RPC `cupones_disponibles()` (solo `authenticated`): los cupones visibles que la cuenta puede usar hoy, con las mismas reglas que `evaluar_cupon` (activo, vigencia, usos totales y por clienta, primera compra); la compra mínima se muestra pero no filtra. Tests: `supabase/tests/cupones_visibles.test.sql`. |
+| `20261002030000_favoritos_direcciones.sql` | Tabla `favoritos` (user_id, producto_id) y tabla `direcciones` (alias, dirección, localidad, CP, provincia, `principal`; hasta 10 por cuenta, una sola principal), ambas con RLS: cada cuenta ve y cambia solo lo suyo; `user_id` sale de `auth.uid()`. Tests: `supabase/tests/favoritos_direcciones.test.sql`. |
 
 ### Cómo se aplican
 
@@ -351,6 +354,7 @@ WhatsApp, Instagram, Facebook y X leen las meta sin ejecutar JavaScript, así qu
 
 ### Cuentas de clientas
 - Registro/login en `/cuenta`. **Login obligatorio antes del checkout** (redirige con `?next=`).
+- **`/mi-cuenta`**: datos (nombre/teléfono), cupones visibles, favoritos, direcciones, avisos de stock, reseñas, cambiar contraseña o email, preferencia de mails y eliminar cuenta. `/cuenta` con sesión redirige acá.
 - **`/mis-pedidos`**: historial con **estado en tiempo real** → cuando la admin cambia el estado, la clienta lo ve al instante. Cada pedido (no cancelado) tiene **"Descargar comprobante"** (`common/OrderPrintView` tipo `comprobante`: A4 "Comprobante de compra", no válido como factura; se guarda como PDF desde el diálogo de impresión) y cada producto comprado por la web tiene **"Calificar"** / sus estrellas con "Editar" (`account/CalificarProducto`, mismo formulario que la ficha).
 
 ### Checkout

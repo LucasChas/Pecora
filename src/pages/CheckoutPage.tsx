@@ -43,6 +43,15 @@ import OrderSuccess from '../components/cart/OrderSuccess'
 import OpcionesEnvio from '../components/cart/OpcionesEnvio'
 import Miniatura from '../components/common/Miniatura'
 import { borrarBorrador, errorTelefono, guardarBorrador, leerBorrador } from '../lib/borradorCheckout'
+import {
+  MAX_DIRECCIONES,
+  aliasSugerido,
+  cargarDirecciones,
+  direccionPorDefecto,
+  guardarDireccion,
+  yaGuardada,
+  type Direccion,
+} from '../lib/direcciones'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 import { useTitulo } from '../hooks/useTitulo'
@@ -345,26 +354,40 @@ export default function CheckoutPage() {
   // y la dirección del último envío, para no tipear todo en cada compra. Solo
   // completa campos vacíos.
   const uid = session?.user.id
+  // Direcciones guardadas en Mi cuenta: se ofrecen como atajo y la principal
+  // completa el formulario. Sin direcciones, se usa la del último envío.
+  const [direccionesGuardadas, setDireccionesGuardadas] = useState<Direccion[]>([])
+  const [guardarDireccionNueva, setGuardarDireccionNueva] = useState(true)
   useEffect(() => {
     if (!uid) return
     const mail = session?.user.email
     if (mail) setEmail((e) => e || mail)
     let vigente = true
-    supabase
-      .from('pedidos')
-      .select('direccion, localidad, cp, provincia')
-      .eq('user_id', uid)
-      .eq('entrega', 'envio')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .then(({ data }) => {
-        const ultimo = data?.[0]
-        if (!vigente || !ultimo) return
-        setDireccion((d) => d || ultimo.direccion || '')
-        setLocalidad((l) => l || ultimo.localidad || '')
-        setCp((c) => c || ultimo.cp || '')
-        setProvincia((p) => p || ultimo.provincia || '')
-      })
+    const completar = (d: { direccion?: string | null; localidad?: string | null; cp?: string | null; provincia?: string | null }) => {
+      setDireccion((x) => x || d.direccion || '')
+      setLocalidad((x) => x || d.localidad || '')
+      setCp((x) => x || d.cp || '')
+      setProvincia((x) => x || d.provincia || '')
+    }
+    void (async () => {
+      const lista = await cargarDirecciones()
+      if (!vigente) return
+      setDireccionesGuardadas(lista)
+      const porDefecto = direccionPorDefecto(lista)
+      if (porDefecto) {
+        completar(porDefecto)
+        return
+      }
+      const { data } = await supabase
+        .from('pedidos')
+        .select('direccion, localidad, cp, provincia')
+        .eq('user_id', uid)
+        .eq('entrega', 'envio')
+        .order('created_at', { ascending: false })
+        .limit(1)
+      const ultimo = data?.[0]
+      if (vigente && ultimo) completar(ultimo)
+    })()
     return () => {
       vigente = false
     }
@@ -510,6 +533,23 @@ export default function CheckoutPage() {
       })
       vaciar()
       borrarBorrador()
+      // Guarda la dirección nueva en Mi cuenta (si la tildó). Si falla, el
+      // pedido ya está hecho: no se avisa nada.
+      if (
+        envio &&
+        guardarDireccionNueva &&
+        direccionesGuardadas.length < MAX_DIRECCIONES &&
+        !yaGuardada(direccionesGuardadas, { direccion, localidad, cp })
+      ) {
+        void guardarDireccion({
+          alias: aliasSugerido(direccionesGuardadas),
+          direccion,
+          localidad,
+          cp,
+          provincia,
+          principal: direccionesGuardadas.length === 0,
+        })
+      }
     } catch (err) {
       if (err instanceof ErrorCotizacionVencida && opcionElegida) {
         await recotizarVencida(opcionElegida)
@@ -603,6 +643,30 @@ export default function CheckoutPage() {
 
                   {entrega === 'envio' && (
                     <div className="entrega-datos">
+                      {direccionesGuardadas.length > 0 && (
+                        <div className="dir-guardadas" role="group" aria-label="Tus direcciones guardadas">
+                          <span>Tus direcciones:</span>
+                          {direccionesGuardadas.map((d) => {
+                            const elegida = yaGuardada([d], { direccion, localidad, cp })
+                            return (
+                              <button
+                                key={d.id}
+                                type="button"
+                                className={elegida ? 'dir-chip active' : 'dir-chip'}
+                                aria-pressed={elegida}
+                                onClick={() => {
+                                  setDireccion(d.direccion)
+                                  setLocalidad(d.localidad)
+                                  setCp(d.cp ?? '')
+                                  setProvincia(d.provincia ?? '')
+                                }}
+                              >
+                                {d.alias}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
                       <div className="field">
                         <label htmlFor="checkout-direccion">Dirección</label>
                         <input id="checkout-direccion" maxLength={200} type="text" required value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle y número" autoComplete="street-address" />
@@ -628,6 +692,19 @@ export default function CheckoutPage() {
                           ))}
                         </select>
                       </div>
+                      {direccion.trim() !== '' &&
+                        localidad.trim() !== '' &&
+                        direccionesGuardadas.length < MAX_DIRECCIONES &&
+                        !yaGuardada(direccionesGuardadas, { direccion, localidad, cp }) && (
+                          <label className="checkout-guardar-dir">
+                            <input
+                              type="checkbox"
+                              checked={guardarDireccionNueva}
+                              onChange={(e) => setGuardarDireccionNueva(e.target.checked)}
+                            />
+                            Guardar esta dirección en mi cuenta
+                          </label>
+                        )}
                       {hayTransportistas ? (
                         <>
                           <OpcionesEnvio

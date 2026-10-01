@@ -49,6 +49,9 @@ export interface Perfil {
   telefono: string | null
   rol: Rol
   created_at: string
+  // Quiere recibir mails de novedades (migración *_mi_cuenta). false si la
+  // base todavía no tiene la columna.
+  acepta_novedades?: boolean
 }
 
 // ---- Pedidos (ver migraciones 0003 / 0005) ----
@@ -155,6 +158,8 @@ export interface Cupon {
   usos_por_cliente: number | null
   solo_primera_compra: boolean
   activo: boolean
+  // Se muestra en "Mi cuenta" de las clientas (migración *_cupones_visibles).
+  visible_en_cuenta?: boolean
   created_at: string
 }
 

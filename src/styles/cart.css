@@ -1409,3 +1409,44 @@
   color: var(--line);
   cursor: default;
 }
+
+/* Checkout: direcciones guardadas en Mi cuenta. */
+.dir-guardadas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.dir-chip {
+  min-height: 36px;
+  padding: 6px 14px;
+  border-radius: 100px;
+  border: 1px solid var(--sage);
+  background: #fff;
+  color: var(--sage-deep);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dir-chip.active {
+  background: var(--sage);
+  color: #fff;
+}
+.checkout-guardar-dir {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 10px;
+  font-size: 0.86rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.checkout-guardar-dir input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--sage);
+}

@@ -17,6 +17,8 @@ import { cargarMisResenas, textoEstrellas, type MiResenaDeProducto } from '../li
 import { invalidarResumenesResenas } from '../hooks/useResumenesResenas'
 import { useDialog } from '../context/DialogContext'
 import type { Pedido } from '../types'
+import { useCart } from '../context/CartContext'
+import { armarRecompra, cargarProductosPorId, mensajeRecompra, pasosPedido } from '../lib/pedidoCliente'
 import '../styles/catalog.css'
 import '../styles/account.css'
 import '../styles/comprobante.css'
@@ -55,6 +57,19 @@ export default function MyOrdersPage() {
   const [misResenas, setMisResenas] = useState<Map<string, MiResenaDeProducto> | null>(null)
   const [calificando, setCalificando] = useState<ProductoACalificar | null>(null)
   const { notificar } = useDialog()
+  const { agregar } = useCart()
+  const [recomprando, setRecomprando] = useState<string | null>(null)
+
+  // "Volver a comprar": agrega al carrito lo que hoy tiene stock (el carrito
+  // recorta cada cantidad al stock disponible) y avisa qué no se pudo.
+  async function volverAComprar(p: Pedido) {
+    setRecomprando(p.id)
+    const productos = await cargarProductosPorId([...new Set(p.items.map((i) => i.id))])
+    setRecomprando(null)
+    const r = armarRecompra(p.items, productos)
+    for (const { producto, cantidad } of r.agregar) agregar(producto, cantidad)
+    notificar(mensajeRecompra(r))
+  }
 
   const fetchMisResenas = useCallback(async () => {
     const r = await cargarMisResenas()
@@ -183,6 +198,7 @@ export default function MyOrdersPage() {
                     </div>
                     <span className={`mp-estado ${est.clase}`}>{est.texto}</span>
                   </div>
+                  <LineaDeTiempo estado={estado} entrega={p.entrega} />
                   <div className="mp-items">
                     {p.items.map((i, idx) => {
                       const src = imagenes[i.id] ?? IMG_PLACEHOLDER
@@ -308,28 +324,44 @@ export default function MyOrdersPage() {
                     </div>
                   )}
 
-                  {/* Comprobante de compra imprimible (no es factura). También
-                      para los cancelados: queda constancia de lo que se pidió. */}
-                  <Link
-                    className="mp-comprobante"
-                    to={`/mis-pedidos/${p.numero}/comprobante`}
-                    aria-label={`Descargar comprobante del pedido del ${fecha(p.created_at)}`}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
+                  <div className="mp-acciones">
+                    {/* Comprobante de compra imprimible (no es factura). También
+                        para los cancelados: queda constancia de lo que se pidió. */}
+                    <Link
+                      className="mp-comprobante"
+                      to={`/mis-pedidos/${p.numero}/comprobante`}
+                      aria-label={`Descargar comprobante del pedido del ${fecha(p.created_at)}`}
                     >
-                      <path d="M12 3v12" />
-                      <path d="M7 10l5 5 5-5" />
-                      <path d="M5 21h14" />
-                    </svg>
-                    Descargar comprobante
-                  </Link>
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 3v12" />
+                        <path d="M7 10l5 5 5-5" />
+                        <path d="M5 21h14" />
+                      </svg>
+                      Descargar comprobante
+                    </Link>
+                    <button
+                      type="button"
+                      className="mp-comprobante"
+                      onClick={() => volverAComprar(p)}
+                      disabled={recomprando === p.id}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
+                        <path d="M21 3v5h-5" />
+                        <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
+                        <path d="M3 21v-5h5" />
+                      </svg>
+                      {recomprando === p.id ? 'Agregando…' : 'Volver a comprar'}
+                    </button>
+                  </div>
 
                   {/* Un pedido cancelado siempre tiene una explicación del otro
                       lado: le damos a la clienta cómo pedirla. */}
@@ -377,5 +409,25 @@ export default function MyOrdersPage() {
       )}
 
     </div>
+  )
+}
+
+// Línea de tiempo del pedido: Recibido → Confirmado → Enviado → Entregado.
+function LineaDeTiempo({ estado, entrega }: { estado: Pedido['estado']; entrega: Pedido['entrega'] }) {
+  const pasos = pasosPedido(estado, entrega)
+  if (!pasos) return null
+  return (
+    <ol className="mp-pasos" aria-label="Estado del pedido">
+      {pasos.map((paso) => (
+        <li
+          key={paso.clave}
+          className={`mp-paso mp-paso--${paso.estado}`}
+          aria-current={paso.estado === 'actual' ? 'step' : undefined}
+        >
+          <span className="mp-paso-punto" aria-hidden="true" />
+          <span className="mp-paso-texto">{paso.texto}</span>
+        </li>
+      ))}
+    </ol>
   )
 }

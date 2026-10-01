@@ -49,10 +49,11 @@ export default function AccountPage() {
     }
   }
 
-  // Si ya está logueada, no tiene sentido esta página: la mandamos a "next".
+  // Si ya está logueada, no tiene sentido esta página: la mandamos a "next"
+  // (o a "Mi cuenta" si entró directo a /cuenta).
   useEffect(() => {
-    if (session) navigate(next, { replace: true })
-  }, [session, next, navigate])
+    if (session) navigate(params.has('next') ? next : '/mi-cuenta', { replace: true })
+  }, [session, next, params, navigate])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()

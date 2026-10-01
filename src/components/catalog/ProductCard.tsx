@@ -7,6 +7,7 @@ import { avisoStockBajo } from '../../lib/stock'
 import { formatearPromedio, textoCantidad } from '../../lib/resenas'
 import { useResumenesResenas } from '../../hooks/useResumenesResenas'
 import Miniatura from '../common/Miniatura'
+import BotonFavorito from './BotonFavorito'
 
 // Card de producto del catálogo: foto (con mouse, al pasar por encima se ve
 // la segunda), categoría, nombre, descripción en dos líneas, estrellas si
@@ -32,6 +33,7 @@ export default function ProductCard({
 
   return (
     <div className={disponible ? 'card' : 'card unavailable'}>
+      <BotonFavorito productoId={producto.id} nombre={producto.nombre} />
       {/* desdeCatalogo: el "Volver al muestrario" de la ficha usa el historial
           (conserva filtros y scroll) en vez de navegar a "/" de cero. */}
       <Link

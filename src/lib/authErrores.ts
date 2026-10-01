@@ -30,6 +30,8 @@ const POR_CODIGO: Record<string, string> = {
   user_banned: 'Esta cuenta está bloqueada. Escribinos por WhatsApp.',
   session_expired: 'Tu sesión venció. Volvé a ingresar.',
   otp_expired: 'El enlace venció o ya se usó. Pedí uno nuevo.',
+  reauthentication_needed: 'Por seguridad, salí, volvé a ingresar y probá de nuevo.',
+  email_change_confirm_limit: 'Pediste demasiados cambios de email seguidos. Esperá un rato.',
 }
 
 export const MENSAJE_SIN_CONEXION = 'No pudimos conectarnos. Revisá tu conexión y probá de nuevo.'
