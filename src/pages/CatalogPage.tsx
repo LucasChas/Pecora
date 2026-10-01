@@ -168,18 +168,30 @@ export default function CatalogPage() {
               </div>
             )}
             {sinFiltros && <MasVendidos productos={productos} />}
-            {visibles.length > 1 && (
-              <div className="orden-catalogo">
-                <label htmlFor="orden-catalogo">Ordenar por</label>
-                <select id="orden-catalogo" value={orden} onChange={(e) => setOrden(e.target.value)}>
-                  {OPCIONES_ORDEN.map((o) => (
-                    <option key={o.valor} value={o.valor}>
-                      {o.texto}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div className="catalogo-barra">
+              <h2 className="catalogo-titulo">
+                {busqueda.trim()
+                  ? 'Resultados'
+                  : categoriaActiva === 'Todos'
+                    ? 'Todo el muestrario'
+                    : categoriaActiva}
+                <span className="catalogo-cuenta">
+                  {visibles.length === 1 ? '1 producto' : `${visibles.length} productos`}
+                </span>
+              </h2>
+              {visibles.length > 1 && (
+                <div className="orden-catalogo">
+                  <label htmlFor="orden-catalogo">Ordenar por</label>
+                  <select id="orden-catalogo" value={orden} onChange={(e) => setOrden(e.target.value)}>
+                    {OPCIONES_ORDEN.map((o) => (
+                      <option key={o.valor} value={o.valor}>
+                        {o.texto}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
             <ProductGrid productos={visibles} />
           </>
         )}

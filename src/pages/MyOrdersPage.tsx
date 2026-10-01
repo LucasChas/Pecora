@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
@@ -10,10 +10,24 @@ import { waConsultaCancelacionLink } from '../lib/config'
 import { detalleDe, lineasDesglose, montoLinea, totalesDe } from '../lib/orders'
 import { IMG_PLACEHOLDER, portadaDe } from '../lib/images'
 import ImageZoom from '../components/common/ImageZoom'
+import CalificarProducto from '../components/account/CalificarProducto'
+import { Estrellas } from '../components/catalog/ResenasProducto'
+import { cargarMisResenas, textoEstrellas, type MiResenaDeProducto } from '../lib/resenas'
+import { invalidarResumenesResenas } from '../hooks/useResumenesResenas'
+import { useDialog } from '../context/DialogContext'
 import type { EstadoPedido, Pedido } from '../types'
 import '../styles/catalog.css'
 import '../styles/account.css'
 import { useTitulo } from '../hooks/useTitulo'
+
+// La vista del comprobante (y su CSS) se baja recién al tocar "Descargar".
+const OrderPrintView = lazy(() => import('../components/common/OrderPrintView'))
+
+interface ProductoACalificar {
+  id: string
+  nombre: string
+  imagen: string
+}
 
 // Cómo se le muestra el estado a la clienta (más amable que el interno).
 const ESTADO_CLIENTE: Record<EstadoPedido, { texto: string; clase: string }> = {
@@ -51,6 +65,18 @@ export default function MyOrdersPage() {
   // placeholder, no la que tenía el día de la compra.
   const [imagenes, setImagenes] = useState<Record<string, string>>({})
   const [zoomSrc, setZoomSrc] = useState<string | null>(null)
+  // Productos que todavía existen (los borrados no se pueden calificar).
+  const [existentes, setExistentes] = useState<Set<string>>(new Set())
+  // Reseñas propias por producto. null = no disponible (no se ofrece calificar).
+  const [misResenas, setMisResenas] = useState<Map<string, MiResenaDeProducto> | null>(null)
+  const [calificando, setCalificando] = useState<ProductoACalificar | null>(null)
+  const [comprobante, setComprobante] = useState<Pedido | null>(null)
+  const { notificar } = useDialog()
+
+  const fetchMisResenas = useCallback(async () => {
+    const r = await cargarMisResenas()
+    setMisResenas(r.ok ? new Map(r.valor.map((x) => [x.producto_id, x])) : null)
+  }, [])
 
   const fetchPedidos = useCallback(async (uid: string) => {
     // Filtramos por user_id explícitamente. No alcanza con confiar en RLS: la
@@ -85,12 +111,14 @@ export default function MyOrdersPage() {
     const mapa: Record<string, string> = {}
     for (const prod of productos ?? []) mapa[prod.id] = portadaDe(prod)
     setImagenes(mapa)
+    setExistentes(new Set((productos ?? []).map((prod) => prod.id)))
   }, [])
 
   useEffect(() => {
     if (!session) return
     const uid = session.user.id
     fetchPedidos(uid)
+    void fetchMisResenas()
     const canal = supabase
       .channel(`mis-pedidos-${uid}-${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos' }, () =>
@@ -100,7 +128,7 @@ export default function MyOrdersPage() {
     return () => {
       supabase.removeChannel(canal)
     }
-  }, [session, fetchPedidos])
+  }, [session, fetchPedidos, fetchMisResenas])
 
   // Requiere estar logueada.
   if (cargandoSesion) {
@@ -182,6 +210,14 @@ export default function MyOrdersPage() {
                   <div className="mp-items">
                     {p.items.map((i, idx) => {
                       const src = imagenes[i.id] ?? IMG_PLACEHOLDER
+                      // Se ofrece calificar lo comprado por la web, no cancelado y
+                      // que siga en el muestrario (la base exige lo mismo).
+                      const calificable =
+                        misResenas !== null &&
+                        p.origen === 'checkout' &&
+                        estado !== 'cancelado' &&
+                        existentes.has(i.id)
+                      const resena = misResenas?.get(i.id) ?? null
                       return (
                         <div className="mp-item" key={idx}>
                           <span className="mp-item-info">
@@ -193,7 +229,34 @@ export default function MyOrdersPage() {
                             >
                               <img className="mp-item-img" src={src} alt="" />
                             </button>
-                            {i.cantidad}x {i.nombre}
+                            <span className="mp-item-texto">
+                              <span>
+                                {i.cantidad}x {i.nombre}
+                              </span>
+                              {calificable &&
+                                (resena ? (
+                                  <button
+                                    type="button"
+                                    className="mp-calificado"
+                                    onClick={() => setCalificando({ id: i.id, nombre: i.nombre, imagen: src })}
+                                    aria-label={`Tu reseña de ${i.nombre}: ${textoEstrellas(resena.estrellas)}. Editar`}
+                                  >
+                                    <Estrellas llenas={resena.estrellas} etiqueta={textoEstrellas(resena.estrellas)} />
+                                    <span>Editar</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="mp-calificar"
+                                    onClick={() => setCalificando({ id: i.id, nombre: i.nombre, imagen: src })}
+                                  >
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                      <path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" />
+                                    </svg>
+                                    Calificar
+                                  </button>
+                                ))}
+                            </span>
                           </span>
                           <span>{money(i.precio * i.cantidad)}</span>
                         </div>
@@ -269,6 +332,17 @@ export default function MyOrdersPage() {
                     </div>
                   )}
 
+                  {estado !== 'cancelado' && (
+                    <button type="button" className="mp-comprobante" onClick={() => setComprobante(p)}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 3v12" />
+                        <path d="M7 10l5 5 5-5" />
+                        <path d="M5 21h14" />
+                      </svg>
+                      Descargar comprobante
+                    </button>
+                  )}
+
                   {/* Un pedido cancelado siempre tiene una explicación del otro
                       lado: le damos a la clienta cómo pedirla. */}
                   {estado === 'cancelado' && (
@@ -297,6 +371,28 @@ export default function MyOrdersPage() {
       </main>
 
       {zoomSrc && <ImageZoom src={zoomSrc} alt="" onClose={() => setZoomSrc(null)} />}
+
+      {calificando && (
+        <CalificarProducto
+          productoId={calificando.id}
+          nombre={calificando.nombre}
+          imagen={calificando.imagen}
+          inicial={misResenas?.get(calificando.id) ?? null}
+          onClose={() => setCalificando(null)}
+          onGuardada={() => {
+            setCalificando(null)
+            invalidarResumenesResenas()
+            void fetchMisResenas()
+            notificar('¡Gracias! Tu reseña quedó guardada.')
+          }}
+        />
+      )}
+
+      {comprobante && (
+        <Suspense fallback={null}>
+          <OrderPrintView pedido={comprobante} tipo="comprobante" onClose={() => setComprobante(null)} />
+        </Suspense>
+      )}
     </div>
   )
 }

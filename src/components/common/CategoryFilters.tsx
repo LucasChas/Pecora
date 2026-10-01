@@ -30,7 +30,7 @@ export default function CategoryFilters({ categorias, activa, onSelect, classNam
             ? 'active'
             : ''
         return (
-          <button key={c} className={clase} onClick={() => onSelect(c)}>
+          <button key={c} type="button" className={clase} aria-pressed={isActive} onClick={() => onSelect(c)}>
             {c}
           </button>
         )

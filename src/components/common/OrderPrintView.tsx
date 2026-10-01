@@ -5,9 +5,12 @@ import type { Pedido } from '../../types'
 import { money } from '../../lib/format'
 import { catalogoHost, whatsappVisible } from '../../lib/config'
 import { detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
+import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
 import '../../styles/order-print.css'
 
-export type TipoImpresion = 'nota' | 'etiqueta'
+// 'nota' y 'etiqueta': panel (card del pedido → Imprimir).
+// 'comprobante': la clienta, desde "Mis pedidos" (no lleva firmas).
+export type TipoImpresion = 'nota' | 'etiqueta' | 'comprobante'
 
 interface Props {
   pedido: Pedido
@@ -20,6 +23,22 @@ interface Props {
 const PAGINA: Record<TipoImpresion, string> = {
   nota: '@page { size: A4; margin: 12mm; }',
   etiqueta: '@page { size: 100mm 150mm; margin: 4mm; }',
+  comprobante: '@page { size: A4; margin: 12mm; }',
+}
+
+const NOMBRE: Record<TipoImpresion, string> = {
+  nota: 'Nota de entrega',
+  etiqueta: 'Etiqueta de envío',
+  comprobante: 'Comprobante de compra',
+}
+
+// Cómo se nombra el estado en el comprobante de la clienta.
+const ESTADO_COMPROBANTE: Record<Pedido['estado'], string> = {
+  nuevo: 'Pedido recibido',
+  confirmado: 'Confirmado',
+  enviado: 'Enviado',
+  entregado: 'Entregado',
+  cancelado: 'Cancelado',
 }
 
 // Tipografías de marca que usa la plantilla. Se piden explícitamente: si no,
@@ -81,8 +100,9 @@ function esperarRecursos(raiz: HTMLElement | null): Promise<void> {
   return Promise.all([esperaFuentes, ...esperaImagenes]).then(() => undefined)
 }
 
-// Vista de impresión de un pedido (card del panel → "Imprimir"): nota de
-// entrega A4 o etiqueta de envío 10×15. Se monta en un portal sobre
+// Vista de impresión de un pedido: nota de entrega A4 o etiqueta de envío
+// 10×15 (card del panel → "Imprimir"), o comprobante de compra A4 (la
+// clienta, desde "Mis pedidos"). Se monta en un portal sobre
 // document.body, a pantalla completa, con una barra (Imprimir / Cerrar) que no
 // sale en papel. Mientras está abierta:
 //   - <html> lleva la clase op-activo: al imprimir se oculta todo lo que no
@@ -96,9 +116,10 @@ export default function OrderPrintView({ pedido, tipo, onClose }: Props) {
   const raizRef = useRef<HTMLDivElement>(null)
   const [listo, setListo] = useState(false)
   const titulo =
-    tipo === 'nota'
-      ? `Pecora - Nota de entrega #${pedido.numero}`
-      : `Pecora - Etiqueta #${pedido.numero}`
+    tipo === 'etiqueta'
+      ? `Pecora - Etiqueta #${pedido.numero}`
+      : `Pecora - ${NOMBRE[tipo]} #${pedido.numero}`
+  const esClienta = tipo === 'comprobante'
 
   // Último onClose, para no volver a suscribir el teclado en cada render.
   const onCloseRef = useRef(onClose)
@@ -126,6 +147,9 @@ export default function OrderPrintView({ pedido, tipo, onClose }: Props) {
       for (const el of inertes) el.removeAttribute('inert')
     }
   }, [titulo])
+
+  // El botón Atrás del celular cierra la vista en vez de salir de la página.
+  useCerrarConAtras(true, () => onCloseRef.current())
 
   // Escape cierra la vista.
   useEffect(() => {
@@ -170,11 +194,12 @@ export default function OrderPrintView({ pedido, tipo, onClose }: Props) {
       <div className="op-toolbar">
         <div className="op-toolbar-info">
           <strong>
-            {tipo === 'nota' ? 'Nota de entrega' : 'Etiqueta de envío'} · Pedido #{pedido.numero}
+            {NOMBRE[tipo]} · Pedido #{pedido.numero}
           </strong>
           <span>
-            {tipo === 'nota' ? 'Hoja A4' : 'Etiqueta 10 × 15 cm'} · Al imprimir podés elegir
-            "Guardar como PDF".
+            {esClienta
+              ? 'Tocá "Descargar PDF" y elegí "Guardar como PDF" (en iPhone: Compartir → Guardar en Archivos).'
+              : `${tipo === 'nota' ? 'Hoja A4' : 'Etiqueta 10 × 15 cm'} · Al imprimir podés elegir "Guardar como PDF".`}
           </span>
         </div>
         <div className="op-toolbar-acciones">
@@ -187,13 +212,17 @@ export default function OrderPrintView({ pedido, tipo, onClose }: Props) {
             disabled={!listo}
             onClick={() => window.print()}
           >
-            {listo ? 'Imprimir' : 'Preparando…'}
+            {listo ? (esClienta ? 'Descargar PDF' : 'Imprimir') : 'Preparando…'}
           </button>
         </div>
       </div>
 
       <div className="op-lienzo">
-        {tipo === 'nota' ? <NotaEntrega pedido={pedido} /> : <EtiquetaEnvio pedido={pedido} />}
+        {tipo === 'etiqueta' ? (
+          <EtiquetaEnvio pedido={pedido} />
+        ) : (
+          <NotaEntrega pedido={pedido} comprobante={esClienta} />
+        )}
       </div>
     </div>,
     document.body,
@@ -204,34 +233,48 @@ export default function OrderPrintView({ pedido, tipo, onClose }: Props) {
 
 const FIRMAS = ['Recibí conforme', 'Aclaración', 'Fecha']
 
-function NotaEntrega({ pedido }: { pedido: Pedido }) {
+// Con `comprobante` es la versión para la clienta: "Comprobante de compra",
+// con el estado, el pago y el seguimiento, sin las líneas de firma.
+function NotaEntrega({ pedido, comprobante = false }: { pedido: Pedido; comprobante?: boolean }) {
   const t = totalesDe(pedido)
   const detalle = detalleDe(pedido)
   const esEnvio = pedido.entrega === 'envio'
+  const estado = pedido.eliminado_at ? 'cancelado' : pedido.estado
 
   return (
     <article className="op-hoja op-nota">
       <header className="op-nota-cabecera">
         <img className="op-nota-logo" src={logoUrl} alt="Pecora" />
         <div className="op-nota-titulo">
-          <h1>Nota de entrega</h1>
+          <h1>{comprobante ? 'Comprobante de compra' : 'Nota de entrega'}</h1>
           <p className="op-nota-numero">N° {pedido.numero}</p>
           <p className="op-nota-meta">
-            {fecha(pedido.created_at)} · {pedido.origen === 'admin' ? 'Pedido manual' : 'Pedido web'}
+            {fecha(pedido.created_at)} ·{' '}
+            {comprobante
+              ? ESTADO_COMPROBANTE[estado]
+              : pedido.origen === 'admin'
+                ? 'Pedido manual'
+                : 'Pedido web'}
           </p>
+          {comprobante && estado !== 'cancelado' && (
+            <p className="op-nota-meta">
+              {pedido.pagado_at ? `Pago recibido el ${fecha(pedido.pagado_at)}` : 'Pago pendiente'}
+              {pedido.seguimiento ? ` · Seguimiento: ${pedido.seguimiento}` : ''}
+            </p>
+          )}
         </div>
       </header>
 
       <section className="op-nota-partes">
         <div className="op-bloque">
-          <h2>Remitente</h2>
+          <h2>{comprobante ? 'Vendedor' : 'Remitente'}</h2>
           <p className="op-bloque-nombre">Pecora</p>
           {REMITENTE_DIRECCION && <p>{REMITENTE_DIRECCION}</p>}
           <p>WhatsApp {whatsappVisible()}</p>
           <p>{catalogoHost()}</p>
         </div>
         <div className="op-bloque">
-          <h2>Destinatario</h2>
+          <h2>{comprobante ? 'Cliente' : 'Destinatario'}</h2>
           <p className="op-bloque-nombre">{pedido.nombre}</p>
           <p>Tel. {pedido.telefono}</p>
           {pedido.email && <p>{pedido.email}</p>}
@@ -304,16 +347,19 @@ function NotaEntrega({ pedido }: { pedido: Pedido }) {
         </dl>
       </section>
 
-      <section className="op-firmas" aria-label="Conformidad de entrega">
-        {FIRMAS.map((rotulo) => (
-          <div className="op-firma" key={rotulo}>
-            <span className="op-firma-linea" />
-            <span>{rotulo}</span>
-          </div>
-        ))}
-      </section>
+      {!comprobante && (
+        <section className="op-firmas" aria-label="Conformidad de entrega">
+          {FIRMAS.map((rotulo) => (
+            <div className="op-firma" key={rotulo}>
+              <span className="op-firma-linea" />
+              <span>{rotulo}</span>
+            </div>
+          ))}
+        </section>
+      )}
 
       <footer className="op-nota-footer">
+        {comprobante && <>¡Gracias por tu compra! · </>}
         Documento no válido como factura · Pedido #{pedido.numero}
       </footer>
     </article>

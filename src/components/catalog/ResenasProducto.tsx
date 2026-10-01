@@ -15,6 +15,7 @@ import {
   textoEstrellas,
   validarResena,
 } from '../../lib/resenas'
+import { invalidarResumenesResenas } from '../../hooks/useResumenesResenas'
 import '../../styles/resenas.css'
 
 // Cuántas reseñas se muestran antes de "Ver todas".
@@ -124,7 +125,7 @@ function SelectorEstrellas({
 // ---------------------------------------------------------------------------
 // Formulario de alta / edición.
 // ---------------------------------------------------------------------------
-function FormularioResena({
+export function FormularioResena({
   productoId,
   inicial,
   onGuardada,
@@ -260,6 +261,7 @@ export default function ResenasProducto({ productoId }: { productoId: string }) 
   }, [cargarPropia])
 
   const recargar = () => {
+    invalidarResumenesResenas()
     void cargarLista()
     void cargarPropia()
   }

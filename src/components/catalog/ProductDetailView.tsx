@@ -17,6 +17,9 @@ import {
 import AddToCart from '../cart/AddToCart'
 import ImageZoom from '../common/ImageZoom'
 import Miniatura from '../common/Miniatura'
+import { Estrellas } from './ResenasProducto'
+import { estrellasDePromedio, formatearPromedio, textoCantidad } from '../../lib/resenas'
+import { useResumenesResenas } from '../../hooks/useResumenesResenas'
 
 // Cuánto dura a la vista la confirmación de "Copiar link".
 const DURACION_AVISO_COPIA = 2500
@@ -28,6 +31,7 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
   const disponible = producto.stock > 0
   const stockBajo = avisoStockBajo(producto.stock)
   const variasFotos = imagenes.length > 1
+  const resumen = useResumenesResenas()?.get(producto.id)
 
   // Carrusel de imágenes (D9): embla maneja swipe/touch; el strip de
   // miniaturas existente pasa a ser un controlador (scrollTo / selectedScrollSnap).
@@ -180,50 +184,21 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
 
         {/* Información */}
         <div className="pd-info">
+          {producto.categoria_nombre && <p className="pd-cat">{producto.categoria_nombre}</p>}
           <h1 className="pd-name">{producto.nombre}</h1>
-          <p className={disponible ? 'pd-price' : 'pd-price off'}>{money(producto.precio)}</p>
-
-          {/* Compartir: acciones secundarias (outline chico), para no competir
-              con "Agregar al carrito" ni con los botones de consulta. */}
-          <div className="pd-share">
-            <button
-              type="button"
-              className="pd-share-btn"
-              onClick={() => compartirProducto(producto)}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
-              </svg>
-              {compartirNativo ? 'Compartir' : 'Compartir por WhatsApp'}
-            </button>
-            <button type="button" className="pd-share-btn" onClick={onCopiarLink}>
-              {avisoCopia === 'ok' ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M5 12.5l4.5 4.5L19 7.5" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
-                  <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
-                </svg>
-              )}
-              {avisoCopia === 'ok' ? '¡Link copiado!' : 'Copiar link'}
-            </button>
-            {/* Anuncio para lectores de pantalla (siempre montado para que el
-                cambio se anuncie). Lo visual es el texto del botón / el aviso. */}
-            <span className="pd-share-status" role="status" aria-live="polite">
-              {avisoCopia === 'ok' && '¡Link copiado!'}
-              {avisoCopia === 'error' && 'No pudimos copiar el link.'}
-            </span>
-          </div>
-          {avisoCopia === 'error' && (
-            <p className="pd-share-error" aria-hidden="true">
-              No pudimos copiar el link.
-            </p>
+          {resumen && resumen.cantidad > 0 && (
+            <a className="pd-rating" href="#rs-titulo">
+              <Estrellas
+                llenas={estrellasDePromedio(resumen.promedio).llenas}
+                media={estrellasDePromedio(resumen.promedio).media}
+                etiqueta={`${formatearPromedio(resumen.promedio)} de 5 estrellas`}
+              />
+              <span>
+                {formatearPromedio(resumen.promedio)} · {textoCantidad(resumen.cantidad)}
+              </span>
+            </a>
           )}
+          <p className={disponible ? 'pd-price' : 'pd-price off'}>{money(producto.precio)}</p>
 
           {!disponible && <p className="pd-stock-msg">Sin stock por el momento.</p>}
           {disponible && stockBajo && <p className="pd-low-stock">{stockBajo}</p>}
@@ -270,12 +245,68 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
             </div>
           )}
 
-          {/* TODO(owner-copy): revisar esta copy una vez definido el texto final. */}
-          <p className="pd-note">
-            {disponible
-              ? 'Agregalo al carrito y completá el pedido desde el checkout.'
-              : 'Escribinos por WhatsApp o Instagram para consultar disponibilidad.'}
-          </p>
+          {disponible ? (
+            <ul className="pd-garantias">
+              <li>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 21l2.1-5.6A8.4 8.4 0 1 1 21 11.5z" />
+                </svg>
+                Pagás y coordinás la entrega por WhatsApp
+              </li>
+              <li>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 8L12 3 3 8v8l9 5 9-5V8z" />
+                  <path d="M3 8l9 5 9-5" />
+                </svg>
+                Retiro o envío a domicilio
+              </li>
+            </ul>
+          ) : (
+            <p className="pd-note">Escribinos por WhatsApp o Instagram para consultar disponibilidad.</p>
+          )}
+
+          {/* Compartir: al final y en chico, para no competir con "Agregar al
+              carrito" ni con los botones de consulta. */}
+          <div className="pd-share">
+            <button
+              type="button"
+              className="pd-share-btn"
+              onClick={() => compartirProducto(producto)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+              </svg>
+              {compartirNativo ? 'Compartir' : 'Compartir por WhatsApp'}
+            </button>
+            <button type="button" className="pd-share-btn" onClick={onCopiarLink}>
+              {avisoCopia === 'ok' ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 12.5l4.5 4.5L19 7.5" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+                  <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+                </svg>
+              )}
+              {avisoCopia === 'ok' ? '¡Link copiado!' : 'Copiar link'}
+            </button>
+            {/* Anuncio para lectores de pantalla (siempre montado para que el
+                cambio se anuncie). Lo visual es el texto del botón / el aviso. */}
+            <span className="pd-share-status" role="status" aria-live="polite">
+              {avisoCopia === 'ok' && '¡Link copiado!'}
+              {avisoCopia === 'error' && 'No pudimos copiar el link.'}
+            </span>
+          </div>
+          {avisoCopia === 'error' && (
+            <p className="pd-share-error" aria-hidden="true">
+              No pudimos copiar el link.
+            </p>
+          )}
+
         </div>
       </div>
 

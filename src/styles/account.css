@@ -347,3 +347,136 @@
   color: var(--ink);
   user-select: all;
 }
+
+/* ---------- Mis pedidos: calificar y comprobante ---------- */
+.mp-item-texto {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.mp-calificar,
+.mp-calificado {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mp-calificar {
+  border: 1px solid var(--sage);
+  background: #fff;
+  color: var(--sage-deep);
+}
+.mp-calificar svg {
+  width: 14px;
+  height: 14px;
+  fill: var(--sage);
+}
+.mp-calificado {
+  border: none;
+  background: none;
+  padding-left: 0;
+  color: var(--ink-soft);
+}
+.mp-calificado .rs-estrella {
+  width: 15px;
+  height: 15px;
+}
+.mp-calificado span {
+  text-decoration: underline;
+  font-weight: 600;
+}
+@media (hover: hover) {
+  .mp-calificar:hover {
+    background: var(--sage-pale);
+  }
+}
+@media (pointer: coarse) {
+  .mp-calificar,
+  .mp-calificado {
+    min-height: 40px;
+  }
+}
+.mp-comprobante {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: #fff;
+  color: var(--sage-deep);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mp-comprobante svg {
+  width: 17px;
+  height: 17px;
+}
+@media (hover: hover) {
+  .mp-comprobante:hover {
+    border-color: var(--sage);
+    background: var(--sage-pale);
+  }
+}
+
+/* Ventana "Calificar" (sobre .dlg-card) */
+.calificar-card {
+  max-width: 440px;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+.calificar-card:focus {
+  outline: none;
+}
+.calificar-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.calificar-cabecera > div {
+  flex: 1;
+  min-width: 0;
+}
+.calificar-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.calificar-sub {
+  margin: 0 0 2px;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.calificar-cerrar {
+  align-self: flex-start;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.calificar-cerrar svg {
+  width: 20px;
+  height: 20px;
+}
