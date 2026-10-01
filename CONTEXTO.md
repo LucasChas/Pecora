@@ -169,6 +169,7 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `20261001020000_cerrar_ajustar_stock.sql` | Revoca EXECUTE de `ajustar_stock_pedido` a `public`/`anon`/`authenticated`: era `SECURITY DEFINER` y cualquiera podía cambiar el stock por `/rest/v1/rpc`. La usan solo los triggers de pedidos. Tests: `supabase/tests/funciones_internas.test.sql` (lista de funciones `SECURITY DEFINER` que puede llamar cada rol). |
 | `20261001020100_grants_explicitos.sql` | `GRANT`s explícitos de las tablas y funciones auxiliares de 0001→0014 (reemplaza el "auto expose" que se elimina el 2026-10-30). En producción no cambia nada. Tests: `privilegios_base.test.sql`. |
 | `20261001030000_pedido_enviado_pagado.sql` | `pedidos.estado` acepta `enviado` (no toca el stock), columnas `pagado_at` y `seguimiento` (≤ 300). El trigger `pedidos_limitar_empleado` deja a un empleado cambiar también esas dos. Tests: `supabase/tests/pedido_enviado_pagado.test.sql`. |
+| `20261001040000_ajustar_precios.sql` | `ajustar_precios(p_porcentaje, p_categoria_id, p_redondeo, p_simular default true)`: sube o baja un % los precios (todos o de una categoría), con redondeo opcional a un múltiplo (si el redondeo dejaría un precio en 0 o lo movería al revés de lo pedido, ese producto no cambia); `p_simular` devuelve la vista previa `{cambios:[{id,nombre,antes,despues}], cantidad}`. `SECURITY INVOKER` + chequeo `es_staff()` (42501); todo o nada. Tests: `supabase/tests/ajustar_precios.test.sql`. |
 
 ### Cómo se aplican
 

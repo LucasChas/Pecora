@@ -16,6 +16,7 @@ import CategoryFilters from '../components/common/CategoryFilters'
 import ProductFormSheet from '../components/admin/ProductFormSheet'
 import CategoryManagerSheet from '../components/admin/CategoryManagerSheet'
 import ManualOrderSheet from '../components/admin/ManualOrderSheet'
+import AjustarPreciosSheet from '../components/admin/AjustarPreciosSheet'
 import OrdersList from '../components/admin/OrdersList'
 import CatalogExport from '../components/admin/CatalogExport'
 import AjustesPanel from '../components/admin/AjustesPanel'
@@ -161,6 +162,8 @@ export default function AdminPage() {
   // Control de las dos hojas (bottom sheets).
   const [sheetAbierta, setSheetAbierta] = useState(false)
   const [editando, setEditando] = useState<ProductoConCategoria | null>(null)
+  const [plantilla, setPlantilla] = useState<ProductoConCategoria | null>(null)
+  const [preciosAbierta, setPreciosAbierta] = useState(false)
   const [catSheetAbierta, setCatSheetAbierta] = useState(false)
   const [pedidoSheetAbierta, setPedidoSheetAbierta] = useState(false)
 
@@ -217,11 +220,20 @@ export default function AdminPage() {
 
   function abrirNuevo() {
     setEditando(null)
+    setPlantilla(null)
     setSheetAbierta(true)
   }
 
   function abrirEdicion(producto: ProductoConCategoria) {
     setEditando(producto)
+    setPlantilla(null)
+    setSheetAbierta(true)
+  }
+
+  // "Duplicar": la misma hoja pasa a ser un alta con los datos del producto.
+  function duplicar(producto: ProductoConCategoria) {
+    setEditando(null)
+    setPlantilla(producto)
     setSheetAbierta(true)
   }
 
@@ -291,9 +303,14 @@ export default function AdminPage() {
                 <h1>Productos</h1>
                 <p>Tocá un producto para editarlo.</p>
               </div>
-              <button className="head-action" onClick={() => setVista('exportar')}>
-                Exportar catálogo
-              </button>
+              <div className="head-actions">
+                <button className="head-action" onClick={() => setPreciosAbierta(true)}>
+                  Ajustar precios
+                </button>
+                <button className="head-action" onClick={() => setVista('exportar')}>
+                  Exportar catálogo
+                </button>
+              </div>
             </div>
             {miniaturasConProblemas && (
               <p className="head-status">
@@ -444,6 +461,16 @@ export default function AdminPage() {
         categorias={categorias}
         onClose={() => setSheetAbierta(false)}
         onGestionarCategorias={() => setCatSheetAbierta(true)}
+        onChanged={refrescar}
+        plantilla={plantilla}
+        onDuplicar={duplicar}
+      />
+
+      {/* Hoja de ajuste de precios en bloque */}
+      <AjustarPreciosSheet
+        open={preciosAbierta}
+        categorias={categorias}
+        onClose={() => setPreciosAbierta(false)}
         onChanged={refrescar}
       />
 
