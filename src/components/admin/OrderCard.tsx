@@ -5,7 +5,7 @@ import { useDialog } from '../../context/DialogContext'
 import { money } from '../../lib/format'
 import { ETIQUETA_ESTADO, detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
 import { linkWhatsappPedido } from '../../lib/whatsapp'
-import OrderPrintView, { type TipoImpresion } from './OrderPrintView'
+import OrderPrintView, { type TipoImpresion } from '../common/OrderPrintView'
 
 interface Props {
   pedido: Pedido

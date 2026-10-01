@@ -48,7 +48,7 @@ select is_empty(
           'baja_aviso_stock',
           'crear_pedido', 'validar_cupon',
           'suscribir_aviso_stock', 'cancelar_aviso_stock',
-          'guardar_resena', 'borrar_resena', 'puede_resenar', 'mi_resena',
+          'guardar_resena', 'borrar_resena', 'puede_resenar', 'mi_resena', 'mis_resenas',
           -- Solo staff/admin: cada una chequea el rol adentro (42501).
           'reenviar_emails_pedido', 'estadisticas', 'rentabilidad',
           'importar_productos', 'ocultar_resena', 'resenas_moderacion'

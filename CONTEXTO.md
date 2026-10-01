@@ -174,6 +174,7 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `20261001040000_ajustar_precios.sql` | `ajustar_precios(p_porcentaje, p_categoria_id, p_redondeo, p_simular default true)`: sube o baja un % los precios (todos o de una categoría), con redondeo opcional a un múltiplo (si el redondeo dejaría un precio en 0 o lo movería al revés de lo pedido, ese producto no cambia); `p_simular` devuelve la vista previa `{cambios:[{id,nombre,antes,despues}], cantidad}`. `SECURITY INVOKER` + chequeo `es_staff()` (42501); todo o nada. Tests: `supabase/tests/ajustar_precios.test.sql`. |
 | `20261001050000_pedidos_limites.sql` | Trigger `pedidos_proteger_checkout` (BEFORE INSERT, solo origen `checkout`): máximo 5 pedidos cada 10 min y 20 por día por cuenta (con un advisory lock por cuenta, así las llamadas en paralelo no se saltean el límite), y el email del pedido es siempre el de la cuenta (el recibo no puede ir a otra dirección). Para todo pedido nuevo: largos máximos de los textos y hasta 50 ítems, con mensajes en castellano (solo al crear: los pedidos viejos se siguen pudiendo editar). Tests: `supabase/tests/pedidos_limites.test.sql`. |
 | `20261001060000_resenas_compras_manuales.sql` | Reseñas: `compra_verificada` también cuenta los pedidos manuales (origen `admin`, no cancelados ni en la papelera) cuyo email coincide con el de la cuenta (sin importar mayúsculas ni espacios). Antes las ventas por WhatsApp nunca habilitaban a opinar porque su `user_id` es el del staff. El pedido manual tiene un campo Email opcional para esto (no manda mails). Tests: `supabase/tests/resenas_compras_manuales.test.sql`. |
+| `20261001070000_mis_resenas.sql` | RPC `mis_resenas()` (solo `authenticated`): todas las reseñas de la cuenta (también las ocultas) en una llamada, para mostrar en "Mis pedidos" qué productos ya calificó. Tests: `supabase/tests/mis_resenas.test.sql`. |
 
 ### Cómo se aplican
 
@@ -349,7 +350,7 @@ WhatsApp, Instagram, Facebook y X leen las meta sin ejecutar JavaScript, así qu
 
 ### Cuentas de clientas
 - Registro/login en `/cuenta`. **Login obligatorio antes del checkout** (redirige con `?next=`).
-- **`/mis-pedidos`**: historial con **estado en tiempo real** → cuando la admin cambia el estado, la clienta lo ve al instante.
+- **`/mis-pedidos`**: historial con **estado en tiempo real** → cuando la admin cambia el estado, la clienta lo ve al instante. Cada pedido (no cancelado) tiene **"Descargar comprobante"** (`common/OrderPrintView` tipo `comprobante`: A4 "Comprobante de compra", no válido como factura; se guarda como PDF desde el diálogo de impresión) y cada producto comprado por la web tiene **"Calificar"** / sus estrellas con "Editar" (`account/CalificarProducto`, mismo formulario que la ficha).
 
 ### Checkout
 - Diseño en **secciones numeradas** (1 Tus datos · 2 Entrega · 3 Pago) + **resumen lateral** (sticky en desktop, arriba en mobile).
