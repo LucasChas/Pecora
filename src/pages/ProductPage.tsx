@@ -10,6 +10,7 @@ import RelatedProducts, { type EstadoFicha } from '../components/catalog/Related
 import ResenasProducto from '../components/catalog/ResenasProducto'
 import '../styles/catalog.css'
 import '../styles/cart.css'
+import { useTitulo } from '../hooks/useTitulo'
 
 // 'error' (falló la consulta: red, servidor) es distinto de 'no-encontrado'
 // (la consulta anduvo pero el producto no existe): el primero se puede reintentar.
@@ -30,6 +31,7 @@ export default function ProductPage() {
   const [estado, setEstado] = useState<Estado>('cargando')
   // Sube con "Reintentar" para volver a correr la consulta.
   const [intento, setIntento] = useState(0)
+  useTitulo(estado === 'ok' ? producto?.nombre : estado === 'no-encontrado' ? 'Producto no encontrado' : null)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -151,7 +153,15 @@ export default function ProductPage() {
           <>
             <p className="pd-breadcrumb pp-breadcrumb">
               <Link to="/">Inicio</Link>
-              {producto.categoria_nombre ? ` › ${producto.categoria_nombre}` : ''} ›{' '}
+              {producto.categoria_nombre && (
+                <>
+                  {' › '}
+                  <Link to={`/?cat=${encodeURIComponent(producto.categoria_nombre)}`}>
+                    {producto.categoria_nombre}
+                  </Link>
+                </>
+              )}{' '}
+              ›{' '}
               <span>{producto.nombre}</span>
             </p>
 

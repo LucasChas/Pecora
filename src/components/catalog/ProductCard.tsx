@@ -9,7 +9,14 @@ import Miniatura from '../common/Miniatura'
 // Card de producto del catálogo. Si stock = 0: card grisada, badge "Sin stock"
 // y el botón cambia de texto (mismo link de WhatsApp, mensaje distinto).
 // Tocar la card (imagen, nombre o descripción) abre la página del producto.
-export default function ProductCard({ producto }: { producto: ProductoConCategoria }) {
+export default function ProductCard({
+  producto,
+  prioritaria = false,
+}: {
+  producto: ProductoConCategoria
+  // Está en la primera fila: carga inmediata en vez de diferida.
+  prioritaria?: boolean
+}) {
   const disponible = producto.stock > 0
   const cantidadFotos = (producto.imagenes ?? []).filter(Boolean).length
   const stockBajo = avisoStockBajo(producto.stock)
@@ -27,7 +34,13 @@ export default function ProductCard({ producto }: { producto: ProductoConCategor
         <div className="card-img">
           {/* Miniatura liviana (cae al original si falta), carga diferida.
               width/height = caja cuadrada del CSS (.card-img): sin saltos. */}
-          <Miniatura src={portadaDe(producto)} alt={producto.nombre} width={480} height={480} />
+          <Miniatura
+            src={portadaDe(producto)}
+            alt={producto.nombre}
+            width={480}
+            height={480}
+            loading={prioritaria ? 'eager' : 'lazy'}
+          />
           {!disponible && <span className="badge">Sin stock</span>}
           {cantidadFotos > 1 && <span className="photo-count">{cantidadFotos} fotos</span>}
         </div>

@@ -25,6 +25,7 @@ import { permisosDe } from '../lib/roles'
 import { STOCK_BAJO } from '../lib/stock'
 import { coincideBusqueda } from '../lib/format'
 import '../styles/admin.css'
+import { useTitulo } from '../hooks/useTitulo'
 
 // 'exportar' = lista de precios para imprimir/PDF (pantalla completa, sin pestañas).
 // 'ajustes' = cupones, zonas de envío, carga masiva y equipo (solo admin).
@@ -49,6 +50,7 @@ const FILTROS: { valor: FiltroEstado; texto: string }[] = [
 export default function AdminPage() {
   const { session, perfil, loading: cargandoSesion } = useAuth()
   const permisos = permisosDe(perfil)
+  useTitulo('Panel')
   const {
     productos,
     loading: cargandoProductos,

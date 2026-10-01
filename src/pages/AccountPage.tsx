@@ -6,6 +6,7 @@ import PasswordInput from '../components/common/PasswordInput'
 import { useAuth } from '../context/AuthContext'
 import '../styles/catalog.css'
 import '../styles/account.css'
+import { useTitulo } from '../hooks/useTitulo'
 
 // Página de cuenta de clientas (/cuenta): ingresar o crear cuenta. Al entrar,
 // redirige a "next" (ej. el checkout desde el que vino) o a "Mis pedidos".
@@ -16,6 +17,7 @@ export default function AccountPage() {
   const next = params.get('next') || '/'
 
   const [modo, setModo] = useState<'ingresar' | 'registrar' | 'recuperar'>('ingresar')
+  useTitulo(modo === 'registrar' ? 'Crear cuenta' : modo === 'recuperar' ? 'Recuperar contraseña' : 'Ingresar')
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
@@ -132,23 +134,24 @@ export default function AccountPage() {
             {modo === 'registrar' && (
               <>
                 <div className="field">
-                  <label>Nombre y apellido</label>
-                  <input type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" autoComplete="name" />
+                  <label htmlFor="cuenta-nombre">Nombre y apellido</label>
+                  <input id="cuenta-nombre" type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" autoComplete="name" />
                 </div>
                 <div className="field">
-                  <label>Teléfono (WhatsApp)</label>
-                  <input type="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" autoComplete="tel" />
+                  <label htmlFor="cuenta-telefono">Teléfono (WhatsApp)</label>
+                  <input id="cuenta-telefono" type="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" autoComplete="tel" />
                 </div>
               </>
             )}
             <div className="field">
-              <label>Email</label>
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" autoComplete="email" />
+              <label htmlFor="cuenta-email">Email</label>
+              <input id="cuenta-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" autoComplete="email" />
             </div>
             {modo !== 'recuperar' && (
               <div className="field">
-                <label>Contraseña</label>
+                <label htmlFor="cuenta-password">Contraseña</label>
                 <PasswordInput
+                  id="cuenta-password"
                   required
                   minLength={6}
                   value={password}

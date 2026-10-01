@@ -5,17 +5,25 @@ import { useCart } from '../../context/CartContext'
 // Selector de cantidad + botón "Agregar al carrito", para la ficha del producto.
 // Si no hay stock, no se muestra (se consulta por WhatsApp/Instagram).
 export default function AddToCart({ producto }: { producto: ProductoConCategoria }) {
-  const { agregar } = useCart()
+  const { agregar, items } = useCart()
   const [cantidad, setCantidad] = useState(1)
   const [agregado, setAgregado] = useState(false)
 
   if (producto.stock <= 0) return null
 
-  const bajar = () => setCantidad((c) => Math.max(1, c - 1))
-  const subir = () => setCantidad((c) => Math.min(producto.stock, c + 1))
+  // Lo que ya está en el carrito cuenta contra el stock: antes se podía elegir
+  // 3 con 2 ya agregados y en silencio se sumaba 1.
+  const enCarrito = items.find((i) => i.id === producto.id)?.cantidad ?? 0
+  const disponible = Math.max(0, producto.stock - enCarrito)
+  const elegida = Math.min(cantidad, Math.max(1, disponible))
+
+  const bajar = () => setCantidad(Math.max(1, elegida - 1))
+  const subir = () => setCantidad(Math.min(disponible, elegida + 1))
 
   function onAgregar() {
-    agregar(producto, cantidad)
+    if (disponible <= 0) return
+    agregar(producto, elegida)
+    setCantidad(1)
     setAgregado(true)
     // Mensaje "agregado" temporal.
     window.setTimeout(() => setAgregado(false), 1800)
@@ -24,15 +32,22 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
   return (
     <div className="add-cart">
       <div className="qty">
-        <button type="button" onClick={bajar} aria-label="Restar">
+        <button type="button" onClick={bajar} aria-label="Restar una unidad" disabled={elegida <= 1}>
           −
         </button>
-        <span>{cantidad}</span>
-        <button type="button" onClick={subir} aria-label="Sumar">
+        <span aria-live="polite" aria-label={`Cantidad: ${elegida}`}>
+          {elegida}
+        </span>
+        <button type="button" onClick={subir} aria-label="Sumar una unidad" disabled={elegida >= disponible}>
           +
         </button>
       </div>
-      <button type="button" className="btn btn-primary add-cart-btn" onClick={onAgregar}>
+      <button
+        type="button"
+        className="btn btn-primary add-cart-btn"
+        onClick={onAgregar}
+        disabled={disponible <= 0 && !agregado}
+      >
         {agregado ? (
           <span className="added-label">
             <svg
@@ -49,10 +64,17 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
             </svg>
             Agregado
           </span>
+        ) : disponible <= 0 ? (
+          'Ya tenés todo el stock en el carrito'
         ) : (
           'Agregar al carrito'
         )}
       </button>
+      {enCarrito > 0 && disponible > 0 && (
+        <p className="add-cart-nota">
+          Ya tenés {enCarrito} en el carrito · podés sumar {disponible} más.
+        </p>
+      )}
     </div>
   )
 }

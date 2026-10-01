@@ -16,6 +16,7 @@ import {
 } from '../../lib/avisos'
 import AddToCart from '../cart/AddToCart'
 import ImageZoom from '../common/ImageZoom'
+import Miniatura from '../common/Miniatura'
 
 // Cuánto dura a la vista la confirmación de "Copiar link".
 const DURACION_AVISO_COPIA = 2500
@@ -117,8 +118,11 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
                         cuando se acerca a la vista. */}
                     <img
                       src={src}
-                      alt={producto.nombre}
+                      alt={i === 0 ? producto.nombre : `${producto.nombre}, foto ${i + 1}`}
                       loading={i === 0 ? undefined : 'lazy'}
+                      // La primera foto es lo más importante de la página.
+                      // (En minúscula: React 18 no conoce fetchPriority.)
+                      {...(i === 0 ? { fetchpriority: 'high' } : {})}
                     />
                   </button>
                 </div>
@@ -162,9 +166,12 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
                   type="button"
                   className={i === activa ? 'pd-thumb active' : 'pd-thumb'}
                   onClick={() => irAImagen(i)}
-                  aria-label={`Imagen ${i + 1}`}
+                  aria-label={`Ver foto ${i + 1}`}
+                  aria-current={i === activa ? 'true' : undefined}
                 >
-                  <img src={src} alt="" />
+                  {/* Miniatura liviana: antes bajaba cada foto original
+                      (~1400 px) para mostrarla a 58 px. */}
+                  <Miniatura src={src} alt="" width={58} height={58} />
                 </button>
               ))}
             </div>

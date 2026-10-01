@@ -251,8 +251,9 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
 
         <form onSubmit={onSubmit}>
           <div className="field">
-            <label>Nombre de la clienta</label>
+            <label htmlFor="manual-nombre-de-la-clienta">Nombre de la clienta</label>
             <input
+              id="manual-nombre-de-la-clienta"
               type="text"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
@@ -261,8 +262,9 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           </div>
 
           <div className="field">
-            <label>Teléfono</label>
+            <label htmlFor="manual-telefono">Teléfono</label>
             <input
+              id="manual-telefono"
               type="tel"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
@@ -336,8 +338,9 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           )}
 
           <div className="field order-product-picker">
-            <label>Agregar producto</label>
+            <label htmlFor="manual-agregar-producto">Agregar producto</label>
             <input
+              id="manual-agregar-producto"
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
@@ -456,8 +459,9 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
           )}
 
           <div className="field">
-            <label>Notas</label>
+            <label htmlFor="manual-notas">Notas</label>
             <textarea
+              id="manual-notas"
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
               placeholder="Detalles del pedido..."
