@@ -209,7 +209,6 @@ export default function ResenasProducto({ productoId }: { productoId: string }) 
   const { session, loading } = useAuth()
   const { pathname, search } = useLocation()
   const userId = session?.user.id ?? null
-  const emailCuenta = session?.user.email ?? null
 
   const [lista, setLista] = useState<CargaLista>({ estado: 'cargando' })
   const [propia, setPropia] = useState<CargaPropia>({ estado: 'sin_sesion' })
@@ -377,13 +376,7 @@ export default function ResenasProducto({ productoId }: { productoId: string }) 
         </div>
       )
     } else {
-      bloquePropio = (
-        <p className="rs-nota">
-          Pueden opinar quienes compraron este producto. Si lo compraste por WhatsApp, pedinos que
-          anotemos {emailCuenta ? <strong>{emailCuenta}</strong> : 'el email de tu cuenta'} en tu
-          pedido y vas a poder dejar tu reseña.
-        </p>
-      )
+      bloquePropio = <p className="rs-nota">Pueden opinar quienes compraron este producto.</p>
     }
   }
 

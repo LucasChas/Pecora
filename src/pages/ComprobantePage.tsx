@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { useVistaImpresion } from '../hooks/useVistaImpresion'
 import { armarComprobante, tituloDocumento, type DatosTienda } from '../lib/comprobante'
 import { catalogoHost, instagramUsuario, remitenteDireccion, whatsappVisible } from '../lib/config'
-import { leerPedidoCreado } from '../lib/orders'
+import { leerMiPedido } from '../lib/orders'
 import type { Pedido } from '../types'
 import '../styles/catalog.css'
 import '../styles/order-print.css'
@@ -38,8 +38,8 @@ function numeroDeParam(valor: string | undefined): number | null {
 }
 
 // Comprobante de compra (/mis-pedidos/:numero/comprobante). Solo la dueña del
-// pedido lo puede ver: se busca por número Y por su user_id (RLS además
-// limita la lectura a sus propios pedidos). No es una factura.
+// pedido lo puede ver: se busca entre sus pedidos (RPC mis_pedidos: los de su
+// cuenta y los cargados a mano con su email confirmado). No es una factura.
 export default function ComprobantePage() {
   const { session, loading: cargandoSesion } = useAuth()
   const { numero: param } = useParams()
@@ -57,7 +57,7 @@ export default function ComprobantePage() {
     }
     let activo = true
     setEstado('cargando')
-    leerPedidoCreado(numero, uid).then((p) => {
+    leerMiPedido(numero, uid).then((p) => {
       if (!activo) return
       setPedido(p)
       setEstado(p ? 'listo' : 'no-encontrado')

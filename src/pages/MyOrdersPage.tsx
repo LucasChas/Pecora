@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
 import { waConsultaCancelacionLink } from '../lib/config'
-import { detalleDe, lineasDesglose, montoLinea, totalesDe } from '../lib/orders'
+import { cargarMisPedidos, detalleDe, lineasDesglose, montoLinea, totalesDe } from '../lib/orders'
 import { IMG_PLACEHOLDER, portadaDe } from '../lib/images'
 import ImageZoom from '../components/common/ImageZoom'
 import { ESTADO_CLIENTE, estadoVisible } from '../lib/comprobante'
@@ -62,19 +62,12 @@ export default function MyOrdersPage() {
   }, [])
 
   const fetchPedidos = useCallback(async (uid: string) => {
-    // Filtramos por user_id explícitamente. No alcanza con confiar en RLS: la
-    // política permite leer "los propios O todos si sos admin", así que la
-    // administradora vería acá los pedidos de todas las clientas como si fueran
-    // suyos. "Mis pedidos" siempre son los de la cuenta logueada.
+    // Los de la cuenta logueada, nunca "todos" (la RLS deja a la admin leer
+    // todos los pedidos): los de la web con esta cuenta y los cargados a mano
+    // con su email confirmado (ver cargarMisPedidos).
     let lista: Pedido[]
     try {
-      const { data, error } = await supabase
-        .from('pedidos')
-        .select('*')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false })
-      if (error) throw error
-      lista = (data ?? []) as Pedido[]
+      lista = await cargarMisPedidos(uid)
     } catch (e) {
       console.error('No se pudieron cargar los pedidos:', e)
       setErrorCarga(true)
@@ -193,11 +186,11 @@ export default function MyOrdersPage() {
                   <div className="mp-items">
                     {p.items.map((i, idx) => {
                       const src = imagenes[i.id] ?? IMG_PLACEHOLDER
-                      // Se ofrece calificar lo comprado por la web, no cancelado y
-                      // que siga en el muestrario (la base exige lo mismo).
+                      // Se ofrece calificar lo comprado (por la web o por WhatsApp),
+                      // no cancelado y que siga en el muestrario (la base exige lo
+                      // mismo).
                       const calificable =
                         misResenas !== null &&
-                        p.origen === 'checkout' &&
                         estado !== 'cancelado' &&
                         existentes.has(i.id)
                       const resena = misResenas?.get(i.id) ?? null

@@ -16,7 +16,9 @@ import {
   MENSAJE_CUPON_NO_DISPONIBLE,
   PROVINCIAS_AR,
   calcularSubtotal,
+  cargarMisPedidos,
   crearPedido,
+  leerMiPedido,
   detalleDe,
   leerPedidoCreado,
   esFirmaInexistente,
@@ -460,5 +462,43 @@ describe('leerPedidoCreado', () => {
     await expect(leerPedidoCreado(12, 'u1')).resolves.toBeNull()
     consulta.maybeSingle.mockRejectedValueOnce(new Error('red'))
     await expect(leerPedidoCreado(12, 'u1')).resolves.toBeNull()
+  })
+})
+
+describe('mis pedidos', () => {
+  beforeEach(() => {
+    rpc.mockReset()
+    from.mockReset()
+  })
+
+  it('cargarMisPedidos usa el RPC mis_pedidos (web + WhatsApp con su email)', async () => {
+    rpc.mockResolvedValueOnce({ data: [{ id: 'a', numero: 3 }], error: null })
+    expect(await cargarMisPedidos('u1')).toEqual([{ id: 'a', numero: 3 }])
+    expect(rpc).toHaveBeenCalledWith('mis_pedidos')
+    expect(from).not.toHaveBeenCalled()
+  })
+
+  it('sin la migración cae a los pedidos de su cuenta, como antes', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'no existe' } })
+    const cadena = { select: vi.fn(), eq: vi.fn(), order: vi.fn() }
+    cadena.select.mockReturnValue(cadena)
+    cadena.eq.mockReturnValue(cadena)
+    cadena.order.mockResolvedValue({ data: [{ id: 'b' }], error: null })
+    from.mockReturnValue(cadena)
+    expect(await cargarMisPedidos('u1')).toEqual([{ id: 'b' }])
+    expect(cadena.eq).toHaveBeenCalledWith('user_id', 'u1')
+  })
+
+  it('otros errores se propagan (la página muestra "Reintentar")', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '500', message: 'caído' } })
+    await expect(cargarMisPedidos('u1')).rejects.toMatchObject({ message: 'caído' })
+  })
+
+  it('leerMiPedido pide un solo número y devuelve null si no es suyo', async () => {
+    rpc.mockResolvedValueOnce({ data: [{ id: 'c', numero: 9 }], error: null })
+    expect(await leerMiPedido(9, 'u1')).toEqual({ id: 'c', numero: 9 })
+    expect(rpc).toHaveBeenCalledWith('mis_pedidos', { p_numero: 9 })
+    rpc.mockResolvedValueOnce({ data: [], error: null })
+    expect(await leerMiPedido(10, 'u1')).toBeNull()
   })
 })
