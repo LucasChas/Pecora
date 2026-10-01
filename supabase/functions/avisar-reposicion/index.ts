@@ -31,7 +31,7 @@
 // quedan pendientes, se loguea cómo volver a invocarla.
 //
 // Auth: igual que enviar-recibo-pedido (verificación JWT de Supabase + el
-// Bearer tiene que ser EXACTAMENTE la service-role key, en tiempo constante).
+// Bearer tiene que ser la service-role key, ver _shared/autorizacion.ts).
 //
 // Secretos: GMAIL_SENDER + GMAIL_APP_PASSWORD (o GMAIL_CLIENT_ID,
 // GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN para OAuth), BRAND_NAME, BRAND_LOGO_URL (opcional), PUBLIC_SITE_URL
@@ -53,11 +53,11 @@ import {
   separarDestinatarios,
   sqlReintentarAviso,
   type Suscripcion,
-  tokensIguales,
   urlBaja,
   urlProducto,
 } from "./logica.ts";
 import { renderAvisoReposicion } from "./template.ts";
+import { esLlamadaInterna } from "../_shared/autorizacion.ts";
 import { abrirCorreo } from "../_shared/correo.ts";
 import { leerConfigCorreo, MENSAJE_FALTAN_SECRETOS } from "../_shared/correoConfig.ts";
 
@@ -155,12 +155,14 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ ok: false, error: "missing_supabase_env" }, 500);
   }
 
+  // Solo la base (con la service_role key) puede invocarla: ver
+  // _shared/autorizacion.ts.
   const token = bearerToken(req);
-  if (!token || !(await tokensIguales(token, serviceRoleKey))) {
-    console.error(
-      `${LOG_PREFIX} request rechazada (401): el Bearer no es la service-role key. ` +
-        `Revisar el secreto de Vault 'pecora_email_function_token'.`,
-    );
+  const autorizacion = token
+    ? await esLlamadaInterna(token, Deno.env.get)
+    : { ok: false as const, motivo: "falta el header Authorization: Bearer" };
+  if (!autorizacion.ok) {
+    console.error(`${LOG_PREFIX} request rechazada (401): ${autorizacion.motivo}`);
     return jsonResponse({ ok: false, error: "unauthorized" }, 401);
   }
 
@@ -190,7 +192,9 @@ Deno.serve(async (req: Request) => {
   const brandLogoUrl = Deno.env.get("BRAND_LOGO_URL") || null;
   const sitio = resolverSitio(Deno.env.get("PUBLIC_SITE_URL"), Deno.env.get("STORE_URL"));
 
-  const supabase = crearClienteAdmin(supabaseUrl, serviceRoleKey);
+  // Con la clave que llegó (ya verificada como service_role): es la que el
+  // gateway acepta, aunque SUPABASE_SERVICE_ROLE_KEY tenga otro formato.
+  const supabase = crearClienteAdmin(supabaseUrl, token!);
 
   const { data: producto, error: productoError } = await supabase
     .from("productos")
