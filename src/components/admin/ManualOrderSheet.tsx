@@ -29,6 +29,7 @@ interface ItemSeleccionado {
 export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   const [nombre, setNombre] = useState('')
   const [telefono, setTelefono] = useState('')
+  const [email, setEmail] = useState('')
   const [entrega, setEntrega] = useState<EntregaPedido>('coordinar')
   const [direccion, setDireccion] = useState('')
   const [localidad, setLocalidad] = useState('')
@@ -70,6 +71,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     if (!open) return
     setNombre('')
     setTelefono('')
+    setEmail('')
     setEntrega('coordinar')
     setDireccion('')
     setLocalidad('')
@@ -174,12 +176,15 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   }
   const nombreValido = nombre.trim().length >= 2
   const telefonoValido = telefono.replace(/\D/g, '').length >= 8
+  // Opcional; si se carga, que tenga forma de email.
+  const emailValido = email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   // Para envío hace falta al menos dirección y localidad (CP y provincia opcionales).
   const entregaValida =
     entrega === 'coordinar' || (direccion.trim() !== '' && localidad.trim() !== '')
   const puedeConfirmar =
     nombreValido &&
     telefonoValido &&
+    emailValido &&
     entregaValida &&
     items.length > 0 &&
     !guardando &&
@@ -191,11 +196,13 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     items.length === 0 && 'agregá al menos un producto',
     !nombreValido && 'el nombre (2 letras o más)',
     !telefonoValido && 'un teléfono de 8 dígitos o más',
+    !emailValido && 'un email válido (o dejalo vacío)',
     !entregaValida && 'la dirección y la localidad del envío',
   ].filter(Boolean) as string[]
 
   const { confirmar, notificar } = useDialog()
-  const hayCambios = open && (items.length > 0 || nombre.trim() !== '' || telefono.trim() !== '')
+  const hayCambios =
+    open && (items.length > 0 || nombre.trim() !== '' || telefono.trim() !== '' || email.trim() !== '')
 
   async function pedirCierre(): Promise<boolean> {
     if (guardando) return false
@@ -221,7 +228,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     setError(null)
     try {
       const numero = await crearPedido({
-        datos: { nombre, telefono, entrega, direccion, localidad, cp, provincia, notas },
+        datos: { nombre, telefono, email: email.trim() || null, entrega, direccion, localidad, cp, provincia, notas },
         items,
         origen: 'admin',
         idempotencyKey: claveIdempotencia(),
@@ -270,6 +277,23 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
               onChange={(e) => setTelefono(e.target.value)}
               placeholder="Ej: 11 5555 5555"
             />
+          </div>
+
+          <div className="field">
+            <label htmlFor="manual-email">Email (opcional)</label>
+            <input
+              id="manual-email" maxLength={254}
+              type="email"
+              inputMode="email"
+              autoComplete="off"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Ej: marina@gmail.com"
+            />
+            <p className="field-ayuda">
+              Si se crea una cuenta en la tienda con este email, va a poder dejar su opinión de lo que
+              compró. No le mandamos ningún mail.
+            </p>
           </div>
 
           <div className="field">
