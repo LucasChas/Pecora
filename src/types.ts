@@ -52,6 +52,9 @@ export interface Perfil {
   // Quiere recibir mails de novedades (migración *_mi_cuenta). false si la
   // base todavía no tiene la columna.
   acepta_novedades?: boolean
+  // Recordatorio por mail del carrito abandonado (migración *_avisos_tienda).
+  // true por defecto.
+  recordar_carrito?: boolean
 }
 
 // ---- Pedidos (ver migraciones 0003 / 0005) ----

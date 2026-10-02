@@ -2489,3 +2489,53 @@
 .admin-root .transportistas-estado .ajuste-btn {
   align-self: flex-start;
 }
+
+/* ---------- Avisos de pedidos nuevos (sonido / notificación) ---------- */
+.avisos-ped {
+  position: relative;
+}
+.avisos-ped-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  width: min(300px, calc(100vw - 32px));
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(40, 30, 25, 0.14);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+.avisos-ped-panel label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+  line-height: 1.35;
+}
+.avisos-ped-panel input {
+  margin-top: 2px;
+  accent-color: var(--sage, #6f8f7a);
+}
+.avisos-ped-titulo {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.avisos-ped-msg {
+  margin: 0;
+  color: #b3412f;
+  font-size: 0.82rem;
+}
+.avisos-ped-nota {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
