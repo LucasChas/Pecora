@@ -44,6 +44,7 @@ import {
   primeraFoto,
   primerNombre,
   type ProductoCarrito,
+  resolverPanelUrl,
   resolverSitio,
   toNumber,
   urlProducto,
@@ -356,7 +357,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const sitio = resolverSitio(Deno.env.get("PUBLIC_SITE_URL"), Deno.env.get("STORE_URL"));
-  const adminUrl = Deno.env.get("PUBLIC_ADMIN_URL")?.trim() || null;
+  const adminUrl = resolverPanelUrl(Deno.env.get("PUBLIC_ADMIN_URL"), Deno.env.get("ADMIN_ORIGIN"));
   const whatsapp = Deno.env.get("WHATSAPP_NUMBER")?.replace(/\D/g, "") || null;
 
   let abierto: Correo | null | undefined;
