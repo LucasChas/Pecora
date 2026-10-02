@@ -2781,3 +2781,53 @@
   font-weight: 700;
   color: var(--ink);
 }
+
+/* ---------- Ajustes → Instagram (feed del catálogo) ---------- */
+.ig-feed {
+  margin: 4px 16px 24px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.ig-feed h2 {
+  margin: 0 0 6px;
+  font-family: 'Fraunces', serif;
+  font-size: 1.15rem;
+}
+.ig-feed p {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+}
+.ig-feed-url {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.ig-feed-url code {
+  flex: 1 1 260px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--cream);
+  font-size: 0.82rem;
+}
+.ig-feed ol {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+@media (min-width: 768px) {
+  .admin-root .ig-feed {
+    margin-left: var(--admin-gutter);
+    margin-right: var(--admin-gutter);
+    max-width: 760px;
+  }
+}
