@@ -1707,3 +1707,259 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---------- Buscador con sugerencias ---------- */
+.search-sugerencias {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--cream-deep);
+  border-radius: 16px;
+  box-shadow: 0 14px 34px rgba(70, 50, 30, 0.14);
+}
+.search-sugerencias li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.search-sugerencias li.activa,
+.search-sugerencias li:hover {
+  background: var(--cream);
+}
+.search-sugerencias img {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--cream-deep);
+}
+.sug-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sug-nombre {
+  font-size: 0.92rem;
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sug-detalle {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- Franja "cómo comprar" de la portada ---------- */
+.banda-confianza {
+  list-style: none;
+  margin: 26px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.banda-confianza li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.banda-confianza svg {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--cream);
+  color: var(--sage-deep);
+}
+.banda-confianza span {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+.banda-confianza strong {
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+@media (max-width: 720px) {
+  .banda-confianza {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    margin-top: 20px;
+  }
+  .banda-confianza::-webkit-scrollbar {
+    display: none;
+  }
+  .banda-confianza li {
+    flex: 0 0 78%;
+    scroll-snap-align: start;
+  }
+}
+
+/* ---------- Filtros del muestrario (precio, stock, orden) ---------- */
+.catalogo-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.catalogo-filtros + .grid,
+.catalogo-filtros + .no-results {
+  margin-top: 18px;
+}
+.filtro-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+.filtro-select select {
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 6px 12px;
+  min-height: 38px;
+}
+.filtro-orden {
+  margin-left: auto;
+}
+.filtro-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.filtro-toggle.activo {
+  background: var(--sage-deep);
+  border-color: var(--sage-deep);
+  color: #fff;
+}
+.filtro-toggle svg {
+  width: 15px;
+  height: 15px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  .filtro-etiqueta {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .filtro-orden {
+    margin-left: 0;
+  }
+  /* Una sola fila deslizable en el celular. */
+  .catalogo-filtros {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .catalogo-filtros::-webkit-scrollbar {
+    display: none;
+  }
+  .catalogo-filtros > * {
+    flex-shrink: 0;
+  }
+}
+.no-results--filtros {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.no-results--filtros p {
+  margin: 0;
+}
+
+/* ---------- Agregar rápido desde la card ---------- */
+.card-rapido {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  aspect-ratio: 1 / 1;
+  z-index: 3;
+  pointer-events: none;
+}
+.card-agregar {
+  pointer-events: auto;
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: var(--sage-deep);
+  box-shadow: 0 4px 14px rgba(60, 40, 20, 0.18);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.card-agregar svg {
+  width: 21px;
+  height: 21px;
+}
+.card-agregar:hover:not(:disabled) {
+  transform: scale(1.07);
+}
+.card-agregar:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.card-agregar.en-carrito {
+  background: var(--sage-deep);
+  color: #fff;
+}
+.card-agregar-num {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.card-agregar:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
