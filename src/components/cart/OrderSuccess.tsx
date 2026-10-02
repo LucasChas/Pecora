@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { money } from '../../lib/format'
 import { lineasDesglose, montoLinea, type DetallePedido, type TotalesPedido } from '../../lib/orders'
-import type { CartItem } from '../../context/CartContext'
+import { claveItem, nombreConTalle, type CartItem } from '../../context/CartContext'
 
 interface Props {
   waHref: string
@@ -61,9 +61,9 @@ export default function OrderSuccess({ waHref, entrega, items, totales, detalle 
         {/* Desglose de lo comprado, para que la clienta se lleve el detalle a la vista. */}
         <div className="success-detalle">
           {items.map((i) => (
-            <div className="success-linea" key={i.id}>
+            <div className="success-linea" key={claveItem(i)}>
               <span>
-                {i.cantidad}x {i.nombre}
+                {i.cantidad}x {nombreConTalle(i)}
               </span>
               <span>{money(i.precio * i.cantidad)}</span>
             </div>

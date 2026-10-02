@@ -175,6 +175,8 @@ export interface ItemNuevoPedido {
   nombre: string
   precio: number
   cantidad: number
+  // Talle elegido, si el producto se vende por talle.
+  talleId?: string | null
 }
 
 export interface DatosNuevoPedido {
@@ -290,12 +292,18 @@ export async function crearPedido({
     // dos compras simultáneas los bloquean en orden distinto se traban
     // (deadlock) y una de las dos falla con un error técnico.
     p_items: [...items]
-      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .sort((a, b) => {
+        const ka = `${a.id}:${a.talleId ?? ''}`
+        const kb = `${b.id}:${b.talleId ?? ''}`
+        return ka < kb ? -1 : ka > kb ? 1 : 0
+      })
       .map((i) => ({
         id: i.id,
         nombre: i.nombre,
         precio: i.precio,
         cantidad: i.cantidad,
+        // Producto con talles: crear_pedido descuenta de este talle.
+        ...(i.talleId ? { talle_id: i.talleId } : {}),
       })),
     p_subtotal: calcularSubtotal(items),
     p_origen: origen,

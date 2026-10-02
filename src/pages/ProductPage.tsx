@@ -11,6 +11,7 @@ import ResenasProducto from '../components/catalog/ResenasProducto'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 import { useTitulo } from '../hooks/useTitulo'
+import { aplanarProducto, conTalles } from '../lib/productosConsulta'
 
 // 'error' (falló la consulta: red, servidor) es distinto de 'no-encontrado'
 // (la consulta anduvo pero el producto no existe): el primero se puede reintentar.
@@ -64,11 +65,9 @@ export default function ProductPage() {
 
     const cargar = async () => {
       try {
-        const { data, error } = await supabase
-          .from('productos')
-          .select('*, categorias(nombre)')
-          .eq(columna, param)
-          .maybeSingle()
+        const { data, error } = await conTalles((select) =>
+          supabase.from('productos').select(select).eq(columna, param ?? '').maybeSingle(),
+        )
         if (!vivo) return
         if (error) {
           console.error('No se pudo cargar el producto:', error.message)
@@ -79,13 +78,7 @@ export default function ProductPage() {
           setEstado('no-encontrado')
           return
         }
-        const { categorias, ...resto } = data as Record<string, unknown> & {
-          categorias: { nombre: string } | null
-        }
-        setProducto({
-          ...(resto as unknown as ProductoConCategoria),
-          categoria_nombre: categorias?.nombre ?? null,
-        })
+        setProducto(aplanarProducto(data))
         setEstado('ok')
       } catch (e) {
         if (!vivo) return

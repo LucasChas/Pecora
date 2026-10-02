@@ -13,6 +13,16 @@ import {
   type FormMedidas,
 } from '../../lib/transportistas'
 import { guardarProductoSinPisarStock, mensajeConflictoStock } from '../../lib/stock'
+import {
+  TALLES_BEBE,
+  filasDe,
+  guardarTalles,
+  nuevaFila,
+  planTalles,
+  stockTotal,
+  validarFilas,
+  type FilaTalle,
+} from '../../lib/talles'
 import ImagePicker, { type ImagenItem } from './ImagePicker'
 import { useCerrarConAtras } from '../../hooks/useCerrarConAtras'
 
@@ -71,8 +81,18 @@ function firmaCampos(
   stock: string,
   imagenes: ImagenItem[],
   medidas: FormMedidas,
+  talles: { usa: boolean; filas: FilaTalle[] } = { usa: false, filas: [] },
 ): string {
-  return JSON.stringify([nombre, categoriaId, descripcion, precio, stock, imagenes.map((i) => i.key), medidas])
+  return JSON.stringify([
+    nombre,
+    categoriaId,
+    descripcion,
+    precio,
+    stock,
+    imagenes.map((i) => i.key),
+    medidas,
+    talles.usa ? talles.filas.map((f) => [f.id ?? '', f.talle, f.stock]) : null,
+  ])
 }
 
 // Hoja (bottom sheet) para crear o editar un producto.
@@ -93,6 +113,10 @@ export default function ProductFormSheet({
   const [descripcion, setDescripcion] = useState('')
   const [precio, setPrecio] = useState('')
   const [stock, setStock] = useState('')
+  // Talles (opcional): con talles, el stock se carga por talle y el del
+  // producto es la suma.
+  const [usaTalles, setUsaTalles] = useState(false)
+  const [filasTalles, setFilasTalles] = useState<FilaTalle[]>([])
   // Peso y medidas del paquete (opcionales): se usan para cotizar el envío
   // con Andreani / Correo Argentino.
   const [medidas, setMedidas] = useState<FormMedidas>(formMedidasDe(null))
@@ -149,6 +173,10 @@ export default function ProductFormSheet({
     setPrecio(valores.precio)
     setStock(valores.stock)
     setStockLeido(producto?.stock ?? 0)
+    const tallesBase = base?.talles ?? []
+    const filasIniciales = filasDe(tallesBase, Boolean(producto))
+    setUsaTalles(tallesBase.length > 0)
+    setFilasTalles(filasIniciales)
     setMedidas(formMedidasDe(base))
     setImagenes(valores.imagenes)
     setMostrarNuevaCat(false)
@@ -163,13 +191,18 @@ export default function ProductFormSheet({
         valores.stock,
         valores.imagenes,
         formMedidasDe(base),
+        { usa: tallesBase.length > 0, filas: filasIniciales },
       ),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, producto, plantilla])
 
   const hayCambios =
-    open && firmaCampos(nombre, categoriaId, descripcion, precio, stock, imagenes, medidas) !== inicial
+    open &&
+    firmaCampos(nombre, categoriaId, descripcion, precio, stock, imagenes, medidas, {
+      usa: usaTalles,
+      filas: filasTalles,
+    }) !== inicial
 
   // Cerrar (Cancelar, tocar el fondo o "Atrás"): si hay cambios sin guardar,
   // pregunta antes de descartarlos (una foto a medio cargar se perdía con un
@@ -264,6 +297,13 @@ export default function ProductFormSheet({
       setError(medidasParseadas.mensaje)
       return
     }
+    if (usaTalles) {
+      const errorTalles = validarFilas(filasTalles)
+      if (errorTalles) {
+        setError(errorTalles)
+        return
+      }
+    }
     setGuardando(true)
     setError(null)
     try {
@@ -316,11 +356,23 @@ export default function ProductFormSheet({
       }
 
       // Si no tocó el stock, no se manda: así una venta que entró mientras
-      // editaba (fotos, descripción...) no se deshace al guardar.
-      if (producto && payload.stock === stockLeido) delete payload.stock
+      // editaba (fotos, descripción...) no se deshace al guardar. Con talles
+      // el stock del producto lo calcula la base (suma de los talles).
+      if (usaTalles || (producto && payload.stock === stockLeido)) delete payload.stock
+      if (!producto && usaTalles) payload.stock = 0
+      const tallesOriginales = producto?.talles ?? []
+      // Se sacan los talles: primero se borran, así el stock del formulario
+      // vuelve a ser el del producto.
+      if (producto && !usaTalles && tallesOriginales.length > 0) {
+        const r = await guardarTalles(producto.id, planTalles(tallesOriginales, []))
+        if (!r.ok) throw new Error(r.error)
+        payload.stock = Number(stock) || 0
+      }
+      let idNuevo: string | null = null
       const guardar = async (datos: Record<string, unknown>): Promise<{ code?: string; message?: string } | null> => {
         if (!producto) {
-          const { error } = await supabase.from('productos').insert(datos)
+          const { data, error } = await supabase.from('productos').insert(datos).select('id').single()
+          if (!error && data) idNuevo = (data as { id: string }).id
           return error
         }
         const r = await guardarProductoSinPisarStock(producto.id, datos, stockLeido)
@@ -338,6 +390,15 @@ export default function ProductFormSheet({
         error = await guardar(payload)
       }
       if (error) throw new Error(error.message ?? 'error desconocido')
+      if (usaTalles) {
+        const productoId = producto?.id ?? idNuevo
+        if (!productoId) throw new Error('no se pudo leer el producto recién creado')
+        const r = await guardarTalles(productoId, planTalles(tallesOriginales, filasTalles))
+        if (!r.ok) {
+          onChanged()
+          throw new Error(r.error)
+        }
+      }
       onChanged() // Refresca los datos para que el cambio se vea al instante.
       onClose()
       notificar(producto ? 'Cambios guardados' : plantilla ? 'Copia creada' : 'Producto creado')
@@ -490,20 +551,94 @@ export default function ProductFormSheet({
                 placeholder="0"
               />
             </div>
-            <div className="field">
-              <label htmlFor="producto-stock">Stock</label>
-              <input
-                id="producto-stock"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                required
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                placeholder="0"
-              />
-            </div>
+            {!usaTalles && (
+              <div className="field">
+                <label htmlFor="producto-stock">Stock</label>
+                <input
+                  id="producto-stock"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  required
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            )}
           </div>
+
+          <fieldset className="talles-form">
+            <label className="talles-form-check">
+              <input
+                type="checkbox"
+                checked={usaTalles}
+                onChange={(e) => {
+                  setUsaTalles(e.target.checked)
+                  if (e.target.checked && filasTalles.length === 0) setFilasTalles([nuevaFila()])
+                }}
+              />
+              <span>
+                Este producto tiene talles
+                <small>El stock se carga por talle y la clienta elige el suyo al comprar.</small>
+              </span>
+            </label>
+            {usaTalles && (
+              <>
+                <div className="talles-form-lista">
+                  {filasTalles.map((f, i) => (
+                    <div className="talles-form-fila" key={f.key}>
+                      <input
+                        type="text"
+                        value={f.talle}
+                        maxLength={30}
+                        placeholder="Talle (ej. 0-3 m)"
+                        aria-label={`Talle ${i + 1}`}
+                        onChange={(e) =>
+                          setFilasTalles((fs) => fs.map((x) => (x.key === f.key ? { ...x, talle: e.target.value } : x)))
+                        }
+                      />
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={f.stock}
+                        placeholder="Stock"
+                        aria-label={`Stock del talle ${f.talle || i + 1}`}
+                        onChange={(e) =>
+                          setFilasTalles((fs) => fs.map((x) => (x.key === f.key ? { ...x, stock: e.target.value } : x)))
+                        }
+                        onWheel={(e) => e.currentTarget.blur()}
+                      />
+                      <button
+                        type="button"
+                        className="talles-form-quitar"
+                        aria-label={`Quitar el talle ${f.talle || i + 1}`}
+                        onClick={() => setFilasTalles((fs) => fs.filter((x) => x.key !== f.key))}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="talles-form-acciones">
+                  <button type="button" className="link-btn" onClick={() => setFilasTalles((fs) => [...fs, nuevaFila()])}>
+                    + Agregar talle
+                  </button>
+                  {filasTalles.every((f) => !f.talle.trim()) && (
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => setFilasTalles(TALLES_BEBE.map((t) => nuevaFila(t, '0')))}
+                    >
+                      Cargar talles de bebé (RN a 24 m)
+                    </button>
+                  )}
+                  <span className="talles-form-total">Stock total: {stockTotal(filasTalles)}</span>
+                </div>
+              </>
+            )}
+          </fieldset>
 
           <fieldset className="medidas-envio">
             <legend>Peso y medidas del paquete (opcional)</legend>

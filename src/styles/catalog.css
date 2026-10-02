@@ -1925,6 +1925,7 @@
   pointer-events: none;
 }
 .card-agregar {
+  text-decoration: none;
   pointer-events: auto;
   position: absolute;
   right: 10px;
@@ -1962,6 +1963,7 @@
 .card-agregar:disabled {
   opacity: 0.75;
   cursor: default;
+}
 
 /* "Instalar Pecora en el celular" (aparece solo si el navegador lo permite). */
 .instalar-app {
