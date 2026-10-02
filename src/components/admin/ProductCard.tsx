@@ -126,19 +126,21 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
         <div className="prod-fields">
           <div className="mini-field">
             <label htmlFor={`precio-${producto.id}`}>Precio</label>
-            <input
-              id={`precio-${producto.id}`}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              value={precio}
-              onChange={(e) => setPrecio(e.target.value)}
-              onFocus={() => empezarEdicion('precio')}
-              onBlur={() => confirmarCampo('precio', precio, producto.precio)}
-              // En desktop la rueda del mouse cambiaría el número sin querer
-              // (y se guardaría al salir): soltamos el foco antes de que pase.
-              onWheel={(e) => e.currentTarget.blur()}
-            />
+            <span className="precio-input">
+              <input
+                id={`precio-${producto.id}`}
+                type="number"
+                inputMode="decimal"
+                min={0}
+                value={precio}
+                onChange={(e) => setPrecio(e.target.value)}
+                onFocus={() => empezarEdicion('precio')}
+                onBlur={() => confirmarCampo('precio', precio, producto.precio)}
+                // En desktop la rueda del mouse cambiaría el número sin querer
+                // (y se guardaría al salir): soltamos el foco antes de que pase.
+                onWheel={(e) => e.currentTarget.blur()}
+              />
+            </span>
           </div>
           {producto.talles && producto.talles.length > 0 ? (
             // Con talles, el stock se cambia por talle en "Editar foto y datos".

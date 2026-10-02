@@ -330,7 +330,7 @@ export default function AdminPage() {
 
         {vista === 'productos' ? (
           <>
-            <StatsStrip productos={productos} />
+            <StatsStrip productos={productos} filtro={filtroStock} onFiltrar={setFiltroStock} />
             <div className="list-head">
               <div>
                 <h1>Productos</h1>
