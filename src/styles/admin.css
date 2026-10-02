@@ -2539,3 +2539,136 @@
   color: var(--ink-soft);
   font-size: 0.78rem;
 }
+
+/* ---------- Números del panel (clic = filtro) ---------- */
+.stats.stats--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.admin-root button.stat {
+  font: inherit;
+  color: inherit;
+  border: 1px solid transparent;
+  cursor: pointer;
+  width: 100%;
+}
+.stat {
+  position: relative;
+  border: 1px solid transparent;
+}
+.stat::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 26px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  transform: translateX(-50%);
+  background: var(--line);
+}
+.stat--ok::before {
+  background: #7fa37a;
+}
+.stat--aviso.stat--con::before {
+  background: #d79a3e;
+}
+.stat--alerta.stat--con::before {
+  background: #c4574b;
+}
+.stat--aviso.stat--con .num {
+  color: #a8691b;
+}
+.stat--alerta.stat--con .num {
+  color: #b3412f;
+}
+.stat--activa {
+  border-color: var(--sage);
+  box-shadow: 0 0 0 2px rgba(176, 141, 87, 0.18);
+}
+@media (max-width: 420px) {
+  .stats.stats--4 {
+    gap: 6px;
+  }
+  .stats.stats--4 .stat {
+    padding: 10px 4px;
+  }
+  .stats.stats--4 .label {
+    font-size: 0.58rem;
+  }
+}
+@media (min-width: 768px) {
+  .admin-root .stats.stats--4 {
+    grid-template-columns: repeat(4, minmax(0, 180px));
+  }
+}
+
+/* ---------- Precio con "$" adelante ---------- */
+.precio-input {
+  position: relative;
+  display: block;
+}
+.precio-input::before {
+  content: '$';
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+.precio-input input {
+  padding-left: 20px;
+}
+
+/* ---------- Pestañas: al deslizarse, el imán respeta el margen ---------- */
+.admin-root .admin-tabs--scroll {
+  scroll-padding-inline: 16px;
+}
+
+/* ---------- Estadísticas alineada con las demás pestañas ---------- */
+.admin-root .est-panel {
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 16px;
+}
+@media (min-width: 768px) {
+  .admin-root .est-panel {
+    padding-left: var(--admin-gutter);
+    padding-right: var(--admin-gutter);
+    padding-top: 22px;
+  }
+}
+
+/* ---------- Detalles generales ---------- */
+.prod-card,
+.order-card {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+@media (hover: hover) {
+  .prod-card:hover,
+  .order-card:hover {
+    box-shadow: 0 6px 18px rgba(51, 48, 42, 0.1);
+  }
+}
+
+/* Chips de filtros en el celular: una sola fila deslizable. */
+@media (max-width: 767px) {
+  .admin-root .orders-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 0 16px 2px;
+    scroll-padding-inline: 16px;
+  }
+  .admin-root .orders-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .admin-root .orders-chips .chip {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
