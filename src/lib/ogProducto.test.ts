@@ -303,9 +303,14 @@ describe('metaGenerica', () => {
 describe('htmlDeMeta', () => {
   it('escapa todo lo que viene del producto (intento de inyección)', () => {
     const malicioso = `</title><script>alert("x")</script><meta property="og:image" content="https://evil.com/x.jpg`
-    const html = htmlDeMeta(
+    const completo = htmlDeMeta(
       metaProducto(producto({ nombre: malicioso, descripcion: `"><img src=x onerror=alert(1)>` }), SITIO),
     )
+    // El único <script> es el JSON-LD, y adentro no queda ningún "<" (así no
+    // puede cerrarse antes de tiempo).
+    const jsonLd = /<script type="application\/ld\+json" data-pecora="producto">([^<]*)<\/script>/
+    expect(completo).toMatch(jsonLd)
+    const html = completo.replace(jsonLd, '')
     expect(html).not.toContain('<script')
     expect(html).not.toContain('<img')
     expect(html).not.toContain('"><')
@@ -314,6 +319,24 @@ describe('htmlDeMeta', () => {
     expect(html).toContain('&lt;/title&gt;&lt;script&gt;')
     // Solo un <title> y se cierra una vez.
     expect(html.match(/<\/title>/g)).toHaveLength(1)
+  })
+})
+
+describe('jsonLdProducto', () => {
+  it('arma el producto con su oferta y disponibilidad', () => {
+    const meta = metaProducto(producto({ stock: 3 }), SITIO)
+    expect(meta.jsonLd).toMatchObject({
+      '@type': 'Product',
+      name: 'Babero rayado',
+      offers: { price: '12500.00', priceCurrency: 'ARS', availability: 'https://schema.org/InStock' },
+    })
+    expect(metaProducto(producto({ stock: 0 }), SITIO).jsonLd).toMatchObject({
+      offers: { availability: 'https://schema.org/OutOfStock' },
+    })
+  })
+  it('sin precio no hay oferta y la genérica no lleva datos', () => {
+    expect(metaProducto(producto({ precio: 0 }), SITIO).jsonLd).not.toHaveProperty('offers')
+    expect(metaGenerica(SITIO).jsonLd).toBeUndefined()
   })
 })
 

@@ -47,7 +47,7 @@ export const CACHE_OK = 'public, max-age=0, s-maxage=600, stale-while-revalidate
 // Genérica por error o producto inexistente: caché corta, para reintentar pronto.
 export const CACHE_GENERICA = 'public, max-age=0, s-maxage=60, stale-while-revalidate=600'
 
-const COLUMNAS = 'id,slug,nombre,descripcion,precio,imagen_url,imagenes'
+const COLUMNAS = 'id,slug,nombre,descripcion,precio,imagen_url,imagenes,stock'
 
 // Dependencias externas del handler. Se inyectan para poder probar cada rama
 // (tests en api/_tests/, que Vercel no publica como función por el guion bajo).
