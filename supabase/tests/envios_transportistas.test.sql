@@ -163,8 +163,8 @@ select results_eq(
             'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text, uuid)',
             'EXECUTE')
        from (values ('anon'), ('authenticated')) r(rol) order by 1 $$,
-  $$ values ('anon'::text, false), ('authenticated', true) $$,
-  'crear_pedido: authenticated only'
+  $$ values ('anon'::text, true), ('authenticated', true) $$,
+  'crear_pedido: anon (guest checkout) and authenticated'
 );
 
 -- ----------------------------------------------------------------------------

@@ -10,6 +10,9 @@ interface Props {
   totales: TotalesPedido
   // Cupón aplicado y zona de envío (se nombran en el desglose).
   detalle?: DetallePedido
+  // Compra como invitada: a dónde va el comprobante (y se invita a crear la
+  // cuenta para seguir el pedido).
+  emailInvitada?: string | null
 }
 
 // Modal de éxito tras confirmar un pedido: check animado, agradecimiento y el
@@ -19,7 +22,7 @@ interface Props {
 // El fondo NO cierra el modal: el carrito ya se vació, y un toque accidental
 // afuera haría perder el paso de WhatsApp (que es donde se coordina el pago).
 // Solo se sale con la X o con los botones.
-export default function OrderSuccess({ waHref, entrega, items, totales, detalle }: Props) {
+export default function OrderSuccess({ waHref, entrega, items, totales, detalle, emailInvitada }: Props) {
   const navigate = useNavigate()
   const volver = () => navigate('/')
 
@@ -57,6 +60,13 @@ export default function OrderSuccess({ waHref, entrega, items, totales, detalle 
           Gracias por confiar en Pecora. Ya tenemos tu pedido y lo estamos preparando con mucho
           cariño.
         </p>
+
+        {emailInvitada && (
+          <p className="success-text success-mail">
+            Te mandamos el comprobante a <strong>{emailInvitada}</strong>. Si creás tu cuenta con ese
+            email, vas a ver tus pedidos en "Mis pedidos".
+          </p>
+        )}
 
         {/* Desglose de lo comprado, para que la clienta se lleve el detalle a la vista. */}
         <div className="success-detalle">
@@ -137,9 +147,15 @@ export default function OrderSuccess({ waHref, entrega, items, totales, detalle 
             Coordinar por WhatsApp
           </a>
 
-          <Link className="pp-back" to="/mis-pedidos">
-            Ver el estado de mi pedido
-          </Link>
+          {emailInvitada ? (
+            <Link className="pp-back" to="/cuenta?next=/mis-pedidos">
+              Creá tu cuenta para seguir tus pedidos
+            </Link>
+          ) : (
+            <Link className="pp-back" to="/mis-pedidos">
+              Ver el estado de mi pedido
+            </Link>
+          )}
         </div>
       </div>
     </div>
