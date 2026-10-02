@@ -1,4 +1,4 @@
-import type { EntregaPedido, EstadoPedido, PedidoItem, ProductoConCategoria } from '../types'
+import type { Talle, EntregaPedido, EstadoPedido, PedidoItem, ProductoConCategoria } from '../types'
 
 // ============================================================================
 // "Mis pedidos" de la clienta: línea de tiempo del estado y "Volver a
@@ -37,28 +37,47 @@ export function pasosPedido(estado: EstadoPedido, entrega: EntregaPedido): PasoP
 
 export interface Recompra {
   // Productos con stock, con la cantidad del pedido (el carrito la recorta
-  // al stock disponible).
-  agregar: { producto: ProductoConCategoria; cantidad: number }[]
+  // al stock disponible) y el talle, si el producto se vende por talle.
+  agregar: { producto: ProductoConCategoria; cantidad: number; talle?: Talle | null }[]
   // Nombres de lo que hoy no se puede comprar (sin stock o ya no está).
   noDisponibles: string[]
 }
 
 /** Qué se puede volver a agregar al carrito de un pedido anterior. */
 export function armarRecompra(
-  items: readonly Pick<PedidoItem, 'id' | 'nombre' | 'cantidad'>[],
+  items: readonly Pick<PedidoItem, 'id' | 'nombre' | 'cantidad' | 'talle_id'>[],
   productos: readonly ProductoConCategoria[],
 ): Recompra {
   const porId = new Map(productos.map((p) => [p.id, p]))
-  const cantidades = new Map<string, { nombre: string; cantidad: number }>()
+  // Una línea por producto y talle (sumando repetidos).
+  const lineas = new Map<string, { id: string; talleId: string | null; nombre: string; cantidad: number }>()
   for (const i of items) {
-    const previo = cantidades.get(i.id)
-    cantidades.set(i.id, { nombre: i.nombre, cantidad: (previo?.cantidad ?? 0) + Math.max(1, Math.trunc(i.cantidad)) })
+    const talleId = i.talle_id || null
+    const clave = talleId ? `${i.id}:${talleId}` : i.id
+    const previo = lineas.get(clave)
+    lineas.set(clave, {
+      id: i.id,
+      talleId,
+      nombre: i.nombre,
+      cantidad: (previo?.cantidad ?? 0) + Math.max(1, Math.trunc(i.cantidad)),
+    })
   }
   const recompra: Recompra = { agregar: [], noDisponibles: [] }
-  for (const [id, { nombre, cantidad }] of cantidades) {
+  for (const { id, talleId, nombre, cantidad } of lineas.values()) {
     const producto = porId.get(id)
-    if (!producto || !(producto.stock > 0)) recompra.noDisponibles.push(nombre)
-    else recompra.agregar.push({ producto, cantidad })
+    if (!producto || !(producto.stock > 0)) {
+      recompra.noDisponibles.push(nombre)
+      continue
+    }
+    const talles = producto.talles ?? []
+    if (talles.length === 0) {
+      recompra.agregar.push({ producto, cantidad })
+      continue
+    }
+    // Con talles: el mismo talle del pedido, si sigue existiendo con stock.
+    const talle = talleId ? talles.find((t) => t.id === talleId) : undefined
+    if (!talle || !(talle.stock > 0)) recompra.noDisponibles.push(nombre)
+    else recompra.agregar.push({ producto, cantidad, talle })
   }
   return recompra
 }
@@ -80,12 +99,10 @@ export async function cargarProductosPorId(ids: readonly string[]): Promise<Prod
   if (ids.length === 0) return []
   try {
     const { supabase } = await import('./supabaseClient')
-    const { data, error } = await supabase.from('productos').select('*, categorias(nombre)').in('id', [...ids])
+    const { aplanarProducto, conTalles } = await import('./productosConsulta')
+    const { data, error } = await conTalles((select) => supabase.from('productos').select(select).in('id', [...ids]))
     if (error) return []
-    return (data ?? []).map((row) => {
-      const { categorias, ...resto } = row as Record<string, unknown> & { categorias: { nombre: string } | null }
-      return { ...(resto as unknown as ProductoConCategoria), categoria_nombre: categorias?.nombre ?? null }
-    })
+    return ((data as unknown[]) ?? []).map(aplanarProducto)
   } catch {
     return []
   }

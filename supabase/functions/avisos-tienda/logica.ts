@@ -111,6 +111,7 @@ export function leerItemsCarrito(raw: unknown): ItemCarritoGuardado[] {
     const o = it as Record<string, unknown>;
     const id = typeof o.id === "string" ? o.id : "";
     const cantidad = Math.floor(toNumber(o.cantidad));
+    // Un mismo producto puede venir en dos talles: se lo cuenta una vez.
     if (!UUID_RE.test(id) || cantidad <= 0 || vistos.has(id)) continue;
     vistos.add(id);
     res.push({ id, cantidad: Math.min(cantidad, 99) });

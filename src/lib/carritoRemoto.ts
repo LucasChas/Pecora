@@ -15,23 +15,28 @@ import { portadaDe } from './images'
 export interface ItemGuardado {
   id: string
   cantidad: number
+  // Talle elegido (productos con talles).
+  talle_id?: string
 }
+
+const claveGuardado = (i: { id: string; talle_id?: string | null }) => (i.talle_id ? `${i.id}:${i.talle_id}` : i.id)
 
 /** Lo que se guarda en la base: id y cantidad, sin duplicados ni basura. */
 export function aGuardar(items: readonly CartItem[]): ItemGuardado[] {
   const vistos = new Set<string>()
   const res: ItemGuardado[] = []
   for (const i of items) {
-    if (!i.id || vistos.has(i.id) || !(i.cantidad > 0)) continue
-    vistos.add(i.id)
-    res.push({ id: i.id, cantidad: Math.floor(i.cantidad) })
+    const clave = claveGuardado({ id: i.id, talle_id: i.talleId })
+    if (!i.id || vistos.has(clave) || !(i.cantidad > 0)) continue
+    vistos.add(clave)
+    res.push({ id: i.id, cantidad: Math.floor(i.cantidad), ...(i.talleId ? { talle_id: i.talleId } : {}) })
   }
   return res.slice(0, 50)
 }
 
 /** Firma estable para no guardar dos veces lo mismo. */
 export function firma(items: readonly ItemGuardado[]): string {
-  return items.map((i) => `${i.id}:${i.cantidad}`).join('|')
+  return items.map((i) => `${claveGuardado(i)}:${i.cantidad}`).join('|')
 }
 
 /** Lee la columna items tal como venga de la base. */
@@ -42,7 +47,9 @@ export function leerGuardados(raw: unknown): ItemGuardado[] {
     if (!it || typeof it !== 'object') continue
     const o = it as Record<string, unknown>
     const cantidad = typeof o.cantidad === 'number' ? Math.floor(o.cantidad) : 0
-    if (typeof o.id === 'string' && o.id && cantidad > 0) res.push({ id: o.id, cantidad })
+    if (typeof o.id === 'string' && o.id && cantidad > 0) {
+      res.push({ id: o.id, cantidad, ...(typeof o.talle_id === 'string' && o.talle_id ? { talle_id: o.talle_id } : {}) })
+    }
   }
   return res
 }
@@ -59,15 +66,22 @@ export function rearmarCarrito(
   const res: CartItem[] = []
   for (const g of guardados) {
     const p = porId.get(g.id)
-    if (!p || !(p.stock > 0)) continue
+    if (!p) continue
+    const talles = p.talles ?? []
+    // Con talles, la línea necesita su talle (y vale el stock de ese talle).
+    const talle = talles.length > 0 ? talles.find((t) => t.id === g.talle_id) : undefined
+    if (talles.length > 0 && !talle) continue
+    const stock = talle ? talle.stock : p.stock
+    if (!(stock > 0)) continue
     res.push({
       id: p.id,
       nombre: p.nombre,
       precio: p.precio,
       imagen: portadaDe(p),
-      stock: p.stock,
-      cantidad: Math.min(g.cantidad, p.stock),
+      stock,
+      cantidad: Math.min(g.cantidad, stock),
       slug: p.slug,
+      ...(talle ? { talleId: talle.id, talle: talle.talle } : {}),
     })
   }
   return res

@@ -1925,6 +1925,7 @@
   pointer-events: none;
 }
 .card-agregar {
+  text-decoration: none;
   pointer-events: auto;
   position: absolute;
   right: 10px;

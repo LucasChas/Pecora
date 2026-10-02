@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
 import HeaderActions from '../components/account/HeaderActions'
-import { useCart } from '../context/CartContext'
+import { claveItem, nombreConTalle, useCart } from '../context/CartContext'
 import { money } from '../lib/format'
 import { useDialog } from '../context/DialogContext'
 import Miniatura from '../components/common/Miniatura'
@@ -55,17 +55,17 @@ export default function CartPage() {
           <>
             <div className="cart-list">
               {items.map((i) => (
-                <div className="cart-item" key={i.id}>
+                <div className="cart-item" key={claveItem(i)}>
                   <Miniatura src={i.imagen} alt={i.nombre} width={84} height={84} />
                   <div className="cart-item-main">
                     <Link to={`/producto/${i.slug ?? i.id}`} className="cart-item-name">
-                      {i.nombre}
+                      {nombreConTalle(i)}
                     </Link>
                     <p className="cart-item-price">{money(i.precio)}</p>
                     <div className="qty">
                       <button
                         type="button"
-                        onClick={() => setCantidad(i.id, i.cantidad - 1)}
+                        onClick={() => setCantidad(claveItem(i), i.cantidad - 1)}
                         aria-label={`Restar una unidad de ${i.nombre}`}
                         disabled={i.cantidad <= 1}
                       >
@@ -74,7 +74,7 @@ export default function CartPage() {
                       <span aria-live="polite">{i.cantidad}</span>
                       <button
                         type="button"
-                        onClick={() => setCantidad(i.id, i.cantidad + 1)}
+                        onClick={() => setCantidad(claveItem(i), i.cantidad + 1)}
                         aria-label={`Sumar una unidad de ${i.nombre}`}
                         disabled={i.cantidad >= i.stock}
                       >
@@ -84,7 +84,7 @@ export default function CartPage() {
                   </div>
                   <div className="cart-item-right">
                     <p className="cart-item-total">{money(i.precio * i.cantidad)}</p>
-                    <button type="button" className="cart-remove" onClick={() => quitar(i.id)}>
+                    <button type="button" className="cart-remove" onClick={() => quitar(claveItem(i))}>
                       Quitar
                     </button>
                   </div>

@@ -52,3 +52,30 @@ describe('armarRecompra', () => {
     )
   })
 })
+
+describe('armarRecompra con talles', () => {
+  const conTalles = {
+    id: 'a',
+    nombre: 'Body',
+    stock: 3,
+    precio: 100,
+    talles: [
+      { id: 't1', talle: '0-3 m', stock: 3, orden: 0 },
+      { id: 't2', talle: '3-6 m', stock: 0, orden: 1 },
+    ],
+  } as unknown as ProductoConCategoria
+
+  it('vuelve a agregar el mismo talle si tiene stock', () => {
+    const r = armarRecompra(
+      [
+        { id: 'a', nombre: 'Body (talle 0-3 m)', cantidad: 1, talle_id: 't1' },
+        { id: 'a', nombre: 'Body (talle 3-6 m)', cantidad: 1, talle_id: 't2' },
+        { id: 'a', nombre: 'Body', cantidad: 1 },
+      ],
+      [conTalles],
+    )
+    expect(r.agregar).toHaveLength(1)
+    expect(r.agregar[0].talle?.id).toBe('t1')
+    expect(r.noDisponibles).toEqual(['Body (talle 3-6 m)', 'Body'])
+  })
+})
