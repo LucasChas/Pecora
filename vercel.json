@@ -17,6 +17,10 @@
       "destination": "/api/sitemap"
     },
     {
+      "source": "/catalogo-meta.csv",
+      "destination": "/api/catalogo-meta"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

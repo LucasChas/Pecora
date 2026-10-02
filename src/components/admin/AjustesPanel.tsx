@@ -4,14 +4,16 @@ import ZonasEnvioAdmin from './ZonasEnvioAdmin'
 import ImportarProductos from './ImportarProductos'
 import EquipoAdmin from './EquipoAdmin'
 import ResenasAdmin from './ResenasAdmin'
+import CatalogoInstagram from './CatalogoInstagram'
 
-type Seccion = 'cupones' | 'zonas' | 'importar' | 'resenas' | 'equipo'
+type Seccion = 'cupones' | 'zonas' | 'importar' | 'resenas' | 'instagram' | 'equipo'
 
 const SECCIONES: { valor: Seccion; texto: string }[] = [
   { valor: 'cupones', texto: 'Cupones' },
   { valor: 'zonas', texto: 'Zonas de envío' },
   { valor: 'importar', texto: 'Importar productos' },
   { valor: 'resenas', texto: 'Reseñas' },
+  { valor: 'instagram', texto: 'Instagram' },
   { valor: 'equipo', texto: 'Equipo' },
 ]
 
@@ -58,6 +60,8 @@ export default function AjustesPanel({ onProductosImportados }: Props) {
         <ImportarProductos onImportado={onProductosImportados} />
       ) : seccion === 'resenas' ? (
         <ResenasAdmin />
+      ) : seccion === 'instagram' ? (
+        <CatalogoInstagram />
       ) : (
         <EquipoAdmin />
       )}

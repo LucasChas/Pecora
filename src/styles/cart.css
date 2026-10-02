@@ -1600,3 +1600,26 @@
   font-size: 0.8rem;
   color: var(--ink-soft);
 }
+
+/* ---------- Compra como invitada ---------- */
+.checkout-invitada,
+.cupon-invitada {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--cream);
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+.checkout-invitada a,
+.cupon-invitada a {
+  color: var(--sage-deep);
+  font-weight: 700;
+}
+.cupon-invitada {
+  margin: 0;
+}
+.success-mail {
+  margin-top: 4px;
+}

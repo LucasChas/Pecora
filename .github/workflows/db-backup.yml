@@ -1,0 +1,94 @@
+name: DB backup
+
+# Copia de seguridad diaria de la base de producción (roles, estructura y
+# datos), cifrada, guardada 30 días como artifact de este workflow.
+# Restaurarla: CONTEXTO.md, "Respaldo de la base".
+on:
+  schedule:
+    # 06:17 UTC = 03:17 en Argentina (fuera de horario de compras).
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Mismo environment que el "plan" del deploy (sin aprobación, solo main):
+    # sus secretos ya están cargados. Falta sumar BACKUP_PASSPHRASE.
+    environment: production-plan
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check configuration
+        env:
+          REQUIRED: SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_ID BACKUP_PASSPHRASE
+        run: |
+          missing=()
+          for name in $REQUIRED; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} )); then
+            echo "::error title=Missing configuration::Environment production-plan lacks: ${missing[*]}. Add them as environment secrets (CONTEXTO.md, Respaldo de la base)."
+            exit 1
+          fi
+          echo "::add-mask::$(jq -rn --arg v "$SUPABASE_DB_PASSWORD" '$v | @uri')"
+
+      - uses: actions/checkout@v5
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.106.0
+
+      - name: Link production project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      # Receta oficial de Supabase (backup con la CLI): roles, estructura y
+      # datos por separado. Los datos incluyen las cuentas (auth) y los
+      # pedidos: son datos personales, por eso se cifran antes de subirlos.
+      - name: Dump the database
+        run: |
+          mkdir -p backup
+          supabase db dump --linked --role-only --file backup/roles.sql
+          supabase db dump --linked --file backup/schema.sql
+          supabase db dump --linked --data-only --use-copy --file backup/data.sql
+          for f in roles schema data; do
+            test -s "backup/$f.sql" || { echo "::error::backup/$f.sql is empty"; exit 1; }
+          done
+          {
+            echo "### Backup"
+            echo ""
+            echo "| File | Size |"
+            echo "| --- | --- |"
+            for f in roles schema data; do
+              echo "| $f.sql | $(du -h "backup/$f.sql" | cut -f1) |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Encrypt
+        run: |
+          name="pecora-backup-$(date -u +%Y-%m-%d)-${GITHUB_RUN_ID}"
+          tar -czf "$name.tar.gz" -C backup roles.sql schema.sql data.sql
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 \
+            --symmetric --cipher-algo AES256 --output "$name.tar.gz.gpg" "$name.tar.gz" 3<<< "$BACKUP_PASSPHRASE"
+          rm -rf backup "$name.tar.gz"
+          test -s "$name.tar.gz.gpg"
+          echo "ARCHIVO=$name" >> "$GITHUB_ENV"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVO }}
+          path: ${{ env.ARCHIVO }}.tar.gz.gpg
+          retention-days: 30
+          if-no-files-found: error

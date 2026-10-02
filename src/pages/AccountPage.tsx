@@ -125,11 +125,17 @@ export default function AccountPage() {
 
           <p className="account-intro">
             {modo === 'ingresar'
-              ? 'Ingresá para ver tus pedidos y finalizar tu compra.'
+              ? 'Ingresá para ver tus pedidos, usar tus direcciones y cupones.'
               : modo === 'registrar'
-                ? 'Creá tu cuenta de Pecora para comprar y seguir tus pedidos.'
+                ? 'Creá tu cuenta de Pecora para seguir tus pedidos y guardar tus datos.'
                 : 'Ingresá tu email y te mandamos un link para elegir una contraseña nueva.'}
           </p>
+
+          {next === '/checkout' && modo !== 'recuperar' && (
+            <p className="account-intro account-invitada">
+              ¿Preferís no crear una cuenta? <Link to="/checkout">Seguí como invitada</Link>.
+            </p>
+          )}
 
           <form onSubmit={onSubmit} className="account-form">
             {modo === 'registrar' && (

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
 import { claveItem, nombreConTalle, useCart, type CartItem } from '../context/CartContext'
@@ -43,7 +43,7 @@ import { useCotizacionTransportistas } from '../hooks/useCotizacionTransportista
 import OrderSuccess from '../components/cart/OrderSuccess'
 import OpcionesEnvio from '../components/cart/OpcionesEnvio'
 import Miniatura from '../components/common/Miniatura'
-import { borrarBorrador, errorTelefono, guardarBorrador, leerBorrador } from '../lib/borradorCheckout'
+import { borrarBorrador, errorEmail, errorTelefono, guardarBorrador, leerBorrador } from '../lib/borradorCheckout'
 import {
   MAX_DIRECCIONES,
   aliasSugerido,
@@ -63,6 +63,8 @@ interface PedidoConfirmado {
   totales: TotalesPedido
   datos: DatosPedido
   detalle: DetallePedido
+  // Compra como invitada: el email al que va el comprobante.
+  emailInvitada: string | null
 }
 
 // Cupón aplicado y el subtotal contra el que se validó (si el carrito cambia,
@@ -77,7 +79,8 @@ const DEBOUNCE_COTIZACION_MS = 400
 
 type MetodoPago = 'whatsapp' | 'mercadopago'
 
-// Checkout como INVITADA (/checkout): datos de contacto y entrega, cupón,
+// Checkout (/checkout), con cuenta o como invitada (migración
+// *_compra_invitada): sin cuenta se pide el email y no hay cupones: datos de contacto y entrega, cupón,
 // cotización del envío, método de pago, revalidación de stock/precios contra
 // la base y registro del pedido.
 export default function CheckoutPage() {
@@ -97,6 +100,7 @@ export default function CheckoutPage() {
   const [provincia, setProvincia] = useState(borrador.provincia ?? '')
   const [notas, setNotas] = useState(borrador.notas ?? '')
   const telefonoRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
   const mensajesRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -478,6 +482,14 @@ export default function CheckoutPage() {
       telefonoRef.current?.focus()
       return
     }
+    if (!session) {
+      const errMail = errorEmail(email)
+      if (errMail) {
+        setError(errMail)
+        emailRef.current?.focus()
+        return
+      }
+    }
     setEnviando(true)
     try {
       const { corregidos, cambios } = await revalidarCarrito()
@@ -520,7 +532,7 @@ export default function CheckoutPage() {
       // de orden, sin exponer la lectura de pedidos (ver lib/orders). La base
       // valida el cupón y calcula el descuento y el costo del envío.
       const numero = await crearPedido({
-        datos: { ...datos, telefono, email },
+        datos: { ...datos, telefono, email: email.trim() },
         items: corregidos,
         idempotencyKey: claveIdempotencia(),
         cupon: codigoCupon || null,
@@ -562,6 +574,7 @@ export default function CheckoutPage() {
         totales: totalesFinales,
         datos: { ...datos, cupon: detalle.cupon ?? undefined, zona: envioMensaje ?? undefined },
         detalle,
+        emailInvitada: session ? null : email.trim(),
       })
       vaciar()
       borrarBorrador()
@@ -599,7 +612,8 @@ export default function CheckoutPage() {
     }
   }
 
-  // Para comprar hay que estar logueada: si no, va a /cuenta y vuelve al checkout.
+  // Se puede comprar con cuenta o como invitada: solo se espera a saber si hay
+  // sesión (para no mostrar un instante el formulario de invitada).
   if (cargandoSesion) {
     return (
       <div className="catalog-root">
@@ -610,8 +624,6 @@ export default function CheckoutPage() {
       </div>
     )
   }
-  if (!session) return <Navigate to="/cuenta?next=/checkout" replace />
-
   return (
     <div className="catalog-root">
       <header className="cart-header">
@@ -641,6 +653,13 @@ export default function CheckoutPage() {
                   <h2 className="checkout-h">
                     <span className="paso">1</span> Tus datos
                   </h2>
+                  {!session && (
+                    <p className="checkout-invitada">
+                      Comprás como invitada.{' '}
+                      <Link to="/cuenta?next=/checkout">Ingresá a tu cuenta</Link> para usar tus
+                      direcciones y cupones.
+                    </p>
+                  )}
                   <div className="field">
                     <label htmlFor="checkout-nombre">Nombre y apellido</label>
                     <input id="checkout-nombre" maxLength={120} type="text" required value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej: Ana Pérez" autoComplete="name" />
@@ -649,12 +668,31 @@ export default function CheckoutPage() {
                     <label htmlFor="checkout-telefono">Teléfono (WhatsApp, con código de área)</label>
                     <input id="checkout-telefono" maxLength={40} ref={telefonoRef} type="tel" inputMode="tel" required value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Ej: 3541 123456" autoComplete="tel" />
                   </div>
-                  {/* El comprobante va siempre al email de la cuenta (lo fija la
-                      base, ver 20261001050000_pedidos_limites). */}
-                  {session.user.email && (
-                    <p className="cart-note">
-                      Te mandamos el comprobante a <strong>{session.user.email}</strong>.
-                    </p>
+                  {/* Con cuenta, el comprobante va al email de la cuenta (lo fija
+                      la base, ver 20261001050000_pedidos_limites); sin cuenta,
+                      al que escriba. */}
+                  {session ? (
+                    session.user.email && (
+                      <p className="cart-note">
+                        Te mandamos el comprobante a <strong>{session.user.email}</strong>.
+                      </p>
+                    )
+                  ) : (
+                    <div className="field">
+                      <label htmlFor="checkout-email">Email (ahí te llega el comprobante)</label>
+                      <input
+                        id="checkout-email"
+                        ref={emailRef}
+                        type="email"
+                        inputMode="email"
+                        maxLength={254}
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Ej: ana@gmail.com"
+                        autoComplete="email"
+                      />
+                    </div>
                   )}
                 </section>
 
@@ -847,7 +885,12 @@ export default function CheckoutPage() {
                   {/* Cupón: fuera del <form> para que Enter aplique el cupón
                       y no confirme el pedido. */}
                   <div className="cupon-box">
-                    {cupon ? (
+                    {!session ? (
+                      <p className="cupon-invitada">
+                        ¿Tenés un cupón? <Link to="/cuenta?next=/checkout">Ingresá a tu cuenta</Link> para
+                        usarlo.
+                      </p>
+                    ) : cupon ? (
                       <div className="cupon-aplicado">
                         <span className="cupon-chip">{cupon.resultado.codigo}</span>
                         <span className="cupon-desc">
@@ -945,6 +988,7 @@ export default function CheckoutPage() {
           totales={confirmado.totales}
           detalle={confirmado.detalle}
           entrega={confirmado.datos.entrega}
+          emailInvitada={confirmado.emailInvitada}
           waHref={waPedidoConfirmadoLink(
             confirmado.numero,
             confirmado.items,

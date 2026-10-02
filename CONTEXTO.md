@@ -181,6 +181,7 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `20261002030000_favoritos_direcciones.sql` | Tabla `favoritos` (user_id, producto_id) y tabla `direcciones` (alias, dirección, localidad, CP, provincia, `principal`; hasta 10 por cuenta, una sola principal), ambas con RLS: cada cuenta ve y cambia solo lo suyo; `user_id` sale de `auth.uid()`. Tests: `supabase/tests/favoritos_direcciones.test.sql`. |
 | `20261003010000_avisos_tienda.sql` | Avisos automáticos por mail (Edge Function `avisos-tienda`): pedido enviado a la clienta (`pedidos.enviado_at`, `aviso_envio_enviado_at`; espera el seguimiento hasta 2 h), stock bajo a la dueña (`productos.stock_bajo_desde`, `aviso_stock_bajo_at`; umbral 3), carrito abandonado (tabla `carritos` con RLS propia, `profiles.recordar_carrito`) y resumen mensual (`reporte_mensual_datos`). Programa las tareas con pg_cron. Tests: `supabase/tests/avisos_tienda.test.sql`. |
 | `20261004010000_talles.sql` | Talles por producto (opcional): tabla `producto_talles` (talle, stock ≥ 0, orden; único por producto sin importar mayúsculas), lectura pública y cambios solo del staff. `productos.stock` de un producto con talles = suma de sus talles (trigger `producto_talles_despues` → `sincronizar_stock_talles`; `productos_bloquear_stock_talles` ignora cambios directos). `crear_pedido` exige `talle_id` en esos productos, descuenta del talle y guarda el ítem como "Nombre (talle X)" con `talle_id`/`talle`; `ajustar_stock_pedido` devuelve al talle. Tests: `supabase/tests/talles.test.sql`. |
+| `20261005010000_compra_invitada.sql` | Compra sin cuenta: `crear_pedido` acepta llamadas sin sesión (EXECUTE para `anon`); sin sesión el email es obligatorio y no hay cupones. `pedidos_proteger_checkout` pone topes a las invitadas (por email y por teléfono: 3 cada 10 min y 6 por día; 40 por hora en total). `mis_pedidos` y `compra_verificada` cuentan también los pedidos de invitada con el email confirmado de la cuenta. Tests: `supabase/tests/compra_invitada.test.sql`. |
 
 ### Cómo se aplican
 
@@ -398,6 +399,39 @@ WhatsApp, Instagram, Facebook y X leen las meta sin ejecutar JavaScript, así qu
 ---
 
 ## 13. Estado y pendientes
+
+### Respaldo de la base
+
+El workflow **DB backup** (`.github/workflows/db-backup.yml`) hace una copia
+completa de producción todos los días a las 3:17 (hora de Argentina): roles,
+estructura y datos (productos, pedidos, cuentas, reseñas...). Queda cifrada
+como artifact del workflow durante **30 días**. Si falla, GitHub manda un mail
+a la dueña del repositorio. También se puede correr a mano: Actions → DB
+backup → *Run workflow*.
+
+**Configuración (una vez):** Settings → Environments → `production-plan` →
+*Add environment secret* `BACKUP_PASSPHRASE` = una frase larga que solo sepa
+la dueña (guardarla en un lugar seguro: sin ella el backup no se puede abrir).
+
+**Lo que NO incluye:** las fotos de los productos (están en Supabase Storage,
+no en la base). Conviene descargar una copia del bucket de vez en cuando.
+
+**Restaurar** (por ejemplo en un proyecto nuevo de Supabase):
+
+```bash
+# 1) Descargar el artifact desde Actions → DB backup → la corrida → Artifacts.
+# 2) Descifrar y descomprimir (pide la BACKUP_PASSPHRASE):
+gpg --decrypt pecora-backup-AAAA-MM-DD-*.tar.gz.gpg > backup.tar.gz
+tar -xzf backup.tar.gz          # deja roles.sql, schema.sql y data.sql
+# 3) Cargar en la base nueva (connection string de Supabase → Database):
+psql --single-transaction --variable ON_ERROR_STOP=1 \
+  --file roles.sql --file schema.sql \
+  --command 'SET session_replication_role = replica' \
+  --file data.sql --dbname "postgresql://postgres:[CLAVE]@[HOST]:5432/postgres"
+```
+
+Para recuperar solo algo puntual (un producto o un pedido borrado), no hace
+falta restaurar todo: se abre `data.sql` y se copia la fila que falta.
 
 ### Configuración de Supabase requerida
 - **Authentication → Providers → Email → "Enable Sign up" ACTIVADO** (las clientas se registran).

@@ -170,3 +170,9 @@ export function instagramUsuario(): string {
 export function remitenteDireccion(): string {
   return (import.meta.env.VITE_REMITENTE_DIRECCION ?? '').trim()
 }
+
+// Feed del catálogo para Instagram / Facebook (api/catalogo-meta.ts). Se carga
+// en el Administrador de comercio de Meta como feed programado.
+export function urlFeedMeta(): string {
+  return `${CATALOG_URL.replace(/\/+$/, '')}/catalogo-meta.csv`
+}
