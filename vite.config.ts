@@ -42,11 +42,29 @@ function metaDelSitio(env: Record<string, string>): Plugin {
   }
 }
 
+// robots.txt del deploy: el muestrario se puede indexar completo y apunta al
+// sitemap (api/sitemap.ts). El panel sirve el mismo archivo sin sitemap: sus
+// páginas llevan noindex y no se las bloquea acá a propósito (si el buscador
+// no puede leer la página, tampoco ve el noindex).
+function robotsDelSitio(env: Record<string, string>): Plugin {
+  const sitio = urlDelSitio(env.VITE_CATALOG_URL)
+  const esPanel = env.VITE_APP_MODE === 'admin'
+  const lineas = ['User-agent: *', 'Allow: /']
+  if (!esPanel) lineas.push('', `Sitemap: ${sitio}/sitemap.xml`)
+  return {
+    name: 'pecora-robots',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `${lineas.join('\n')}\n` })
+    },
+  }
+}
+
 // Configuración de Vite para React + las meta del sitio.
 export default defineConfig(({ mode }) => {
   // Las variables del entorno (Vercel, o la línea de comandos) pisan al .env.
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   return {
-    plugins: [react(), metaDelSitio(env)],
+    plugins: [react(), metaDelSitio(env), robotsDelSitio(env)],
   }
 })

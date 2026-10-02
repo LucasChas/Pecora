@@ -1707,3 +1707,28 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* "Instalar Pecora en el celular" (aparece solo si el navegador lo permite). */
+.instalar-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.instalar-app-btn {
+  border: 1px solid var(--line, #e6ddd0);
+  background: transparent;
+  border-radius: 100px;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.instalar-app-ayuda {
+  margin: 0;
+  max-width: 320px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}

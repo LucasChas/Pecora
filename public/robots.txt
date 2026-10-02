@@ -1,8 +1,0 @@
-# Pecora: el muestrario público se puede indexar completo.
-#
-# El deploy del panel (VITE_APP_MODE=admin) sirve este mismo archivo, pero sus
-# páginas llevan <meta name="robots" content="noindex, nofollow"> (lo agrega
-# vite.config.ts). No se lo bloquea acá a propósito: si el buscador no puede
-# leer la página, tampoco ve el noindex.
-User-agent: *
-Allow: /
