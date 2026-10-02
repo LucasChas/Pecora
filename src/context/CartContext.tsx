@@ -1,6 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ProductoConCategoria } from '../types'
 import { portadaDe } from '../lib/images'
+import { useAuth } from './AuthContext'
+import {
+  aGuardar,
+  firma,
+  guardarCarritoRemoto,
+  leerCarritoRemoto,
+  rearmarCarrito,
+} from '../lib/carritoRemoto'
+import { cargarProductosPorId } from '../lib/pedidoCliente'
 
 // Un ítem del carrito guarda una "foto" de los datos del producto al momento de
 // agregarlo (así el carrito no se rompe si el producto cambia). El precio y el
@@ -69,6 +78,63 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
   }, [])
+
+  // Carrito en la cuenta (ver lib/carritoRemoto.ts). Al entrar: si este
+  // dispositivo no tiene nada y la cuenta sí, se recupera; si no, manda lo
+  // local. Después, cada cambio se guarda (con una pausa, para no escribir con
+  // cada toque de +/−).
+  const { session } = useAuth()
+  const userId = session?.user.id ?? null
+  const sincronizadoRef = useRef<string | null>(null)
+  const ultimaFirmaRef = useRef<string | null>(null)
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+
+  useEffect(() => {
+    if (!userId) {
+      sincronizadoRef.current = null
+      ultimaFirmaRef.current = null
+      return
+    }
+    if (sincronizadoRef.current === userId) return
+    let vigente = true
+    ;(async () => {
+      const remoto = await leerCarritoRemoto(userId)
+      if (!vigente) return
+      if (remoto && remoto.length > 0 && itemsRef.current.length === 0) {
+        const productos = await cargarProductosPorId(remoto.map((r) => r.id))
+        if (!vigente) return
+        const rearmado = rearmarCarrito(remoto, productos)
+        // Si mientras tanto agregó algo, no se pisa.
+        if (rearmado.length > 0 && itemsRef.current.length === 0) setItems(rearmado)
+        ultimaFirmaRef.current = firma(remoto)
+      } else if (remoto) {
+        ultimaFirmaRef.current = firma(remoto)
+        // Lo de este dispositivo pasa a la cuenta.
+        const local = aGuardar(itemsRef.current)
+        if (local.length > 0 && firma(local) !== ultimaFirmaRef.current) {
+          ultimaFirmaRef.current = firma(local)
+          void guardarCarritoRemoto(userId, local)
+        }
+      }
+      sincronizadoRef.current = userId
+    })()
+    return () => {
+      vigente = false
+    }
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId || sincronizadoRef.current !== userId) return
+    const guardar = aGuardar(items)
+    const f = firma(guardar)
+    if (f === ultimaFirmaRef.current) return
+    const t = window.setTimeout(() => {
+      ultimaFirmaRef.current = f
+      void guardarCarritoRemoto(userId, guardar)
+    }, 1500)
+    return () => window.clearTimeout(t)
+  }, [items, userId])
 
   const agregar = useCallback((producto: ProductoConCategoria, cantidad = 1) => {
     setItems((prev) => {

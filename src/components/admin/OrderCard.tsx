@@ -167,9 +167,14 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
     if (!(await guardarEstado(estado))) return
     // Con un filtro activo el pedido puede desaparecer de la lista: el aviso
     // dice a dónde fue y permite deshacer un toque equivocado.
-    notificar(`Pedido #${pedido.numero} → ${ETIQUETA_ESTADO[estado]}`, {
-      accion: { texto: 'Deshacer', onClick: () => void guardarEstado(anterior) },
-    })
+    // El mail "tu pedido está en camino" espera el seguimiento si es con envío.
+    const faltaSeguimiento = estado === 'enviado' && esEnvio && !(pedido.seguimiento ?? '').trim()
+    notificar(
+      faltaSeguimiento
+        ? `Pedido #${pedido.numero} → Enviado. Cargá el seguimiento y le avisamos por mail.`
+        : `Pedido #${pedido.numero} → ${ETIQUETA_ESTADO[estado]}`,
+      { accion: { texto: 'Deshacer', onClick: () => void guardarEstado(anterior) } },
+    )
   }
 
   async function alternarPago() {

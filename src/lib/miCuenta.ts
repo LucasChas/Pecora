@@ -59,11 +59,16 @@ export async function guardarMisDatos(userId: string, nombre: string, telefono: 
   }
 }
 
-export async function guardarPreferencias(userId: string, aceptaNovedades: boolean): Promise<Resultado> {
+export interface Preferencias {
+  acepta_novedades?: boolean
+  recordar_carrito?: boolean
+}
+
+export async function guardarPreferencias(userId: string, cambios: Preferencias): Promise<Resultado> {
   try {
-    const { error } = await supabase.from('profiles').update({ acepta_novedades: aceptaNovedades }).eq('id', userId)
+    const { error } = await supabase.from('profiles').update(cambios).eq('id', userId)
     if (error) {
-      // Migración *_mi_cuenta sin aplicar: la columna todavía no existe.
+      // Migración *_mi_cuenta / *_avisos_tienda sin aplicar: falta la columna.
       if (error.code === 'PGRST204' || error.code === '42703') {
         return { ok: false, error: 'Las preferencias todavía no están disponibles.' }
       }
