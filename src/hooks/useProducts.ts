@@ -8,6 +8,7 @@ import {
   type ResultadoCarga,
 } from '../lib/sincronizacionProductos'
 import type { ProductoConCategoria } from '../types'
+import { aplanarProducto, conTalles } from '../lib/productosConsulta'
 
 // Trae los productos con el nombre de su categoría resuelto y se mantiene
 // actualizado en tiempo real: cualquier alta/edición/baja de producto o
@@ -40,25 +41,14 @@ let secuenciaCanal = 0
 
 // Pide la lista con el nombre de la categoría ya resuelto.
 async function traerProductos(): Promise<ResultadoCarga<ProductoConCategoria[]>> {
-  const { data, error } = await supabase
-    .from('productos')
-    .select('*, categorias(nombre)')
-    .order('created_at', { ascending: false })
+  const { data, error } = await conTalles((select) =>
+    supabase.from('productos').select(select).order('created_at', { ascending: false }),
+  )
 
   if (error) return { error: error.message }
 
-  // Aplanamos el join: categorias.nombre -> categoria_nombre
-  return {
-    datos: (data ?? []).map((row) => {
-      const { categorias, ...resto } = row as Record<string, unknown> & {
-        categorias: { nombre: string } | null
-      }
-      return {
-        ...(resto as unknown as ProductoConCategoria),
-        categoria_nombre: categorias?.nombre ?? null,
-      }
-    }),
-  }
+  // Aplanamos el join: categorias.nombre -> categoria_nombre, y los talles.
+  return { datos: ((data as unknown[]) ?? []).map(aplanarProducto) }
 }
 
 // Suscripción Realtime a ambas tablas. Los estados del canal se traducen a
@@ -70,6 +60,7 @@ function suscribirCambios(avisos: AvisosCanal): () => void {
     .channel(`catalogo-productos-${++secuenciaCanal}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'productos' }, () => avisos.cambio())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'categorias' }, () => avisos.cambio())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'producto_talles' }, () => avisos.cambio())
     .subscribe((estado, err) => {
       if (estado === REALTIME_SUBSCRIBE_STATES.SUBSCRIBED) {
         avisos.conectado()

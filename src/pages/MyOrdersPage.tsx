@@ -67,7 +67,7 @@ export default function MyOrdersPage() {
     const productos = await cargarProductosPorId([...new Set(p.items.map((i) => i.id))])
     setRecomprando(null)
     const r = armarRecompra(p.items, productos)
-    for (const { producto, cantidad } of r.agregar) agregar(producto, cantidad)
+    for (const { producto, cantidad, talle } of r.agregar) agregar(producto, cantidad, talle)
     notificar(mensajeRecompra(r))
   }
 

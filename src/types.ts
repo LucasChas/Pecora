@@ -33,10 +33,21 @@ export interface Producto {
   updated_at: string
 }
 
+// Talle de un producto con su stock (tabla producto_talles, migración *_talles).
+export interface Talle {
+  id: string
+  talle: string
+  stock: number
+  orden: number
+}
+
 // Producto ya "aplanado" con el nombre de su categoría resuelto,
 // que es lo que consumen las vistas (para filtrar y mostrar).
 export interface ProductoConCategoria extends Producto {
   categoria_nombre: string | null
+  // Talles (vacío = el producto no se vende por talle). undefined si la base
+  // todavía no tiene la tabla.
+  talles?: Talle[]
 }
 
 // ---- Cuentas de clientas (ver migración 0005) ----
@@ -52,6 +63,9 @@ export interface Perfil {
   // Quiere recibir mails de novedades (migración *_mi_cuenta). false si la
   // base todavía no tiene la columna.
   acepta_novedades?: boolean
+  // Recordatorio por mail del carrito abandonado (migración *_avisos_tienda).
+  // true por defecto.
+  recordar_carrito?: boolean
 }
 
 // ---- Pedidos (ver migraciones 0003 / 0005) ----
@@ -67,6 +81,9 @@ export interface PedidoItem {
   nombre: string
   precio: number
   cantidad: number
+  // Producto con talles (migración *_talles): el nombre ya incluye el talle.
+  talle_id?: string
+  talle?: string
 }
 
 export interface Pedido {

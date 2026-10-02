@@ -82,7 +82,8 @@ Notas:
   secretos `GMAIL_CLIENT_ID`/`GMAIL_CLIENT_SECRET`/`GMAIL_REFRESH_TOKEN` de un
   proyecto de Google Cloud (ver "Setup con OAuth" abajo). Si están las dos
   cosas, se usa la contraseña de aplicación. El envío vive en
-  `_shared/correo.ts` y lo usan `enviar-recibo-pedido` y `avisar-reposicion`.
+  `_shared/correo.ts` y lo usan `enviar-recibo-pedido`, `avisar-reposicion` y
+  `avisos-tienda`.
 - `GMAIL_SENDER` es la dirección `pecoraabril@gmail.com` — vive como secreto
   (y no hardcodeada en el código) para no fijarla en el código fuente.
 - `WHATSAPP_NUMBER` es opcional: el mismo número que usás en
@@ -436,6 +437,46 @@ pnpm dlx supabase@latest secrets set PUBLIC_SITE_URL=https://pecora-muestrario.v
   cuando vuelva" si los RPCs o la tabla no existen.
 - La función se puede borrar con
   `pnpm dlx supabase@latest functions delete avisar-reposicion`.
+
+## `avisos-tienda` (avisos automáticos)
+
+Una sola función para cuatro avisos (migración `*_avisos_tienda.sql`):
+
+| Aviso | Quién lo recibe | Cuándo |
+| --- | --- | --- |
+| "Tu pedido está en camino" | La clienta (email del pedido o de su cuenta) | Al pasar el pedido a **Enviado**. Si es con envío y no tiene seguimiento, espera a que se cargue; si no se carga, sale igual a las 2 h. |
+| Stock bajo | `OWNER_EMAIL` | Cada hora, un solo mail con los productos que bajaron a 3 o menos. |
+| Carrito abandonado | La clienta logueada | Cada hora: carritos sin cambios hace más de 20 h (y menos de 7 días), sin compra después. Uno por carrito. Se apaga en Mi cuenta → Preferencias. |
+| Resumen del mes | `OWNER_EMAIL` | El día 1 a las 9 (hora de Argentina), del mes anterior. |
+
+Las tareas por hora y la mensual las programa la migración con **pg_cron**
+(tareas `pecora-envios`, `pecora-stock-bajo`, `pecora-carritos`,
+`pecora-reporte-mensual`). Verlas: `select jobname, schedule from cron.job;`.
+
+### Vault
+
+Igual que `avisar-reposicion`: usa `pecora_email_function_token` y deriva la
+URL (`.../functions/v1/avisos-tienda`) de `pecora_email_function_url`. Para
+fijarla a mano: secreto de Vault `pecora_avisos_tienda_url`.
+
+### Despliegue
+
+```bash
+pnpm run deploy:fn          # despliega todas las funciones, incluida esta
+```
+
+Usa los mismos secretos que las demás (Gmail, `OWNER_EMAIL`, `BRAND_NAME`,
+`PUBLIC_SITE_URL`, `PUBLIC_ADMIN_URL`, `WHATSAPP_NUMBER`).
+
+### Probar a mano (SQL Editor)
+
+```sql
+select public.invocar_avisos_tienda('{"tipo":"stock_bajo"}');
+select public.invocar_avisos_tienda('{"tipo":"reporte_mensual","mes":"2026-09"}');
+-- Respuesta: select id, status_code, content from net._http_response order by id desc limit 5;
+```
+
+Los logs de la función tienen el prefijo `[avisos-tienda]`.
 
 ## `gestionar-equipo` (equipo del panel: empleados)
 

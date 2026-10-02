@@ -2489,3 +2489,295 @@
 .admin-root .transportistas-estado .ajuste-btn {
   align-self: flex-start;
 }
+
+/* ---------- Avisos de pedidos nuevos (sonido / notificación) ---------- */
+.avisos-ped {
+  position: relative;
+}
+.avisos-ped-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  width: min(300px, calc(100vw - 32px));
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(40, 30, 25, 0.14);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+.avisos-ped-panel label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+  line-height: 1.35;
+}
+.avisos-ped-panel input {
+  margin-top: 2px;
+  accent-color: var(--sage, #6f8f7a);
+}
+.avisos-ped-titulo {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.avisos-ped-msg {
+  margin: 0;
+  color: #b3412f;
+  font-size: 0.82rem;
+}
+.avisos-ped-nota {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+/* ---------- Números del panel (clic = filtro) ---------- */
+.stats.stats--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.admin-root button.stat {
+  font: inherit;
+  color: inherit;
+  border: 1px solid transparent;
+  cursor: pointer;
+  width: 100%;
+}
+.stat {
+  position: relative;
+  border: 1px solid transparent;
+}
+.stat::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 26px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  transform: translateX(-50%);
+  background: var(--line);
+}
+.stat--ok::before {
+  background: #7fa37a;
+}
+.stat--aviso.stat--con::before {
+  background: #d79a3e;
+}
+.stat--alerta.stat--con::before {
+  background: #c4574b;
+}
+.stat--aviso.stat--con .num {
+  color: #a8691b;
+}
+.stat--alerta.stat--con .num {
+  color: #b3412f;
+}
+.stat--activa {
+  border-color: var(--sage);
+  box-shadow: 0 0 0 2px rgba(176, 141, 87, 0.18);
+}
+@media (max-width: 420px) {
+  .stats.stats--4 {
+    gap: 6px;
+  }
+  .stats.stats--4 .stat {
+    padding: 10px 4px;
+  }
+  .stats.stats--4 .label {
+    font-size: 0.58rem;
+  }
+}
+@media (min-width: 768px) {
+  .admin-root .stats.stats--4 {
+    grid-template-columns: repeat(4, minmax(0, 180px));
+  }
+}
+
+/* ---------- Precio con "$" adelante ---------- */
+.precio-input {
+  position: relative;
+  display: block;
+}
+.precio-input::before {
+  content: '$';
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+.precio-input input {
+  padding-left: 20px;
+}
+
+/* ---------- Pestañas: al deslizarse, el imán respeta el margen ---------- */
+.admin-root .admin-tabs--scroll {
+  scroll-padding-inline: 16px;
+}
+
+/* ---------- Estadísticas alineada con las demás pestañas ---------- */
+.admin-root .est-panel {
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 16px;
+}
+@media (min-width: 768px) {
+  .admin-root .est-panel {
+    padding-left: var(--admin-gutter);
+    padding-right: var(--admin-gutter);
+    padding-top: 22px;
+  }
+}
+
+/* ---------- Detalles generales ---------- */
+.prod-card,
+.order-card {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+@media (hover: hover) {
+  .prod-card:hover,
+  .order-card:hover {
+    box-shadow: 0 6px 18px rgba(51, 48, 42, 0.1);
+  }
+}
+
+/* Chips de filtros en el celular: una sola fila deslizable. */
+@media (max-width: 767px) {
+  .admin-root .orders-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 0 16px 2px;
+    scroll-padding-inline: 16px;
+  }
+  .admin-root .orders-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .admin-root .orders-chips .chip {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}
+
+/* ---------- Talles: tarjeta de producto y formulario ---------- */
+.mini-field-rotulo {
+  display: block;
+  font-size: 0.64rem;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 3px;
+}
+.prod-talles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.prod-talles li {
+  font-size: 0.74rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.prod-talles li strong {
+  color: var(--ink);
+  margin-left: 2px;
+}
+.prod-talles li.poco strong {
+  color: #a8691b;
+}
+.prod-talles li.sin {
+  opacity: 0.7;
+}
+.prod-talles li.sin strong {
+  color: #b3412f;
+}
+
+.talles-form {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 4px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.talles-form-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.talles-form-check input {
+  margin-top: 3px;
+  accent-color: var(--sage);
+}
+.talles-form-check small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+.talles-form-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.talles-form-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 36px;
+  gap: 6px;
+}
+.talles-form-fila input {
+  font: inherit;
+  font-size: 16px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--cream);
+  min-width: 0;
+}
+.talles-form-quitar {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 10px;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.talles-form-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+.talles-form-total {
+  margin-left: auto;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+}

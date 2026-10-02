@@ -37,6 +37,9 @@ export interface ProductoOg {
   precio: number | string | null
   imagen_url: string | null
   imagenes?: string[] | null
+  // Para los datos estructurados (disponibilidad). Opcional: sin él no se
+  // informa disponibilidad.
+  stock?: number | null
 }
 
 // Una meta: <meta property="og:..."> o <meta name="...">.
@@ -51,6 +54,9 @@ export interface MetaOg {
   titulo: string // <title>
   canonica: string // <link rel="canonical">
   tags: MetaTag[]
+  // Datos estructurados de schema.org (Google muestra precio y stock en el
+  // resultado). Solo en la ficha de un producto.
+  jsonLd?: Record<string, unknown>
 }
 
 // ---- Utilidades -----------------------------------------------------------------
@@ -250,7 +256,48 @@ export function metaProducto(p: ProductoOg | null | undefined, sitioCrudo: strin
     { atributo: 'name', clave: 'twitter:description', valor: descripcion },
     { atributo: 'name', clave: 'twitter:image', valor: imagen ?? `${sitio}/og-image.jpg` },
   )
-  return { titulo: `${titulo} · Pecora`, canonica: url, tags }
+  return { titulo: `${titulo} · Pecora`, canonica: url, tags, jsonLd: jsonLdProducto(p, url, imagen, descripcion) }
+}
+
+// schema.org/Product con su oferta en pesos. Sin precio válido no hay oferta
+// (Google la descarta si falta el precio).
+export function jsonLdProducto(
+  p: ProductoOg,
+  url: string,
+  imagen: string | null,
+  descripcion: string,
+): Record<string, unknown> {
+  const datos: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: normalizarEspacios(p.nombre ?? ''),
+    description: descripcion,
+    url,
+    brand: { '@type': 'Brand', name: 'Pecora' },
+  }
+  if (imagen) datos.image = [imagen]
+  const precio = typeof p.precio === 'string' ? Number(p.precio) : p.precio
+  if (typeof precio === 'number' && Number.isFinite(precio) && precio > 0) {
+    const oferta: Record<string, unknown> = {
+      '@type': 'Offer',
+      url,
+      price: precio.toFixed(2),
+      priceCurrency: 'ARS',
+      itemCondition: 'https://schema.org/NewCondition',
+    }
+    if (typeof p.stock === 'number') {
+      oferta.availability = p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock'
+    }
+    datos.offers = oferta
+  }
+  return datos
+}
+
+// JSON dentro de <script>: "<" escapado para que un nombre con "</script>"
+// no pueda cerrar la etiqueta.
+export function scriptJsonLd(datos: Record<string, unknown>): string {
+  const json = JSON.stringify(datos).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
+  return `<script type="application/ld+json" data-pecora="producto">${json}</script>`
 }
 
 // ---- HTML -------------------------------------------------------------------------
@@ -261,6 +308,7 @@ export function htmlDeMeta(meta: MetaOg): string {
     `<title>${escaparHtml(meta.titulo)}</title>`,
     `<link rel="canonical" href="${escaparHtml(meta.canonica)}" />`,
     ...meta.tags.map((t) => `<meta ${t.atributo}="${escaparHtml(t.clave)}" content="${escaparHtml(t.valor)}" />`),
+    ...(meta.jsonLd ? [scriptJsonLd(meta.jsonLd)] : []),
   ]
   return lineas.map((l) => `    ${l}`).join('\n')
 }
@@ -271,6 +319,7 @@ export function htmlDeMeta(meta: MetaOg): string {
 // cortar en el primer ">".
 const TITULO_RE = /<title\b[^>]*>[\s\S]*?<\/title>\s*/gi
 const CANONICA_RE = /<link\b[^>]*\brel=["']canonical["'][^>]*>\s*/gi
+const JSONLD_RE = /<script\b[^>]*\bdata-pecora=["']producto["'][^>]*>[\s\S]*?<\/script>\s*/gi
 const META_RE = /<meta\b[^>]*\b(?:name|property)=["'](?:description|og:[^"']*|twitter:[^"']*|product:[^"']*)["'][^>]*>\s*/gi
 
 // Reemplaza las meta de index.html por las de `meta`. Si el HTML no tiene
@@ -284,6 +333,7 @@ export function inyectarMeta(html: string, meta: MetaOg): string {
     .replace(TITULO_RE, '')
     .replace(CANONICA_RE, '')
     .replace(META_RE, '')
+    .replace(JSONLD_RE, '')
   return `${head.replace(/\s*$/, '\n')}${htmlDeMeta(meta)}\n  ${html.slice(cierre)}`
 }
 

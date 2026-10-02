@@ -1,6 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import type { ProductoConCategoria } from '../types'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import type { ProductoConCategoria, Talle } from '../types'
 import { portadaDe } from '../lib/images'
+import { useAuth } from './AuthContext'
+import {
+  aGuardar,
+  firma,
+  guardarCarritoRemoto,
+  leerCarritoRemoto,
+  rearmarCarrito,
+} from '../lib/carritoRemoto'
+import { cargarProductosPorId } from '../lib/pedidoCliente'
 
 // Un ítem del carrito guarda una "foto" de los datos del producto al momento de
 // agregarlo (así el carrito no se rompe si el producto cambia). El precio y el
@@ -16,15 +25,30 @@ export interface CartItem {
   // el link a /producto/:param. Puede venir null/undefined en carritos viejos
   // guardados en localStorage antes de este cambio; el link cae al id.
   slug?: string | null
+  // Talle elegido (productos con talles, migración *_talles). Cada talle es
+  // una línea aparte del carrito y `stock` es el de ese talle.
+  talleId?: string | null
+  talle?: string | null
+}
+
+// Nombre para mostrar en el carrito y el checkout ("Body · Talle 3-6 m").
+export function nombreConTalle(i: Pick<CartItem, 'nombre' | 'talle'>): string {
+  return i.talle ? `${i.nombre} · Talle ${i.talle}` : i.nombre
+}
+
+// Identifica la línea del carrito: el producto y, si tiene, el talle.
+export function claveItem(i: Pick<CartItem, 'id' | 'talleId'>): string {
+  return i.talleId ? `${i.id}:${i.talleId}` : i.id
 }
 
 interface CartContextValue {
   items: CartItem[]
   cantidadTotal: number
   subtotal: number
-  agregar: (producto: ProductoConCategoria, cantidad?: number) => void
-  setCantidad: (id: string, cantidad: number) => void
-  quitar: (id: string) => void
+  agregar: (producto: ProductoConCategoria, cantidad?: number, talle?: Talle | null) => void
+  // `clave` = claveItem(item) (para un producto sin talle, su id).
+  setCantidad: (clave: string, cantidad: number) => void
+  quitar: (clave: string) => void
   vaciar: () => void
   // Reemplaza el contenido completo (lo usa el checkout al revalidar contra la base).
   reemplazar: (items: CartItem[]) => void
@@ -70,14 +94,73 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('storage', onStorage)
   }, [])
 
-  const agregar = useCallback((producto: ProductoConCategoria, cantidad = 1) => {
+  // Carrito en la cuenta (ver lib/carritoRemoto.ts). Al entrar: si este
+  // dispositivo no tiene nada y la cuenta sí, se recupera; si no, manda lo
+  // local. Después, cada cambio se guarda (con una pausa, para no escribir con
+  // cada toque de +/−).
+  const { session } = useAuth()
+  const userId = session?.user.id ?? null
+  const sincronizadoRef = useRef<string | null>(null)
+  const ultimaFirmaRef = useRef<string | null>(null)
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+
+  useEffect(() => {
+    if (!userId) {
+      sincronizadoRef.current = null
+      ultimaFirmaRef.current = null
+      return
+    }
+    if (sincronizadoRef.current === userId) return
+    let vigente = true
+    ;(async () => {
+      const remoto = await leerCarritoRemoto(userId)
+      if (!vigente) return
+      if (remoto && remoto.length > 0 && itemsRef.current.length === 0) {
+        const productos = await cargarProductosPorId(remoto.map((r) => r.id))
+        if (!vigente) return
+        const rearmado = rearmarCarrito(remoto, productos)
+        // Si mientras tanto agregó algo, no se pisa.
+        if (rearmado.length > 0 && itemsRef.current.length === 0) setItems(rearmado)
+        ultimaFirmaRef.current = firma(remoto)
+      } else if (remoto) {
+        ultimaFirmaRef.current = firma(remoto)
+        // Lo de este dispositivo pasa a la cuenta.
+        const local = aGuardar(itemsRef.current)
+        if (local.length > 0 && firma(local) !== ultimaFirmaRef.current) {
+          ultimaFirmaRef.current = firma(local)
+          void guardarCarritoRemoto(userId, local)
+        }
+      }
+      sincronizadoRef.current = userId
+    })()
+    return () => {
+      vigente = false
+    }
+  }, [userId])
+
+  useEffect(() => {
+    if (!userId || sincronizadoRef.current !== userId) return
+    const guardar = aGuardar(items)
+    const f = firma(guardar)
+    if (f === ultimaFirmaRef.current) return
+    const t = window.setTimeout(() => {
+      ultimaFirmaRef.current = f
+      void guardarCarritoRemoto(userId, guardar)
+    }, 1500)
+    return () => window.clearTimeout(t)
+  }, [items, userId])
+
+  const agregar = useCallback((producto: ProductoConCategoria, cantidad = 1, talle?: Talle | null) => {
     setItems((prev) => {
-      const existente = prev.find((i) => i.id === producto.id)
-      const tope = producto.stock // no dejamos superar el stock conocido
+      const clave = claveItem({ id: producto.id, talleId: talle?.id })
+      const existente = prev.find((i) => claveItem(i) === clave)
+      // No dejamos superar el stock conocido (del talle, si tiene).
+      const tope = talle ? talle.stock : producto.stock
       if (existente) {
         return prev.map((i) =>
-          i.id === producto.id
-            ? { ...i, cantidad: Math.min(i.cantidad + cantidad, tope) }
+          claveItem(i) === clave
+            ? { ...i, stock: tope, cantidad: Math.min(i.cantidad + cantidad, tope) }
             : i,
         )
       }
@@ -88,9 +171,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           nombre: producto.nombre,
           precio: producto.precio,
           imagen: portadaDe(producto),
-          stock: producto.stock,
+          stock: tope,
           cantidad: Math.min(cantidad, tope),
           slug: producto.slug,
+          ...(talle ? { talleId: talle.id, talle: talle.talle } : {}),
         },
       ]
     })
@@ -98,16 +182,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setDrawerAbierto(true)
   }, [])
 
-  const setCantidad = useCallback((id: string, cantidad: number) => {
+  const setCantidad = useCallback((clave: string, cantidad: number) => {
     setItems((prev) =>
       prev.map((i) =>
-        i.id === id ? { ...i, cantidad: Math.max(1, Math.min(cantidad, i.stock)) } : i,
+        claveItem(i) === clave ? { ...i, cantidad: Math.max(1, Math.min(cantidad, i.stock)) } : i,
       ),
     )
   }, [])
 
-  const quitar = useCallback((id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id))
+  const quitar = useCallback((clave: string) => {
+    setItems((prev) => prev.filter((i) => claveItem(i) !== clave))
   }, [])
 
   const vaciar = useCallback(() => setItems([]), [])

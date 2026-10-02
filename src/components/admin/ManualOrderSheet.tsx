@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { EntregaPedido, ProductoConCategoria } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
+import { aplanarProducto, conTalles } from '../../lib/productosConsulta'
 import { money } from '../../lib/format'
 import {
   PROVINCIAS_AR,
@@ -19,11 +20,34 @@ interface Props {
 }
 
 interface ItemSeleccionado {
+  // Producto y, si se vende por talle, el talle: cada talle es una línea.
+  clave: string
   id: string
+  talleId?: string
   nombre: string
   precio: number
   stock: number
   cantidad: number
+}
+
+// Lo que se puede elegir en el buscador: un producto o un talle de un producto.
+type Opcion = Omit<ItemSeleccionado, 'cantidad'>
+
+function opcionesDe(p: ProductoConCategoria): Opcion[] {
+  const talles = p.talles ?? []
+  if (talles.length === 0) {
+    return [{ clave: p.id, id: p.id, nombre: p.nombre, precio: p.precio, stock: p.stock }]
+  }
+  return talles
+    .filter((t) => t.stock > 0)
+    .map((t) => ({
+      clave: `${p.id}:${t.id}`,
+      id: p.id,
+      talleId: t.id,
+      nombre: `${p.nombre} · Talle ${t.talle}`,
+      precio: p.precio,
+      stock: t.stock,
+    }))
 }
 
 export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
@@ -56,7 +80,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   // duplica el pedido. Se renueva al abrir la hoja, al cambiar los productos,
   // el cupón o la entrega, y después de crear el pedido.
   const claveRef = useRef<string | null>(null)
-  const firmaItems = items.map((i) => `${i.id}:${i.cantidad}`).join('|')
+  const firmaItems = items.map((i) => `${i.clave}:${i.cantidad}`).join('|')
   const firmaIntento = [firmaItems, cupon?.codigo ?? '', entrega, provincia, cp.trim()].join('#')
   useEffect(() => {
     claveRef.current = null
@@ -90,24 +114,12 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
   useEffect(() => {
     if (!open) return
     let activo = true
-    supabase
-      .from('productos')
-      .select('*, categorias(nombre)')
-      .gt('stock', 0)
-      .order('nombre')
-      .then(({ data, error }) => {
+    conTalles((select) => supabase.from('productos').select(select).gt('stock', 0).order('nombre')).then(
+      ({ data, error }) => {
         if (!activo || error || !data) return
-        const filas = data.map((row) => {
-          const { categorias, ...resto } = row as Record<string, unknown> & {
-            categorias: { nombre: string } | null
-          }
-          return {
-            ...(resto as unknown as ProductoConCategoria),
-            categoria_nombre: categorias?.nombre ?? null,
-          }
-        })
-        setProductos(filas)
-      })
+        setProductos((data as unknown[]).map(aplanarProducto))
+      },
+    )
     return () => {
       activo = false
     }
@@ -122,41 +134,41 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
     setMensajeCupon('Cambiaron los productos: aplicá el cupón de nuevo.')
   }
 
-  function agregarProducto(p: ProductoConCategoria) {
+  function agregarProducto(o: Opcion) {
     invalidarCupon()
     setItems((prev) => {
-      const existente = prev.find((i) => i.id === p.id)
+      const existente = prev.find((i) => i.clave === o.clave)
       if (existente) {
         if (existente.cantidad >= existente.stock) return prev
-        return prev.map((i) => (i.id === p.id ? { ...i, cantidad: i.cantidad + 1 } : i))
+        return prev.map((i) => (i.clave === o.clave ? { ...i, cantidad: i.cantidad + 1 } : i))
       }
-      return [...prev, { id: p.id, nombre: p.nombre, precio: p.precio, stock: p.stock, cantidad: 1 }]
+      return [...prev, { ...o, cantidad: 1 }]
     })
     setBusqueda('')
     setPickerAbierto(false)
   }
 
-  const productosDisponibles = productos.filter((p) => {
-    const yaCompleto = items.some((i) => i.id === p.id && i.cantidad >= p.stock)
+  const productosDisponibles = productos.flatMap(opcionesDe).filter((o) => {
+    const yaCompleto = items.some((i) => i.clave === o.clave && i.cantidad >= o.stock)
     if (yaCompleto) return false
     const term = busqueda.trim().toLowerCase()
-    return !term || p.nombre.toLowerCase().includes(term)
+    return !term || o.nombre.toLowerCase().includes(term)
   })
 
-  function cambiarCantidad(id: string, delta: number) {
+  function cambiarCantidad(clave: string, delta: number) {
     invalidarCupon()
     setItems((prev) =>
       prev.map((i) => {
-        if (i.id !== id) return i
+        if (i.clave !== clave) return i
         const cantidad = Math.min(i.stock, Math.max(1, i.cantidad + delta))
         return { ...i, cantidad }
       }),
     )
   }
 
-  function quitarItem(id: string) {
+  function quitarItem(clave: string) {
     invalidarCupon()
-    setItems((prev) => prev.filter((i) => i.id !== id))
+    setItems((prev) => prev.filter((i) => i.clave !== clave))
   }
 
   const subtotal = calcularSubtotal(items)
@@ -378,7 +390,7 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
                   <div className="order-product-empty">Sin productos con stock disponible.</div>
                 )}
                 {productosDisponibles.map((p) => (
-                  <div key={p.id} className="order-product-result" onClick={() => agregarProducto(p)}>
+                  <div key={p.clave} className="order-product-result" onClick={() => agregarProducto(p)}>
                     <span className="name">{p.nombre}</span>
                     <span className="meta">
                       Stock: {p.stock} · {money(p.precio)}
@@ -393,19 +405,19 @@ export default function ManualOrderSheet({ open, onClose, onChanged }: Props) {
             <div className="field">
               <label>Productos del pedido</label>
               {items.map((i) => (
-                <div key={i.id} className="order-item-selected">
+                <div key={i.clave} className="order-item-selected">
                   <span className="name">{i.nombre}</span>
                   <div className="qty-stepper">
-                    <button type="button" onClick={() => cambiarCantidad(i.id, -1)} disabled={i.cantidad <= 1}>
+                    <button type="button" onClick={() => cambiarCantidad(i.clave, -1)} disabled={i.cantidad <= 1}>
                       -
                     </button>
                     <span>{i.cantidad}</span>
-                    <button type="button" onClick={() => cambiarCantidad(i.id, 1)} disabled={i.cantidad >= i.stock}>
+                    <button type="button" onClick={() => cambiarCantidad(i.clave, 1)} disabled={i.cantidad >= i.stock}>
                       +
                     </button>
                   </div>
                   <span className="line-subtotal">{money(i.precio * i.cantidad)}</span>
-                  <button type="button" className="order-item-remove" onClick={() => quitarItem(i.id)}>
+                  <button type="button" className="order-item-remove" onClick={() => quitarItem(i.clave)}>
                     Quitar
                   </button>
                 </div>

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCart } from '../../context/CartContext'
+import { claveItem, nombreConTalle, useCart } from '../../context/CartContext'
 import { money } from '../../lib/format'
 import Miniatura from '../common/Miniatura'
 
@@ -102,15 +102,15 @@ export default function CartDrawer() {
           <>
             <div className="drawer-items">
               {items.map((i) => (
-                <div className="drawer-item" key={i.id}>
+                <div className="drawer-item" key={claveItem(i)}>
                   <Miniatura src={i.imagen} alt={i.nombre} width={68} height={68} />
                   <div className="drawer-item-main">
-                    <p className="drawer-item-name">{i.nombre}</p>
+                    <p className="drawer-item-name">{nombreConTalle(i)}</p>
                     <p className="drawer-item-price">{money(i.precio)}</p>
                     <div className="qty qty-sm">
                       <button
                         type="button"
-                        onClick={() => setCantidad(i.id, i.cantidad - 1)}
+                        onClick={() => setCantidad(claveItem(i), i.cantidad - 1)}
                         aria-label={`Restar una unidad de ${i.nombre}`}
                         disabled={i.cantidad <= 1}
                       >
@@ -119,7 +119,7 @@ export default function CartDrawer() {
                       <span aria-live="polite">{i.cantidad}</span>
                       <button
                         type="button"
-                        onClick={() => setCantidad(i.id, i.cantidad + 1)}
+                        onClick={() => setCantidad(claveItem(i), i.cantidad + 1)}
                         aria-label={`Sumar una unidad de ${i.nombre}`}
                         disabled={i.cantidad >= i.stock}
                       >
@@ -129,7 +129,7 @@ export default function CartDrawer() {
                   </div>
                   <div className="drawer-item-right">
                     <span className="drawer-item-total">{money(i.precio * i.cantidad)}</span>
-                    <button className="drawer-remove" onClick={() => quitar(i.id)} aria-label={`Quitar ${i.nombre} del carrito`}>
+                    <button className="drawer-remove" onClick={() => quitar(claveItem(i))} aria-label={`Quitar ${i.nombre} del carrito`}>
                       Quitar
                     </button>
                   </div>

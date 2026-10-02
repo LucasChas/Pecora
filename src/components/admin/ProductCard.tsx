@@ -126,51 +126,67 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
         <div className="prod-fields">
           <div className="mini-field">
             <label htmlFor={`precio-${producto.id}`}>Precio</label>
-            <input
-              id={`precio-${producto.id}`}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              value={precio}
-              onChange={(e) => setPrecio(e.target.value)}
-              onFocus={() => empezarEdicion('precio')}
-              onBlur={() => confirmarCampo('precio', precio, producto.precio)}
-              // En desktop la rueda del mouse cambiaría el número sin querer
-              // (y se guardaría al salir): soltamos el foco antes de que pase.
-              onWheel={(e) => e.currentTarget.blur()}
-            />
-          </div>
-          <div className="mini-field mini-field--stock">
-            <label htmlFor={`stock-${producto.id}`}>Stock</label>
-            <div className="stock-stepper">
-              <button
-                type="button"
-                aria-label={`Restar una unidad de ${producto.nombre}`}
-                onClick={() => sumarStock(-1)}
-                disabled={Number(stock) <= 0}
-              >
-                −
-              </button>
+            <span className="precio-input">
               <input
-                id={`stock-${producto.id}`}
+                id={`precio-${producto.id}`}
                 type="number"
-                inputMode="numeric"
+                inputMode="decimal"
                 min={0}
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                onFocus={() => empezarEdicion('stock')}
-                onBlur={() => confirmarCampo('stock', stock, stockAlEditar.current)}
+                value={precio}
+                onChange={(e) => setPrecio(e.target.value)}
+                onFocus={() => empezarEdicion('precio')}
+                onBlur={() => confirmarCampo('precio', precio, producto.precio)}
+                // En desktop la rueda del mouse cambiaría el número sin querer
+                // (y se guardaría al salir): soltamos el foco antes de que pase.
                 onWheel={(e) => e.currentTarget.blur()}
               />
-              <button
-                type="button"
-                aria-label={`Sumar una unidad de ${producto.nombre}`}
-                onClick={() => sumarStock(1)}
-              >
-                +
-              </button>
-            </div>
+            </span>
           </div>
+          {producto.talles && producto.talles.length > 0 ? (
+            // Con talles, el stock se cambia por talle en "Editar foto y datos".
+            <div className="mini-field mini-field--stock">
+              <span className="mini-field-rotulo">Stock por talle</span>
+              <ul className="prod-talles" aria-label={`Stock por talle de ${producto.nombre}`}>
+                {producto.talles.map((t) => (
+                  <li key={t.id} className={t.stock <= 0 ? 'sin' : t.stock <= 3 ? 'poco' : undefined}>
+                    {t.talle} <strong>{t.stock}</strong>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="mini-field mini-field--stock">
+              <label htmlFor={`stock-${producto.id}`}>Stock</label>
+              <div className="stock-stepper">
+                <button
+                  type="button"
+                  aria-label={`Restar una unidad de ${producto.nombre}`}
+                  onClick={() => sumarStock(-1)}
+                  disabled={Number(stock) <= 0}
+                >
+                  −
+                </button>
+                <input
+                  id={`stock-${producto.id}`}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  onFocus={() => empezarEdicion('stock')}
+                  onBlur={() => confirmarCampo('stock', stock, stockAlEditar.current)}
+                  onWheel={(e) => e.currentTarget.blur()}
+                />
+                <button
+                  type="button"
+                  aria-label={`Sumar una unidad de ${producto.nombre}`}
+                  onClick={() => sumarStock(1)}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="prod-actions">

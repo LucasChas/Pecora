@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
-import { useCart, type CartItem } from '../context/CartContext'
+import { claveItem, nombreConTalle, useCart, type CartItem } from '../context/CartContext'
+import { conTalles, ordenarTalles } from '../lib/productosConsulta'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
@@ -141,7 +142,7 @@ export default function CheckoutPage() {
   // el cupón o la entrega/destino (es otro pedido), y después de un pedido
   // confirmado.
   const claveRef = useRef<string | null>(null)
-  const firmaCarrito = items.map((i) => `${i.id}:${i.cantidad}:${i.precio}`).join('|')
+  const firmaCarrito = items.map((i) => `${claveItem(i)}:${i.cantidad}:${i.precio}`).join('|')
   const codigoCupon = cupon?.resultado.codigo ?? ''
   const firmaEnvio =
     seleccionEnvio.tipo === 'transportista' ? seleccionEnvio.cotizacionId : seleccionEnvio.tipo
@@ -402,36 +403,67 @@ export default function CheckoutPage() {
 
   // Revalida el carrito contra la base: precios vigentes y stock disponible.
   async function revalidarCarrito(): Promise<{ corregidos: CartItem[]; cambios: string[] }> {
-    const ids = items.map((i) => i.id)
-    const { data, error } = await supabase
-      .from('productos')
-      .select('id, nombre, precio, stock')
-      .in('id', ids)
+    const ids = [...new Set(items.map((i) => i.id))]
+    const { data, error } = await conTalles((select) =>
+      supabase
+        .from('productos')
+        .select(select.includes('producto_talles') ? 'id, nombre, precio, stock, producto_talles(id, talle, stock, orden)' : 'id, nombre, precio, stock')
+        .in('id', ids),
+    )
     if (error) throw new Error(error.message)
 
-    const porId = new Map((data ?? []).map((p) => [p.id, p]))
+    const filas = ((data as unknown[]) ?? []) as {
+      id: string
+      nombre: string
+      precio: number
+      stock: number
+      producto_talles?: unknown
+    }[]
+    const porId = new Map(filas.map((p) => [p.id, { ...p, talles: ordenarTalles(p.producto_talles) }]))
     const cambios: string[] = []
     const corregidos: CartItem[] = []
 
     for (const item of items) {
       const actual = porId.get(item.id)
-      if (!actual || actual.stock <= 0) {
-        cambios.push(`"${item.nombre}" ya no está disponible y se quitó del carrito.`)
+      const nombre = nombreConTalle(item)
+      if (!actual) {
+        cambios.push(`"${nombre}" ya no está disponible y se quitó del carrito.`)
+        continue
+      }
+      // Stock que vale para esta línea: el del talle, si el producto tiene.
+      let stock = actual.stock
+      if (actual.talles.length > 0) {
+        const talle = item.talleId ? actual.talles.find((t) => t.id === item.talleId) : undefined
+        if (!talle) {
+          cambios.push(
+            item.talleId
+              ? `"${nombre}": ese talle ya no está disponible y se quitó del carrito.`
+              : `"${item.nombre}" ahora se vende por talle: elegilo en la ficha del producto.`,
+          )
+          continue
+        }
+        stock = talle.stock
+      } else if (item.talleId) {
+        cambios.push(`"${nombre}": el producto ya no tiene talles y se quitó del carrito.`)
+        continue
+      }
+      if (stock <= 0) {
+        cambios.push(`"${nombre}" ya no está disponible y se quitó del carrito.`)
         continue
       }
       let cantidad = item.cantidad
-      if (cantidad > actual.stock) {
-        cantidad = actual.stock
+      if (cantidad > stock) {
+        cantidad = stock
         cambios.push(
-          actual.stock === 1
-            ? `"${item.nombre}": queda 1 unidad (ajustamos la cantidad).`
-            : `"${item.nombre}": quedan ${actual.stock} unidades (ajustamos la cantidad).`,
+          stock === 1
+            ? `"${nombre}": queda 1 unidad (ajustamos la cantidad).`
+            : `"${nombre}": quedan ${stock} unidades (ajustamos la cantidad).`,
         )
       }
       if (actual.precio !== item.precio) {
-        cambios.push(`"${item.nombre}": el precio se actualizó a ${money(actual.precio)}.`)
+        cambios.push(`"${nombre}": el precio se actualizó a ${money(actual.precio)}.`)
       }
-      corregidos.push({ ...item, precio: actual.precio, stock: actual.stock, cantidad })
+      corregidos.push({ ...item, precio: actual.precio, stock, cantidad })
     }
     return { corregidos, cambios }
   }
@@ -801,12 +833,12 @@ export default function CheckoutPage() {
                   <h2 className="checkout-h">Tu pedido</h2>
                   <div className="summary-items">
                     {items.map((i) => (
-                      <div className="summary-item" key={i.id}>
+                      <div className="summary-item" key={claveItem(i)}>
                         <div className="summary-thumb">
                           <Miniatura src={i.imagen} alt={i.nombre} width={60} height={60} />
                           <span className="summary-qty">{i.cantidad}</span>
                         </div>
-                        <span className="summary-name">{i.nombre}</span>
+                        <span className="summary-name">{nombreConTalle(i)}</span>
                         <span className="summary-total">{money(i.precio * i.cantidad)}</span>
                       </div>
                     ))}

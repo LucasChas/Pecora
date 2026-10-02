@@ -21,6 +21,7 @@ import {
   eliminarMiCuenta,
   guardarMisDatos,
   guardarPreferencias,
+  type Preferencias as CambiosPreferencias,
   type MiAviso,
 } from '../lib/miCuenta'
 import { cargarCuponesDisponibles, textoBeneficio, type CuponDisponible } from '../lib/cupones'
@@ -747,29 +748,59 @@ function Preferencias() {
   const { session, perfil, recargarPerfil } = useAuth()
   const { notificar } = useDialog()
   const [guardando, setGuardando] = useState(false)
-  const activo = perfil?.acepta_novedades === true
+  const novedades = perfil?.acepta_novedades === true
+  const carrito = perfil?.recordar_carrito !== false
 
-  async function cambiar(valor: boolean) {
+  async function cambiar(cambios: CambiosPreferencias, aviso: string) {
     if (!session) return
     setGuardando(true)
-    const r = await guardarPreferencias(session.user.id, valor)
+    const r = await guardarPreferencias(session.user.id, cambios)
     setGuardando(false)
     if (!r.ok) {
       notificar(r.error)
       return
     }
     await recargarPerfil()
-    notificar(valor ? 'Te vamos a avisar de las novedades' : 'Listo, no te mandamos novedades')
+    notificar(aviso)
   }
 
   return (
     <section className="mc-seccion" aria-labelledby="mc-pref-titulo">
       <h2 id="mc-pref-titulo">Mails</h2>
       <label className="mc-check">
-        <input type="checkbox" checked={activo} disabled={guardando} onChange={(e) => cambiar(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={novedades}
+          disabled={guardando}
+          onChange={(e) =>
+            cambiar(
+              { acepta_novedades: e.target.checked },
+              e.target.checked ? 'Te vamos a avisar de las novedades' : 'Listo, no te mandamos novedades',
+            )
+          }
+        />
         <span>
           Quiero recibir novedades y promociones por mail
           <small>Los mails de tus pedidos y de los avisos de stock te llegan igual.</small>
+        </span>
+      </label>
+      <label className="mc-check">
+        <input
+          type="checkbox"
+          checked={carrito}
+          disabled={guardando}
+          onChange={(e) =>
+            cambiar(
+              { recordar_carrito: e.target.checked },
+              e.target.checked
+                ? 'Te avisamos si dejás productos en el carrito'
+                : 'Listo, no te recordamos el carrito',
+            )
+          }
+        />
+        <span>
+          Recordarme si dejo productos en el carrito
+          <small>Un solo mail, al día siguiente, si no terminaste la compra.</small>
         </span>
       </label>
     </section>

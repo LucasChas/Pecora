@@ -129,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       rol: fila?.rol ?? 'cliente',
       created_at: fila?.created_at ?? '',
       acepta_novedades: fila?.acepta_novedades === true,
+      recordar_carrito: fila?.recordar_carrito !== false,
     })
   }, [])
 

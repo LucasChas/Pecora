@@ -1450,3 +1450,153 @@
   height: 18px;
   accent-color: var(--sage);
 }
+
+/* ---------- Selector de talle (ficha del producto) ---------- */
+.talles {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.talles-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.talles-titulo {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.talles-titulo strong {
+  color: var(--ink);
+}
+.talles-guia {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--sage-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.talles-opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.talle {
+  min-width: 52px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--cream-deep, #e6dccb);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.talle:hover:not(:disabled) {
+  border-color: var(--sage);
+}
+.talle.elegido {
+  border-color: var(--sage-deep);
+  background: var(--sage-deep);
+  color: #fff;
+}
+.talle.agotado {
+  color: #b9ad98;
+  background: repeating-linear-gradient(-45deg, #fff, #fff 6px, #f6f1e8 6px, #f6f1e8 8px);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+.talles-poco {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #a8691b;
+  font-weight: 600;
+}
+.talles-error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #b3412f;
+  font-weight: 600;
+}
+
+/* ---------- Guía de talles ---------- */
+.guia-talles {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: min(520px, calc(100vw - 24px));
+  width: 100%;
+}
+.guia-talles::backdrop {
+  background: rgba(40, 30, 20, 0.45);
+}
+.guia-talles-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 18px 18px 16px;
+  box-shadow: 0 20px 50px rgba(40, 30, 20, 0.25);
+}
+.guia-talles-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.guia-talles-head h2 {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-size: 1.25rem;
+  color: var(--ink);
+}
+.guia-talles-cerrar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--cream);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.guia-talles-cerrar svg {
+  width: 18px;
+  height: 18px;
+}
+.guia-talles table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.guia-talles th,
+.guia-talles td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--line, #eee4d4);
+}
+.guia-talles thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+.guia-talles tbody th {
+  white-space: nowrap;
+  color: var(--sage-deep);
+}
+.guia-talles-nota {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}

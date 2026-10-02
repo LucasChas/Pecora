@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useDialog } from '../context/DialogContext'
@@ -21,6 +21,13 @@ import OrdersList from '../components/admin/OrdersList'
 import CatalogExport from '../components/admin/CatalogExport'
 import AjustesPanel from '../components/admin/AjustesPanel'
 import EstadisticasPanel from '../components/admin/EstadisticasPanel'
+import AvisosPedidos from '../components/admin/AvisosPedidos'
+import {
+  leerPreferencia,
+  notificarSistema,
+  sonarAviso,
+  type PreferenciaAvisos,
+} from '../lib/avisoPedidoNuevo'
 import { permisosDe } from '../lib/roles'
 import { STOCK_BAJO } from '../lib/stock'
 import { coincideBusqueda } from '../lib/format'
@@ -148,6 +155,11 @@ export default function AdminPage() {
     setFiltroStock('todos')
   }
 
+  // Sonido / notificación del sistema al entrar un pedido (por dispositivo).
+  const [prefAvisos, setPrefAvisos] = useState<PreferenciaAvisos>(leerPreferencia)
+  const prefAvisosRef = useRef(prefAvisos)
+  prefAvisosRef.current = prefAvisos
+
   const {
     pedidos,
     conteos,
@@ -163,15 +175,15 @@ export default function AdminPage() {
   function avisarPedidoNuevo(pedido: Pedido) {
     if (pedido.origen === 'admin') return // lo acaba de cargar alguien del panel
     navigator.vibrate?.(200)
-    notificar(`Nuevo pedido #${pedido.numero} de ${pedido.nombre.split(' ')[0]}`, {
-      accion: {
-        texto: 'Ver',
-        onClick: () => {
-          setVista('pedidos')
-          setFiltroEstado('nuevo')
-        },
-      },
-    })
+    const verPedidos = () => {
+      setVista('pedidos')
+      setFiltroEstado('nuevo')
+    }
+    const texto = `Nuevo pedido #${pedido.numero} de ${pedido.nombre.split(' ')[0]}`
+    const pref = prefAvisosRef.current
+    if (pref.sonido) sonarAviso()
+    if (pref.sistema) notificarSistema(texto, `Total: $${Number(pedido.total ?? 0).toLocaleString('es-AR')}`, verPedidos)
+    notificar(texto, { accion: { texto: 'Ver', onClick: verPedidos } })
   }
 
   // Pedidos por atender en el título de la pestaña: "(2) Pecora · Panel".
@@ -318,7 +330,7 @@ export default function AdminPage() {
 
         {vista === 'productos' ? (
           <>
-            <StatsStrip productos={productos} />
+            <StatsStrip productos={productos} filtro={filtroStock} onFiltrar={setFiltroStock} />
             <div className="list-head">
               <div>
                 <h1>Productos</h1>
@@ -427,6 +439,9 @@ export default function AdminPage() {
                     ? 'Los pedidos del muestrario aparecen acá.'
                     : `${conteos.todos} en total · ${pedidosNuevos} sin gestionar.`}
                 </p>
+              </div>
+              <div className="head-actions">
+                <AvisosPedidos preferencia={prefAvisos} onCambiar={setPrefAvisos} />
               </div>
             </div>
 

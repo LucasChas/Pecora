@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { instagramHabilitado, instagramPerfilLink, waPerfilLink } from '../../lib/config'
+import InstalarApp from './InstalarApp'
 
 // Footer institucional del catálogo público: se monta una sola vez en
 // CatalogLayout (App.tsx), así aparece en todas las vistas públicas
@@ -40,6 +41,8 @@ export default function Footer() {
             </a>
           )}
         </div>
+
+        <InstalarApp />
 
         <div className="site-footer-legal">
           <Link to="/privacidad" className="site-footer-link">
