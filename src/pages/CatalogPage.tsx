@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
-import SearchBar from '../components/common/SearchBar'
+import BuscadorCatalogo from '../components/catalog/BuscadorCatalogo'
+import BandaConfianza from '../components/catalog/BandaConfianza'
 import CategoryFilters from '../components/common/CategoryFilters'
 import ProductGrid from '../components/catalog/ProductGrid'
 import MasVendidos from '../components/catalog/MasVendidos'
@@ -11,6 +12,7 @@ import { useProducts } from '../hooks/useProducts'
 import { useCategories } from '../hooks/useCategories'
 import { coincideBusqueda } from '../lib/format'
 import { OPCIONES_ORDEN, ordenDeUrl, ordenarCatalogo } from '../lib/ordenCatalogo'
+import { enRango, leerRangoUrl, rangosDePrecio } from '../lib/filtrosCatalogo'
 import '../styles/catalog.css'
 import '../styles/cart.css'
 import { useTitulo } from '../hooks/useTitulo'
@@ -44,6 +46,9 @@ export default function CatalogPage() {
   const busqueda = params.get('q') ?? ''
   const categoriaActiva = params.get('cat') ?? 'Todos'
   const orden = ordenDeUrl(params.get('orden'))
+  const precioUrl = params.get('precio')
+  const rango = leerRangoUrl(precioUrl)
+  const soloDisponibles = params.get('stock') === '1'
   useTitulo(busqueda.trim() ? `Buscar "${busqueda.trim()}"` : categoriaActiva !== 'Todos' ? categoriaActiva : null)
 
   const setOrden = (v: string) =>
@@ -56,6 +61,27 @@ export default function CatalogPage() {
       },
       { replace: true },
     )
+
+  // Filtros de precio y stock: también en la URL, sin llenar el historial.
+  const setParam = (clave: string, valor: string | null) =>
+    setParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        if (valor) p.set(clave, valor)
+        else p.delete(clave)
+        return p
+      },
+      { replace: true },
+    )
+  const limpiarFiltros = () =>
+    setParams((prev) => {
+      const p = new URLSearchParams(prev)
+      for (const k of ['q', 'cat', 'precio', 'stock']) p.delete(k)
+      return p
+    })
+
+  // Rangos según los precios de lo que hay (tercios con cortes redondos).
+  const rangos = useMemo(() => rangosDePrecio(productos.map((p) => p.precio)), [productos])
 
   // Actualiza un parámetro de la URL sin perder los demás.
   const setBusqueda = (v: string) =>
@@ -83,13 +109,18 @@ export default function CatalogPage() {
     const filtrados = productos.filter((p) => {
       const coincideCat =
         categoriaActiva === 'Todos' || p.categoria_nombre === categoriaActiva
-      return coincideCat && coincideBusqueda(busqueda, p.nombre, p.descripcion, p.categoria_nombre)
+      return (
+        coincideCat &&
+        enRango(p.precio, rango) &&
+        (!soloDisponibles || p.stock > 0) &&
+        coincideBusqueda(busqueda, p.nombre, p.descripcion, p.categoria_nombre)
+      )
     })
     return ordenarCatalogo(filtrados, orden)
-  }, [productos, busqueda, categoriaActiva, orden])
+  }, [productos, busqueda, categoriaActiva, orden, rango?.min, rango?.max, soloDisponibles])
 
-  // "Lo más vendido" solo en la portada: sin búsqueda ni categoría elegida.
-  const sinFiltros = !busqueda.trim() && categoriaActiva === 'Todos'
+  // "Lo más vendido" solo en la portada: sin búsqueda ni filtros.
+  const sinFiltros = !busqueda.trim() && categoriaActiva === 'Todos' && !rango && !soloDisponibles
 
   return (
     <div className="catalog-root">
@@ -101,7 +132,7 @@ export default function CatalogPage() {
       {/* Borde festoneado: elemento de marca */}
       <Scallop />
 
-      <SearchBar value={busqueda} onChange={setBusqueda} />
+      <BuscadorCatalogo value={busqueda} onChange={setBusqueda} productos={productos} />
 
       <main>
         <CategoryFilters
@@ -167,6 +198,7 @@ export default function CatalogPage() {
                 </div>
               </div>
             )}
+            {sinFiltros && <BandaConfianza />}
             {sinFiltros && <MasVendidos productos={productos} />}
             <div className="catalogo-barra">
               <h2 className="catalogo-titulo">
@@ -179,20 +211,63 @@ export default function CatalogPage() {
                   {visibles.length === 1 ? '1 producto' : `${visibles.length} productos`}
                 </span>
               </h2>
-              {visibles.length > 1 && (
-                <div className="orden-catalogo">
-                  <label htmlFor="orden-catalogo">Ordenar por</label>
-                  <select id="orden-catalogo" value={orden} onChange={(e) => setOrden(e.target.value)}>
-                    {OPCIONES_ORDEN.map((o) => (
-                      <option key={o.valor} value={o.valor}>
-                        {o.texto}
+            </div>
+            <div className="catalogo-filtros" role="group" aria-label="Filtrar y ordenar">
+              {rangos.length > 0 && (
+                <label className="filtro-select">
+                  <span className="sr-only">Precio</span>
+                  <select
+                    value={rango ? (precioUrl ?? '') : ''}
+                    onChange={(e) => setParam('precio', e.target.value || null)}
+                    aria-label="Filtrar por precio"
+                  >
+                    <option value="">Todos los precios</option>
+                    {rangos.map((r) => (
+                      <option key={r.valor} value={r.valor}>
+                        {r.texto}
                       </option>
                     ))}
+                    {/* Un rango de un link viejo que ya no está en la lista. */}
+                    {rango && !rangos.some((r) => r.valor === precioUrl) && (
+                      <option value={precioUrl ?? ''}>Rango elegido</option>
+                    )}
                   </select>
-                </div>
+                </label>
               )}
+              <button
+                type="button"
+                className={soloDisponibles ? 'filtro-toggle activo' : 'filtro-toggle'}
+                aria-pressed={soloDisponibles}
+                onClick={() => setParam('stock', soloDisponibles ? null : '1')}
+              >
+                {soloDisponibles && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M5 12.5l4.5 4.5L19 7.5" />
+                  </svg>
+                )}
+                Solo disponibles
+              </button>
+              <label className="filtro-select filtro-orden">
+                <span className="filtro-etiqueta">Ordenar</span>
+                <select id="orden-catalogo" value={orden} onChange={(e) => setOrden(e.target.value)}>
+                  {OPCIONES_ORDEN.map((o) => (
+                    <option key={o.valor} value={o.valor}>
+                      {o.texto}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-            <ProductGrid productos={visibles} />
+            {visibles.length === 0 ? (
+              <div className="no-results no-results--filtros">
+                <p>No encontramos productos con esos filtros.</p>
+                <button type="button" className="load-error-btn" onClick={limpiarFiltros}>
+                  Ver todo el muestrario
+                </button>
+              </div>
+            ) : (
+              <ProductGrid productos={visibles} />
+            )}
           </>
         )}
       </main>

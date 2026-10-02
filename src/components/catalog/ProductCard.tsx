@@ -8,6 +8,7 @@ import { formatearPromedio, textoCantidad } from '../../lib/resenas'
 import { useResumenesResenas } from '../../hooks/useResumenesResenas'
 import Miniatura from '../common/Miniatura'
 import BotonFavorito from './BotonFavorito'
+import { useCart } from '../../context/CartContext'
 
 // Card de producto del catálogo: foto (con mouse, al pasar por encima se ve
 // la segunda), categoría, nombre, descripción en dos líneas, estrellas si
@@ -30,10 +31,40 @@ export default function ProductCard({
   // En la card la descripción va en un solo párrafo (los saltos de línea de
   // la ficha acá cortaban el recorte de dos líneas).
   const descripcion = (producto.descripcion ?? '').replace(/\s+/g, ' ').trim()
+  const { items, agregar } = useCart()
+  const enCarrito = items.find((i) => i.id === producto.id)?.cantidad ?? 0
+  const llegoAlTope = enCarrito >= producto.stock
 
   return (
     <div className={disponible ? 'card' : 'card unavailable'}>
       <BotonFavorito productoId={producto.id} nombre={producto.nombre} />
+      {/* Agregar sin abrir la ficha: botón sobre la esquina de la foto (fuera
+          del link, para no anidar un botón dentro de un enlace). */}
+      {disponible && (
+        <div className="card-rapido">
+          <button
+            type="button"
+            className={enCarrito > 0 ? 'card-agregar en-carrito' : 'card-agregar'}
+            onClick={() => agregar(producto)}
+            disabled={llegoAlTope}
+            aria-label={
+              llegoAlTope
+                ? `${producto.nombre}: ya tenés todo el stock en el carrito`
+                : `Agregar ${producto.nombre} al carrito`
+            }
+            title={llegoAlTope ? 'Ya tenés todo el stock en el carrito' : 'Agregar al carrito'}
+          >
+            {enCarrito > 0 ? (
+              <span className="card-agregar-num">{enCarrito}</span>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 4h2l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2" />
+                <path d="M13 10v4M11 12h4" />
+              </svg>
+            )}
+          </button>
+        </div>
+      )}
       {/* desdeCatalogo: el "Volver al muestrario" de la ficha usa el historial
           (conserva filtros y scroll) en vez de navegar a "/" de cero. */}
       <Link
