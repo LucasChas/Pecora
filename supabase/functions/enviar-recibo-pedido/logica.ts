@@ -143,6 +143,32 @@ export async function tokensIguales(recibido: string, esperado: string): Promise
  * podría inyectar headers extra (ej. un Bcc oculto) en el mensaje RFC 2822.
  */
 const EMAIL_RE = /^[^\s@\r\n,<>]+@[^\s@\r\n,<>]+\.[^\s@\r\n,<>]+$/;
+/**
+ * Link "Ver en el panel" de los mails a la dueña. El panel es otro deploy
+ * (VITE_APP_MODE=admin) con su propia URL: en el muestrario /admin no existe,
+ * así que nunca se arma a partir de STORE_URL. Se usa PUBLIC_ADMIN_URL y, si
+ * falta, el primer origen de ADMIN_ORIGIN (el mismo panel). Sin ninguno de
+ * los dos, el mail sale sin el botón.
+ */
+export function resolverPanelUrl(
+  publicAdminUrl: string | undefined | null,
+  adminOrigin: string | undefined | null,
+): string | null {
+  const candidatos = [publicAdminUrl ?? "", ...(adminOrigin ?? "").split(",")];
+  for (const raw of candidatos) {
+    const valor = raw.trim();
+    if (!valor) continue;
+    try {
+      const url = new URL(valor);
+      if (url.protocol !== "https:" && url.protocol !== "http:") continue;
+      return url.href.replace(/\/+$/, "");
+    } catch {
+      // No es una URL: se prueba la siguiente.
+    }
+  }
+  return null;
+}
+
 export function esEmailSeguro(value: string): boolean {
   return EMAIL_RE.test(value) && !/[\r\n]/.test(value);
 }

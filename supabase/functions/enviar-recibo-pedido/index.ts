@@ -41,7 +41,8 @@
 //   GMAIL_SENDER + GMAIL_APP_PASSWORD (o GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET,
 //   GMAIL_REFRESH_TOKEN para OAuth),
 //   OWNER_EMAIL (uno o varios, separados por coma — sin este no sale el aviso
-//   a la dueña), BRAND_NAME, BRAND_LOGO_URL, STORE_URL, WHATSAPP_NUMBER
+//   a la dueña), BRAND_NAME, BRAND_LOGO_URL, STORE_URL, PUBLIC_ADMIN_URL (o
+//   ADMIN_ORIGIN) para el botón "Ver en el panel", WHATSAPP_NUMBER
 //   (opcional), SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY (estas dos las
 //   inyecta Supabase automáticamente en toda Edge Function).
 // ============================================================================
@@ -57,6 +58,7 @@ import {
   formatFromHeader,
   parseItems,
   parseOwnerEmails,
+  resolverPanelUrl,
   toNumber,
   waClienteUrl,
 } from "./logica.ts";
@@ -222,9 +224,8 @@ Deno.serve(async (req: Request) => {
   const brandLogoUrl = Deno.env.get("BRAND_LOGO_URL") || null;
   const storeUrl = Deno.env.get("STORE_URL") ?? "";
   // El panel es otro deploy (VITE_APP_MODE=admin), en su propia URL: en el
-  // muestrario /admin no existe. Es el mismo secreto que usa gestionar-equipo
-  // para las invitaciones; sin él, se cae a STORE_URL/admin (desarrollo local).
-  const adminUrl = Deno.env.get("PUBLIC_ADMIN_URL") ?? "";
+  // muestrario /admin no existe. Mismos secretos que usa gestionar-equipo.
+  const adminUrl = resolverPanelUrl(Deno.env.get("PUBLIC_ADMIN_URL"), Deno.env.get("ADMIN_ORIGIN"));
   // Mismo número que usa el front (VITE_WHATSAPP_NUMBER) — como esta función
   // corre en otro runtime (Deno, no Vite), se repite como secreto propio en
   // vez de compartir el .env del frontend. Formato: código de país + área +
@@ -376,7 +377,7 @@ Deno.serve(async (req: Request) => {
         items,
         totales,
         whatsappClienteUrl: waClienteUrl(pedido.telefono, pedido.numero, brandName),
-        panelUrl: adminUrl || (storeUrl ? `${storeUrl.replace(/\/+$/, "")}/admin` : null),
+        panelUrl: adminUrl,
       },
       branding,
     );

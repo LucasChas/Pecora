@@ -10,6 +10,7 @@ export {
   formatFromHeader,
   parseItems,
   parseOwnerEmails,
+  resolverPanelUrl,
   toNumber,
 } from "../enviar-recibo-pedido/logica.ts";
 export { enmascararEmail, primeraFoto, resolverSitio, urlProducto } from "../avisar-reposicion/logica.ts";

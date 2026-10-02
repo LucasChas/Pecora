@@ -65,8 +65,10 @@ WHATSAPP_NUMBER=5493511234567
 
 - `PUBLIC_ADMIN_URL` es la dirección del panel (el deploy con
   `VITE_APP_MODE=admin`): el botón "Abrir el panel" del mail de pedido nuevo
-  lleva ahí. Sin este secreto el botón apunta a `STORE_URL/admin`, que en el
-  muestrario publicado no existe. Es el mismo secreto que usa `gestionar-equipo`.
+  lleva ahí. Sin este secreto se usa el primer origen de `ADMIN_ORIGIN`, y si
+  tampoco está, el mail sale sin el botón (nunca apunta a `STORE_URL/admin`,
+  que en el muestrario publicado no existe). Es el mismo secreto que usa
+  `gestionar-equipo`.
 
 Notas:
 - `OWNER_EMAIL` es a dónde llega el aviso de "Nuevo pedido". Acepta varias
