@@ -1963,6 +1963,7 @@
 .card-agregar:disabled {
   opacity: 0.75;
   cursor: default;
+}
 
 /* "Instalar Pecora en el celular" (aparece solo si el navegador lo permite). */
 .instalar-app {

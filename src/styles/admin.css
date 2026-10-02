@@ -2540,114 +2540,6 @@
   font-size: 0.78rem;
 }
 
-/* ---------- Talles: tarjeta de producto y formulario ---------- */
-.mini-field-rotulo {
-  display: block;
-  font-size: 0.64rem;
-  color: var(--ink-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-bottom: 3px;
-}
-.prod-talles {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.prod-talles li {
-  font-size: 0.74rem;
-  padding: 4px 8px;
-  border-radius: 8px;
-  background: var(--cream);
-  border: 1px solid var(--line);
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
-.prod-talles li strong {
-  color: var(--ink);
-  margin-left: 2px;
-}
-.prod-talles li.poco strong {
-  color: #a8691b;
-}
-.prod-talles li.sin {
-  opacity: 0.7;
-}
-.prod-talles li.sin strong {
-  color: #b3412f;
-}
-
-.talles-form {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px 14px;
-  margin: 4px 0 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.talles-form-check {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.92rem;
-}
-.talles-form-check input {
-  margin-top: 3px;
-  accent-color: var(--sage);
-}
-.talles-form-check small {
-  display: block;
-  font-weight: 400;
-  font-size: 0.78rem;
-  color: var(--ink-soft);
-  margin-top: 2px;
-}
-.talles-form-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.talles-form-fila {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 90px 36px;
-  gap: 6px;
-}
-.talles-form-fila input {
-  font: inherit;
-  font-size: 16px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--cream);
-  min-width: 0;
-}
-.talles-form-quitar {
-  border: 1px solid var(--line);
-  background: #fff;
-  border-radius: 10px;
-  font-size: 1.2rem;
-  line-height: 1;
-  color: var(--ink-soft);
-  cursor: pointer;
-}
-.talles-form-acciones {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 14px;
-}
-.talles-form-total {
-  margin-left: auto;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--ink);
-
 /* ---------- Números del panel (clic = filtro) ---------- */
 .stats.stats--4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2779,4 +2671,113 @@
     flex-shrink: 0;
     white-space: nowrap;
   }
+}
+
+/* ---------- Talles: tarjeta de producto y formulario ---------- */
+.mini-field-rotulo {
+  display: block;
+  font-size: 0.64rem;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 3px;
+}
+.prod-talles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.prod-talles li {
+  font-size: 0.74rem;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.prod-talles li strong {
+  color: var(--ink);
+  margin-left: 2px;
+}
+.prod-talles li.poco strong {
+  color: #a8691b;
+}
+.prod-talles li.sin {
+  opacity: 0.7;
+}
+.prod-talles li.sin strong {
+  color: #b3412f;
+}
+
+.talles-form {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 4px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.talles-form-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.talles-form-check input {
+  margin-top: 3px;
+  accent-color: var(--sage);
+}
+.talles-form-check small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+.talles-form-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.talles-form-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 36px;
+  gap: 6px;
+}
+.talles-form-fila input {
+  font: inherit;
+  font-size: 16px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--cream);
+  min-width: 0;
+}
+.talles-form-quitar {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 10px;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.talles-form-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+}
+.talles-form-total {
+  margin-left: auto;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
 }
