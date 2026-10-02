@@ -400,6 +400,39 @@ WhatsApp, Instagram, Facebook y X leen las meta sin ejecutar JavaScript, así qu
 
 ## 13. Estado y pendientes
 
+### Respaldo de la base
+
+El workflow **DB backup** (`.github/workflows/db-backup.yml`) hace una copia
+completa de producción todos los días a las 3:17 (hora de Argentina): roles,
+estructura y datos (productos, pedidos, cuentas, reseñas...). Queda cifrada
+como artifact del workflow durante **30 días**. Si falla, GitHub manda un mail
+a la dueña del repositorio. También se puede correr a mano: Actions → DB
+backup → *Run workflow*.
+
+**Configuración (una vez):** Settings → Environments → `production-plan` →
+*Add environment secret* `BACKUP_PASSPHRASE` = una frase larga que solo sepa
+la dueña (guardarla en un lugar seguro: sin ella el backup no se puede abrir).
+
+**Lo que NO incluye:** las fotos de los productos (están en Supabase Storage,
+no en la base). Conviene descargar una copia del bucket de vez en cuando.
+
+**Restaurar** (por ejemplo en un proyecto nuevo de Supabase):
+
+```bash
+# 1) Descargar el artifact desde Actions → DB backup → la corrida → Artifacts.
+# 2) Descifrar y descomprimir (pide la BACKUP_PASSPHRASE):
+gpg --decrypt pecora-backup-AAAA-MM-DD-*.tar.gz.gpg > backup.tar.gz
+tar -xzf backup.tar.gz          # deja roles.sql, schema.sql y data.sql
+# 3) Cargar en la base nueva (connection string de Supabase → Database):
+psql --single-transaction --variable ON_ERROR_STOP=1 \
+  --file roles.sql --file schema.sql \
+  --command 'SET session_replication_role = replica' \
+  --file data.sql --dbname "postgresql://postgres:[CLAVE]@[HOST]:5432/postgres"
+```
+
+Para recuperar solo algo puntual (un producto o un pedido borrado), no hace
+falta restaurar todo: se abre `data.sql` y se copia la fila que falta.
+
 ### Configuración de Supabase requerida
 - **Authentication → Providers → Email → "Enable Sign up" ACTIVADO** (las clientas se registran).
 - *"Confirm email"*: si está activo, se envía el mail de activación (plantilla lista, ver abajo); si está desactivado, la clienta entra apenas se registra.
