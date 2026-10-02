@@ -66,3 +66,14 @@ export function errorTelefono(telefono: string): string | null {
   if (digitos.length > 15) return 'Revisá el teléfono: tiene demasiados números.'
   return null
 }
+
+// Email de quien compra sin cuenta: ahí le llega el comprobante. Devuelve el
+// mensaje de error o null (misma regla que la base, en crear_pedido).
+export function errorEmail(email: string): string | null {
+  const limpio = email.trim()
+  if (!limpio) return 'Escribí tu email: ahí te mandamos el comprobante del pedido.'
+  if (limpio.length > 254 || !/^[^@\s,<>]+@[^@\s,<>]+\.[^@\s,<>]+$/.test(limpio)) {
+    return 'Revisá el email: parece que está mal escrito.'
+  }
+  return null
+}

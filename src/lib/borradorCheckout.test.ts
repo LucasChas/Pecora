@@ -50,3 +50,13 @@ describe('errorTelefono', () => {
     expect(errorTelefono('1'.repeat(16))).toMatch(/demasiados/)
   })
 })
+
+describe('errorEmail', () => {
+  it('pide un email con formato válido', async () => {
+    const { errorEmail } = await import('./borradorCheckout')
+    expect(errorEmail('')).toMatch(/Escribí tu email/)
+    expect(errorEmail('ana@')).toMatch(/mal escrito/)
+    expect(errorEmail('ana gmail.com')).toMatch(/mal escrito/)
+    expect(errorEmail(' ana@gmail.com ')).toBeNull()
+  })
+})

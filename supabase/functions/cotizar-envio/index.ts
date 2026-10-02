@@ -34,7 +34,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import {
   armarFilas,
   armarPaquete,
-  bearerToken,
   type CacheTokens,
   corsHeaders,
   cotizarTodos,
@@ -113,14 +112,9 @@ Deno.serve(async (req: Request) => {
     return json({ transportistas_activos: activos });
   }
 
-  // ---- POST. Quién llama: el checkout exige cuenta, así que se exige el JWT
-  // de una sesión de usuario (la anon key no alcanza).
-  const token = bearerToken(req);
-  if (!token) return fallo(error(401, "unauthorized", "Tu sesión venció. Volvé a ingresar."));
-  const { data: auth, error: authErr } = await supabase.auth.getUser(token);
-  if (authErr || !auth?.user) {
-    return fallo(error(401, "unauthorized", "Tu sesión venció. Volvé a ingresar."));
-  }
+  // ---- POST. Se puede comprar sin cuenta (migración *_compra_invitada), así
+  // que alcanza con la anon key: la plataforma ya verificó el JWT antes de
+  // llegar acá. La cotización solo devuelve precios; no expone datos.
 
   try {
     let body: unknown;

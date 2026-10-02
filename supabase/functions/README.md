@@ -571,7 +571,7 @@ pnpm dlx supabase@latest functions deploy gestionar-equipo
 
 ## `cotizar-envio` (Andreani y Correo Argentino)
 
-La llama el checkout (con la sesión de la clienta: el checkout exige cuenta)
+La llama el checkout (con la sesión de la clienta o, si compra como invitada, con la anon key)
 para cotizar el envío del carrito con los transportistas configurados. Cada
 opción se guarda en `public.cotizaciones_envio` (migración
 `*_envios_transportistas.sql`), que vence a los **30 minutos** y se usa **una
@@ -581,7 +581,7 @@ cantidades y toma el precio de esa fila. El navegador nunca decide el costo.
 Si la cotización no vale (no existe, venció, ya se usó o no coincide),
 `crear_pedido` responde con código `22023` y un mensaje para la clienta.
 
-`POST` (JWT de usuario; la anon key recibe `401`):
+`POST` (alcanza la anon key: se puede comprar sin cuenta):
 
 ```json
 { "cp": "5000", "provincia": "Córdoba",
@@ -606,7 +606,7 @@ Si la cotización no vale (no existe, venció, ya se usó o no coincide),
 - `GET ?estado=1` (alcanza la anon key; lo usa el panel):
   `{ transportistas_activos: [...] }`.
 - Errores: `{ error: <mensaje en español>, codigo }` con `400` (datos),
-  `401` (sesión), `403` (origen), `405`, `429` (límite), `500`.
+  `401` (sin JWT válido), `403` (origen), `405`, `429` (límite), `500`.
 - Un cupón de envío gratis deja el envío en 0 también con transportista.
 
 Paquete: se arma **un solo bulto**. Peso = suma de `productos.peso_g` ×
@@ -723,7 +723,7 @@ pnpm dlx supabase@latest functions deploy cotizar-envio
 URL=https://<project-ref>.supabase.co/functions/v1/cotizar-envio
 # Estado (anon key)
 curl -s "$URL?estado=1" -H "Authorization: Bearer <anon-key>"
-# Cotización (access_token de una sesión de prueba)
+# Cotización (anon key o access_token de una sesión)
 curl -s -X POST "$URL" -H "Authorization: Bearer <access-token>" \
   -H 'Content-Type: application/json' \
   -d '{"cp":"5000","provincia":"Córdoba","items":[{"producto_id":"<uuid>","cantidad":1}]}'
