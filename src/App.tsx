@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import CatalogPage from './pages/CatalogPage'
 import ProductPage from './pages/ProductPage'
 import CartPage from './pages/CartPage'
@@ -49,8 +50,23 @@ function CatalogLayout() {
       <Outlet />
       <Footer />
       <CartDrawer />
+      {/* Visitas (Vercel Web Analytics), solo en el deploy público. Sin datos
+          personales: se descarta la query de la URL (ej. el token del link de
+          baja de los avisos). */}
+      {mode === 'catalog' && <Analytics beforeSend={sinQuery} />}
     </div>
   )
+}
+
+function sinQuery<T extends { url: string }>(evento: T): T {
+  try {
+    const url = new URL(evento.url)
+    url.search = ''
+    url.hash = ''
+    return { ...evento, url: url.toString() }
+  } catch {
+    return evento
+  }
 }
 
 // Rutas públicas del catálogo (se reusan en modo 'catalog' y en local).
