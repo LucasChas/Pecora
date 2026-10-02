@@ -10,6 +10,7 @@ import {
   formatFromHeader,
   parseItems,
   parseOwnerEmails,
+  resolverPanelUrl,
   toBase64Url,
   tokensIguales,
   toNumber,
@@ -281,5 +282,28 @@ describe('mensaje MIME', () => {
     const raw = toBase64Url('?>?>?>ÿ')
     expect(raw).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(desdeBase64(raw)).toBe('?>?>?>ÿ')
+  })
+})
+
+describe('resolverPanelUrl', () => {
+  it('usa PUBLIC_ADMIN_URL cuando está', () => {
+    expect(resolverPanelUrl('https://pecora-admin.vercel.app/', 'https://otro.vercel.app')).toBe(
+      'https://pecora-admin.vercel.app',
+    )
+  })
+
+  it('sin PUBLIC_ADMIN_URL, cae al primer origen de ADMIN_ORIGIN', () => {
+    expect(resolverPanelUrl(undefined, ' https://pecora-admin.vercel.app , http://localhost:5173')).toBe(
+      'https://pecora-admin.vercel.app',
+    )
+    expect(resolverPanelUrl('  ', 'no-es-url,https://pecora-admin.vercel.app')).toBe(
+      'https://pecora-admin.vercel.app',
+    )
+  })
+
+  it('sin ninguno de los dos, no hay link (nunca muestrario/admin)', () => {
+    expect(resolverPanelUrl(undefined, undefined)).toBeNull()
+    expect(resolverPanelUrl('', '')).toBeNull()
+    expect(resolverPanelUrl('javascript:alert(1)', null)).toBeNull()
   })
 })
