@@ -874,6 +874,7 @@
 }
 .cat-manage-add input {
   flex: 1;
+  min-width: 0;
   font-family: 'Inter', sans-serif;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -881,6 +882,7 @@
   font-size: 0.9rem;
 }
 .cat-manage-add button {
+  flex-shrink: 0;
   border: none;
   background: var(--sage);
   color: #fff;
@@ -2653,25 +2655,6 @@
   }
 }
 
-/* Chips de filtros en el celular: una sola fila deslizable. */
-@media (max-width: 767px) {
-  .admin-root .orders-chips {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin-left: -16px;
-    margin-right: -16px;
-    padding: 0 16px 2px;
-    scroll-padding-inline: 16px;
-  }
-  .admin-root .orders-chips::-webkit-scrollbar {
-    display: none;
-  }
-  .admin-root .orders-chips .chip {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-}
 
 /* ---------- Talles: tarjeta de producto y formulario ---------- */
 .mini-field-rotulo {
@@ -2956,19 +2939,55 @@
     text-align: center;
   }
 
-  /* Períodos de estadísticas: deslizan de borde a borde como los demás
-     chips, en vez de cortarse contra el margen. */
-  .admin-root .est-periodos {
-    margin-left: -16px;
-    margin-right: -16px;
-    padding-left: 16px;
-    padding-right: 16px;
-    scroll-padding-inline: 16px;
-  }
 
   /* Botones principales de cada sección (+ Nuevo cupón, + Nueva zona,
      + Nuevo gasto, Descargar plantilla): a lo ancho, fáciles de tocar. */
   .admin-root :is(.ajustes-subhead .head-action, .est-gastos-head .est-btn) {
     width: 100%;
+  }
+}
+
+/* ============================================================
+   Celular: filtros y opciones sin scroll de costado. Todo lo que antes
+   se deslizaba (pestañas, chips de filtros, secciones de Ajustes,
+   períodos de Estadísticas) ahora baja de renglón y se ve completo.
+   ============================================================ */
+@media (max-width: 767px) {
+  /* Pestañas del panel: 2 x 2 (o las 4 en fila si entran). */
+  .admin-root .admin-tabs--scroll {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+  .admin-root .admin-tabs--scroll button {
+    min-width: 0;
+    padding: 9px 6px;
+    font-size: 0.85rem;
+  }
+
+  /* Chips (categorías, estados, secciones de Ajustes, reseñas). */
+  .admin-root .orders-chips {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  /* Períodos de Estadísticas. */
+  .admin-root .est-periodos {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .admin-root .est-periodo {
+    min-height: 40px;
+    padding: 7px 12px;
+  }
+}
+@media (min-width: 440px) and (max-width: 767px) {
+  .admin-root .admin-tabs--scroll {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .admin-root .admin-tabs--scroll button {
+    font-size: 0.8rem;
+    padding: 9px 4px;
   }
 }
