@@ -386,7 +386,9 @@ function TopVendidos({ datos }: { datos: Estadisticas }) {
       {top.map((p) => (
         <li className="est-top-item" key={p.producto_id}>
           <div className="est-top-fila">
-            <span className="est-top-nombre">{p.nombre}</span>
+            <span className="est-top-nombre" title={p.nombre}>
+              {p.nombre}
+            </span>
             <span className="est-top-num">
               {numero(p.unidades)} u. · {money(p.importe)}
             </span>
