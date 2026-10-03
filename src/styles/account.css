@@ -398,7 +398,7 @@
     background: var(--sage-pale);
   }
 }
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 767px) {
   .mp-calificar,
   .mp-calificado {
     min-height: 40px;

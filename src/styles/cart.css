@@ -581,7 +581,7 @@
   font-size: 0.95rem;
 }
 /* En pantallas táctiles, botones −/+ con área de toque de 44px de ancho. */
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 767px) {
   .qty button,
   .qty-sm button {
     width: 44px;
@@ -946,7 +946,9 @@
 /* Teléfono y tablet: una columna, con el resumen arriba del formulario. */
 @media (max-width: 1023px) {
   .checkout-grid {
-    grid-template-columns: 1fr;
+    /* minmax(0, …): sin esto, un contenido sin cortes (las direcciones
+       guardadas) ensanchaba la columna y la página se salía 9 px. */
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas: 'summary' 'form';
   }
   .summary-card {

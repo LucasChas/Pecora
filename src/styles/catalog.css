@@ -153,29 +153,20 @@
   }
 }
 /* Chips con área de toque de 44px en pantallas táctiles. */
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 767px) {
   .filters button {
     min-height: 44px;
   }
 }
-/* Celular: una sola fila que se desliza de costado (antes se partía en dos o
-   tres renglones y empujaba los productos para abajo). */
+/* Celular: los chips de categoría bajan de renglón y se ven todos, sin
+   tener que deslizar de costado para descubrir las que quedaban afuera. */
 @media (max-width: 720px) {
   .filters {
-    flex-wrap: nowrap;
     justify-content: flex-start;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    margin: 4px -14px 0;
-    padding: 2px 14px 4px;
+    margin-top: 4px;
     gap: 8px;
   }
-  .filters::-webkit-scrollbar {
-    display: none;
-  }
   .filters button {
-    flex: 0 0 auto;
     white-space: nowrap;
   }
 }
@@ -1149,7 +1140,7 @@
   color: var(--danger);
 }
 /* Táctil: área de toque de 44px. En celulares los dos botones reparten el ancho. */
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 767px) {
   .pd-share-btn {
     min-height: 44px;
   }
@@ -1320,7 +1311,7 @@
     color: var(--ink);
   }
 }
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 767px) {
   .load-notice-retry {
     min-height: 44px;
   }
@@ -1674,7 +1665,7 @@
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 1px 4px rgba(51, 48, 42, 0.15);
 }
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 767px) {
   .fav-btn--card {
     width: 44px;
     height: 44px;
@@ -1710,9 +1701,8 @@
 /* El cartel de la foto no se mete debajo del corazón. */
 .card-img .badge {
   max-width: calc(100% - 64px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 /* ---------- Buscador con sugerencias ---------- */
@@ -1806,20 +1796,22 @@
   font-size: 0.9rem;
   color: var(--ink);
 }
+/* Celular: grilla compacta (antes era un carrusel y solo se veía la
+   primera tarjeta). Ícono arriba y texto debajo para que entren dos por fila. */
 @media (max-width: 720px) {
   .banda-confianza {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
     margin-top: 20px;
   }
-  .banda-confianza::-webkit-scrollbar {
-    display: none;
-  }
   .banda-confianza li {
-    flex: 0 0 78%;
-    scroll-snap-align: start;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+  }
+  .banda-confianza li:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
 
@@ -1897,18 +1889,11 @@
   .filtro-orden {
     margin-left: 0;
   }
-  /* Una sola fila deslizable en el celular. */
+  /* Bajan de renglón en el celular: antes eran una fila deslizable y el
+     orden quedaba fuera de la pantalla. */
   .catalogo-filtros {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-  .catalogo-filtros::-webkit-scrollbar {
-    display: none;
-  }
-  .catalogo-filtros > * {
-    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
 .no-results--filtros {
@@ -1995,4 +1980,27 @@
   text-align: center;
   font-size: 0.8rem;
   color: var(--ink-soft);
+}
+
+/* ============================================================
+   Celular: áreas de toque y textos legibles (auditoría mobile)
+   ============================================================ */
+@media (max-width: 767px) {
+  /* Links del pie: 15 px de alto eran difíciles de tocar. */
+  .site-footer-link {
+    min-height: 40px;
+    padding: 0 6px;
+  }
+  .site-footer-social,
+  .site-footer-legal {
+    gap: 0 8px;
+  }
+  /* "4,0 · 2 reseñas" en la ficha: lleva a las reseñas. */
+  .pd-rating {
+    min-height: 40px;
+  }
+  /* Categoría arriba del nombre en las cards. */
+  .card-cat {
+    font-size: 0.72rem;
+  }
 }
