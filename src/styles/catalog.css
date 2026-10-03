@@ -2020,3 +2020,21 @@
     font-size: 0.72rem;
   }
 }
+
+/* Ficha en celulares angostos: "Guardar" queda solo con el corazón (tiene
+   aria-label y title), así el nombre del producto tiene todo el ancho. */
+@media (max-width: 420px) {
+  .fav-btn--ficha {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .fav-btn--ficha span {
+    display: none;
+  }
+  .pd-name {
+    overflow-wrap: anywhere;
+  }
+}

@@ -3083,3 +3083,65 @@
     font-size: 0.56rem;
   }
 }
+
+/* ============================================================
+   Datos en el peor caso (break-ui): nombres larguísimos, montos de
+   millones, stock de miles, 8 talles. Probado a 320-412 px.
+   ============================================================ */
+/* Card de producto: precio y stock pasan a dos renglones cuando no entran
+   (a 320 px el stock quedaba en un campo de 24 px y "1284" se leía "1"). */
+.admin-root .prod-fields {
+  flex-wrap: wrap;
+}
+.admin-root .prod-fields .mini-field {
+  flex: 1 1 110px;
+}
+.admin-root .prod-fields .mini-field--stock {
+  flex: 1.3 1 140px;
+}
+.admin-root .stock-stepper input {
+  min-width: 4ch;
+}
+/* El cartel Disponible/Quedan baja abajo del nombre si no hay lugar, así el
+   nombre no queda en una columna de una palabra por renglón. */
+.admin-root .prod-top {
+  flex-wrap: wrap;
+}
+.admin-root .prod-top > div:first-child {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.admin-root .prod-name {
+  overflow-wrap: anywhere;
+}
+
+/* Pedido: el estado baja de renglón si no entra al lado del número (a 320 px
+   se leía "En prepara…"). */
+.admin-root .order-top {
+  flex-wrap: wrap;
+}
+.admin-root .order-top > div:first-child {
+  flex: 1 1 140px;
+}
+.admin-root .order-top .order-estado {
+  max-width: 100%;
+}
+/* Montos sin cortar: "− $ 1.234.567" quedaba con el signo en un renglón y el
+   número en otro. El texto (producto, código de cupón) es el que se acomoda. */
+.admin-root .order-item > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.admin-root .order-item > :last-child {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+/* Subtotal / Descuento / Envío / Total de la card del pedido: mismo criterio. */
+.admin-root .op-card-linea > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.admin-root .op-card-linea > :last-child {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
