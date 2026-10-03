@@ -475,6 +475,7 @@ export default function ProductFormSheet({
               id="producto-nombre"
               type="text"
               required
+              maxLength={120}
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               placeholder="Ej: Body manga larga"

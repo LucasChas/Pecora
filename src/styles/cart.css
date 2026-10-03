@@ -1635,3 +1635,32 @@
 .success-mail {
   margin-top: 4px;
 }
+
+/* Carrito en celulares: con nombres largos y montos de millones la columna
+   del nombre quedaba de una palabra por renglón. El total y "Quitar" pasan a
+   una fila al pie de la línea. */
+@media (max-width: 420px) {
+  .cart-item {
+    flex-wrap: wrap;
+  }
+  .cart-item-main {
+    flex: 1 1 0;
+  }
+  .cart-item-name {
+    overflow-wrap: anywhere;
+  }
+  .cart-item-right {
+    flex: 1 1 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .cart-item-total {
+    white-space: nowrap;
+  }
+  .cart-item-main .qty {
+    align-self: flex-start;
+  }
+}
