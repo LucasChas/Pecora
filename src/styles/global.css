@@ -24,3 +24,74 @@ a {
 button {
   font-family: 'Inter', sans-serif;
 }
+
+/* ============================================================
+   Sensación de app en el celular y respuesta al toque.
+   ============================================================ */
+html {
+  /* Sin agrandado automático de letra al girar el teléfono. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Toques sin la espera de ~300 ms del doble toque para zoom (el zoom con
+   dos dedos sigue funcionando). */
+:where(button, a, [role='button'], input, select, textarea, label, summary) {
+  touch-action: manipulation;
+}
+
+/* Mantener apretado un botón no selecciona su texto ni abre el menú de
+   copiar. Solo en controles: el texto de la página se sigue pudiendo copiar. */
+:where(button, [role='button'], [role='tab']) {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Respuesta al apretar: el botón se achica apenas mientras está presionado
+   (como un botón nativo). Se usa la propiedad `scale` para no pisar los
+   botones que ya se posicionan con transform. La transición va con
+   :where() para que los botones con su propia transición la mantengan. */
+@media (prefers-reduced-motion: no-preference) {
+  :where(button, [role='button']) {
+    transition: scale 0.16s var(--ease-out);
+  }
+  :where(button, [role='button']):not(:disabled):active {
+    scale: 0.97;
+  }
+}
+
+/* Movimiento reducido: menos y más suave, no cero. Se mantienen los
+   fundidos de opacidad y color; se quita el desplazamiento y el zoom. */
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .drawer.open {
+    transition: none;
+  }
+  .card,
+  .card-img img,
+  .mp-card,
+  .prod-card,
+  .order-card,
+  .card-agregar {
+    transition-property: opacity, box-shadow, background-color;
+  }
+  .dlg-card,
+  .toast,
+  .success-card {
+    animation-name: dlg-fade;
+  }
+  .toast {
+    transition: opacity 0.2s ease;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html .card:hover,
+  html .card:hover .card-img img,
+  html .mp-card:hover,
+  html .prod-card:hover,
+  html .order-card:hover,
+  html .card-agregar:hover {
+    transform: none;
+  }
+}
