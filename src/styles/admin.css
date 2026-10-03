@@ -2831,3 +2831,144 @@
     max-width: 760px;
   }
 }
+
+/* ============================================================
+   Panel en el celular: correcciones de distribución y solapamientos
+   ============================================================ */
+
+/* Encabezado de la card de pedido: número arriba y debajo los datos
+   (web/manual, fecha, "sin pagar") en una fila que baja entera si no entra,
+   sin cortar la hora a la mitad. */
+.admin-root .order-top {
+  align-items: flex-start;
+}
+.admin-root .order-top > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+}
+.admin-root .order-top .order-num {
+  flex-basis: 100%;
+}
+.admin-root .order-top :is(.origin-badge, .order-fecha, .order-pill-pago) {
+  margin-left: 0;
+  white-space: nowrap;
+}
+.admin-root .order-top .order-estado {
+  flex-shrink: 0;
+  max-width: 50%;
+}
+
+/* Pagado / Copiar dirección: botones parejos (mitad y mitad), y el
+   seguimiento a lo ancho debajo. Con un solo botón ocupa toda la fila. */
+.admin-root .order-pago {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.admin-root .order-pago-btn {
+  text-align: center;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.admin-root .order-pago .order-seguimiento {
+  grid-column: 1 / -1;
+}
+
+/* "Copiar link" del catálogo de Instagram: misma píldora que las demás
+   acciones (fuera de .list-head quedaba como botón del navegador). */
+.admin-root .ig-feed .head-action {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 8px 14px;
+  min-height: 40px;
+  border-radius: 100px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Campos en dos columnas (fechas, montos): cada uno se achica a su mitad.
+   Sin min-width: 0 los inputs de fecha imponen su ancho mínimo y se salían
+   del costado de la hoja (ej. "Hasta" en el cupón). */
+.admin-root .row2 > * {
+  min-width: 0;
+}
+.admin-root .row2 :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Fotos del producto: en los cuadritos chicos del celular el cartel
+   "Portada" quedaba debajo de la ✕ de quitar. Ahora la ✕ y el ícono para
+   reordenar van arriba (uno en cada esquina) y "Portada" es una franja abajo. */
+.admin-root .img-cover-badge {
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0;
+  padding: 3px 4px;
+  text-align: center;
+}
+.admin-root .img-drag-handle {
+  top: 4px;
+  bottom: auto;
+}
+
+/* Lo más vendido: el nombre se recorta con "…" en vez de empujar los
+   números fuera de la tarjeta. */
+.admin-root .est-top {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 767px) {
+  /* Hojas (formularios): la barra fija de Cancelar/Guardar tapaba el final
+     del contenido (el aviso de lo que falta, "Eliminar producto"). El pie
+     ahora termina donde termina la hoja, sin margen negativo. */
+  .admin-root .sheet:has(.sheet-actions) {
+    padding-bottom: 0;
+  }
+  .admin-root .sheet:has(.sheet-actions) .sheet-actions {
+    margin-bottom: 0;
+  }
+
+  /* Productos: "Ajustar precios" y "Exportar catálogo" en una fila pareja
+     debajo del título (apiladas a la derecha quedaban apretadas). */
+  .admin-root .list-head:has(.head-action + .head-action) {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+  .admin-root .list-head .head-actions:has(.head-action + .head-action) {
+    flex: 1 1 100%;
+    flex-direction: row;
+    margin-left: 0;
+  }
+  .admin-root .list-head .head-actions:has(.head-action + .head-action) .head-action {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+  }
+
+  /* Períodos de estadísticas: deslizan de borde a borde como los demás
+     chips, en vez de cortarse contra el margen. */
+  .admin-root .est-periodos {
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+    scroll-padding-inline: 16px;
+  }
+
+  /* Botones principales de cada sección (+ Nuevo cupón, + Nueva zona,
+     + Nuevo gasto, Descargar plantilla): a lo ancho, fáciles de tocar. */
+  .admin-root :is(.ajustes-subhead .head-action, .est-gastos-head .est-btn) {
+    width: 100%;
+  }
+}
