@@ -16,7 +16,8 @@ function urlDelSitio(valor: string | undefined): string {
 // - __SITE_URL__ -> URL pública del muestrario. og:url y og:image tienen que
 //   ser absolutas para que WhatsApp, Instagram, etc. muestren la vista previa.
 // - Deploy del panel (VITE_APP_MODE=admin): agrega noindex para que los
-//   buscadores no indexen el login del panel.
+//   buscadores no indexen el login del panel, y la barra de estado del
+//   celular toma el color oscuro de la barra superior del panel.
 function metaDelSitio(env: Record<string, string>): Plugin {
   const sitio = urlDelSitio(env.VITE_CATALOG_URL)
   const esPanel = env.VITE_APP_MODE === 'admin'
@@ -26,7 +27,10 @@ function metaDelSitio(env: Record<string, string>): Plugin {
       order: 'pre',
       handler(html) {
         return {
-          html: html.replace(/__SITE_URL__/g, sitio),
+          html: (esPanel
+            ? html.replace(/(<meta name="theme-color" content=")[^"]*"/, '$1#3B2F22"')
+            : html
+          ).replace(/__SITE_URL__/g, sitio),
           tags: esPanel
             ? [
                 {

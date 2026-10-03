@@ -55,8 +55,10 @@
   cursor: pointer;
   transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
-.est-periodo:hover {
-  border-color: var(--sage);
+@media (hover: hover) and (pointer: fine) {
+  .est-periodo:hover {
+    border-color: var(--sage);
+  }
 }
 .est-periodo--activo {
   background: var(--sage);
@@ -114,8 +116,10 @@
   font-weight: 600;
   cursor: pointer;
 }
-.est-btn:hover {
-  background: var(--sage-deep);
+@media (hover: hover) and (pointer: fine) {
+  .est-btn:hover {
+    background: var(--sage-deep);
+  }
 }
 
 /* ---------- Estados ---------- */
@@ -239,8 +243,10 @@
   fill: var(--sage);
   transition: fill 0.15s;
 }
-.est-barra:hover {
-  fill: var(--sage-deep);
+@media (hover: hover) and (pointer: fine) {
+  .est-barra:hover {
+    fill: var(--sage-deep);
+  }
 }
 .est-eje-linea {
   stroke: var(--line);

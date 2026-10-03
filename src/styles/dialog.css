@@ -22,7 +22,7 @@
   width: 100%;
   max-width: 380px;
   box-shadow: 0 20px 50px rgba(51, 48, 42, 0.3);
-  animation: dlg-pop 0.22s cubic-bezier(0.18, 0.89, 0.32, 1.2);
+  animation: dlg-pop 0.2s var(--ease-out);
 }
 
 .dlg-titulo {
@@ -65,23 +65,29 @@
   border: 1px solid var(--line);
   color: var(--ink-soft);
 }
-.dlg-cancelar:hover {
-  background: var(--cream-deep);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .dlg-cancelar:hover {
+    background: var(--cream-deep);
+    color: var(--ink);
+  }
 }
 
 .dlg-ok {
   background: var(--sage);
   color: #fff;
 }
-.dlg-ok:hover {
-  background: var(--sage-deep);
+@media (hover: hover) and (pointer: fine) {
+  .dlg-ok:hover {
+    background: var(--sage-deep);
+  }
 }
 .dlg-ok.peligro {
   background: var(--danger);
 }
-.dlg-ok.peligro:hover {
-  background: #b0534a;
+@media (hover: hover) and (pointer: fine) {
+  .dlg-ok.peligro:hover {
+    background: #b0534a;
+  }
 }
 
 @keyframes dlg-fade {
@@ -122,7 +128,16 @@
   font-size: 0.9rem;
   line-height: 1.4;
   box-shadow: 0 10px 30px rgba(51, 48, 42, 0.3);
-  animation: dlg-pop 0.22s cubic-bezier(0.18, 0.89, 0.32, 1.2);
+  /* Transición (no keyframes): si llegan avisos seguidos se retoma desde
+     donde está en vez de reiniciar. Sin soporte de @starting-style
+     simplemente aparece. */
+  transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+}
+@starting-style {
+  .toast {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
 }
 
 .toast-accion {

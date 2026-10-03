@@ -46,7 +46,7 @@
   height: 24px;
   color: var(--sage-deep);
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .mc-atajo:hover {
     box-shadow: 0 6px 14px rgba(51, 48, 42, 0.1);
   }
@@ -256,7 +256,7 @@
   border-radius: 100px;
   cursor: pointer;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .mc-btn-peligro:not(:disabled):hover {
     background: var(--danger-pale);
   }

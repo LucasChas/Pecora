@@ -7,6 +7,7 @@
 .catalog-root {
   background: var(--cream);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ---------- Raíz de la tienda pública (CatalogLayout en App.tsx) ----------
@@ -20,6 +21,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   min-height: 100dvh;
   background: var(--cream);
 }
@@ -146,7 +148,7 @@
   color: var(--cream);
 }
 /* Hover solo con mouse: en táctil el :hover queda "pegado" tras el toque. */
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .filters button:hover {
     background: var(--sage);
     color: var(--cream);
@@ -239,7 +241,7 @@
   flex-direction: column;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .card:hover {
     transform: translateY(-3px);
     box-shadow: 0 12px 24px rgba(51, 48, 42, 0.10), 0 0 0 1px rgba(176, 143, 85, 0.16);
@@ -256,7 +258,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform 0.4s ease, opacity 0.3s ease;
+  transition: transform 0.28s ease, opacity 0.25s ease;
 }
 /* Segunda foto: aparece al pasar el mouse (en táctil no se muestra). */
 .card-img .card-img-alt {
@@ -264,7 +266,7 @@
   inset: 0;
   opacity: 0;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .card:hover .card-img img {
     transform: scale(1.03);
   }
@@ -383,16 +385,20 @@
   color: #fff;
   transition: background 0.15s ease;
 }
-.wa-btn:hover {
-  background: var(--sage-deep);
+@media (hover: hover) and (pointer: fine) {
+  .wa-btn:hover {
+    background: var(--sage-deep);
+  }
 }
 .card.unavailable .wa-btn {
   background: transparent;
   color: var(--sage-deep);
   border: 1px solid var(--sage);
 }
-.card.unavailable .wa-btn:hover {
-  background: var(--sage-pale);
+@media (hover: hover) and (pointer: fine) {
+  .card.unavailable .wa-btn:hover {
+    background: var(--sage-pale);
+  }
 }
 .wa-btn svg {
   width: 16px;
@@ -475,8 +481,10 @@
   width: 15px;
   height: 15px;
 }
-.site-footer-link:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .site-footer-link:hover {
+    color: var(--ink);
+  }
 }
 /* Links legales: centrados y con salto de línea en pantallas angostas. */
 .site-footer-legal {
@@ -602,7 +610,7 @@
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .pp-back:hover {
     background: var(--sage);
     color: #fff;
@@ -782,7 +790,7 @@
   color: var(--ink-soft);
   text-decoration: none;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .pd-rating:hover span {
     text-decoration: underline;
   }
@@ -881,9 +889,11 @@
   border: 1px solid var(--sage);
   transition: background 0.15s ease, color 0.15s ease;
 }
-.ig-btn:hover {
-  background: var(--sage);
-  color: #fff;
+@media (hover: hover) and (pointer: fine) {
+  .ig-btn:hover {
+    background: var(--sage);
+    color: #fff;
+  }
 }
 .ig-btn svg {
   width: 16px;
@@ -1111,7 +1121,7 @@
   height: 16px;
   flex-shrink: 0;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .pd-share-btn:hover {
     background: var(--sage-pale);
     border-color: var(--sage);
@@ -1298,7 +1308,7 @@
   width: 18px;
   height: 18px;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .load-error-btn:hover:not(:disabled) {
     background: var(--sage-deep);
   }
@@ -1435,7 +1445,7 @@
   outline: 2px solid var(--sage-deep);
   outline-offset: 2px;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .aviso-btn:hover:not(:disabled) {
     background: var(--sage-deep);
     color: #fff;
@@ -1690,7 +1700,7 @@
   font-size: 0.8rem;
   font-weight: 700;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .fav-btn--ficha:hover {
     border-color: var(--sage);
   }
@@ -1728,9 +1738,13 @@
   border-radius: 10px;
   cursor: pointer;
 }
-.search-sugerencias li.activa,
-.search-sugerencias li:hover {
+.search-sugerencias li.activa {
   background: var(--cream);
+}
+@media (hover: hover) and (pointer: fine) {
+  .search-sugerencias li:hover {
+    background: var(--cream);
+  }
 }
 .search-sugerencias img {
   width: 44px;
@@ -1932,17 +1946,19 @@
   color: var(--sage-deep);
   box-shadow: 0 4px 14px rgba(60, 40, 20, 0.18);
   cursor: pointer;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition: transform 0.16s var(--ease-out), background-color 0.15s ease;
 }
 .card-agregar svg {
   width: 21px;
   height: 21px;
 }
-.card-agregar:hover:not(:disabled) {
-  transform: scale(1.07);
+@media (hover: hover) and (pointer: fine) {
+  .card-agregar:hover:not(:disabled) {
+    transform: scale(1.07);
+  }
 }
 .card-agregar:active:not(:disabled) {
-  transform: scale(0.94);
+  transform: scale(0.96);
 }
 .card-agregar.en-carrito {
   background: var(--sage-deep);

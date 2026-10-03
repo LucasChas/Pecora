@@ -30,9 +30,11 @@
   height: 18px;
   flex-shrink: 0;
 }
-.mp-comprobante:hover {
-  background: var(--sage-pale);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .mp-comprobante:hover {
+    background: var(--sage-pale);
+    color: var(--ink);
+  }
 }
 .mp-comprobante:focus-visible {
   outline: 2px solid var(--sage-deep);
