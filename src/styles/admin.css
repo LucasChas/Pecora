@@ -569,7 +569,7 @@
    área de toque invisible de al menos 44×44 px, sin cambiar cómo se ven.
    Y los campos van a 16 px: con menos, iOS agranda la pantalla cada vez que
    se toca un campo (al editar precio o stock desde la lista). */
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 767px) {
   .link-btn::after,
   .order-item-remove::after,
   .cat-manage-item .btn-del-cat::after,
@@ -1354,7 +1354,7 @@
     margin-top: auto;
     padding-top: 10px;
   }
-  .admin-root .link-btn {
+  .admin-root .link-btn:not(.sheet-duplicar) {
     padding: 4px 6px;
     margin: -4px -6px;
     border-radius: 6px;
@@ -2989,5 +2989,85 @@
   .admin-root .admin-tabs--scroll button {
     font-size: 0.8rem;
     padding: 9px 4px;
+  }
+}
+
+/* ============================================================
+   Celular: áreas de toque cómodas y textos legibles (auditoría mobile).
+   Medido a 320-412 px: había botones de 22-33 px de alto (chips, Avisos,
+   estado del pedido, Imprimir, Borrar pedido, avatar) y rótulos de 9-10 px.
+   ============================================================ */
+@media (max-width: 767px) {
+  /* Toques */
+  .admin-root .topbar .avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 0.85rem;
+  }
+  .admin-root .orders-chips .chip {
+    min-height: 38px;
+    padding: 7px 13px;
+  }
+  .admin-root :is(.list-head, .ajustes-subhead, .ig-feed) .head-action {
+    min-height: 40px;
+  }
+  .admin-root .order-estado {
+    min-height: 38px;
+    padding: 6px 10px;
+  }
+  .admin-root .order-wa {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    min-height: 36px;
+  }
+  .admin-root .order-seguimiento {
+    min-height: 42px;
+  }
+  .admin-root .op-menu-btn {
+    min-height: 40px;
+    padding: 8px 14px;
+  }
+  .admin-root .order-borrar {
+    min-height: 40px;
+    padding: 8px 10px;
+  }
+  .admin-root .link-btn:not(.sheet-duplicar) {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Textos */
+  .admin-root .stat .label {
+    font-size: 0.7rem;
+  }
+  .admin-root .stats.stats--4 .label {
+    font-size: 0.62rem;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .admin-root .status-pill,
+  .admin-root .order-top :is(.origin-badge, .order-pill-pago),
+  .admin-root .ajuste-estado,
+  .admin-root .equipo-rol {
+    font-size: 0.72rem;
+  }
+  .admin-root :is(.mini-field label, .mini-field-rotulo) {
+    font-size: 0.7rem;
+  }
+  .admin-root .img-cover-badge {
+    font-size: 0.66rem;
+  }
+  /* Opciones de "Avisos": cada renglón es fácil de tocar. */
+  .admin-root .avisos-ped-panel label {
+    min-height: 40px;
+    align-items: center;
+  }
+}
+/* Celulares muy angostos (320 px): los 4 contadores entran sin pisarse. */
+@media (max-width: 340px) {
+  .admin-root .stats.stats--4 .label {
+    font-size: 0.56rem;
   }
 }
