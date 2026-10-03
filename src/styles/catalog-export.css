@@ -22,6 +22,7 @@ html.ce-activo body {
 
 .catalog-export {
   min-height: 100vh;
+  min-height: 100dvh;
   font-family: 'Inter', 'Segoe UI', sans-serif;
   color: #3B2F22;
   -webkit-print-color-adjust: exact;

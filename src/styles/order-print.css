@@ -85,8 +85,10 @@
   background: var(--sage);
   color: #fff;
 }
-.op-btn--primary:hover:not(:disabled) {
-  background: var(--sage-deep);
+@media (hover: hover) and (pointer: fine) {
+  .op-btn--primary:hover:not(:disabled) {
+    background: var(--sage-deep);
+  }
 }
 .op-btn--primary:disabled {
   opacity: 0.6;
@@ -97,8 +99,10 @@
   color: var(--cream);
   border-color: rgba(248, 241, 225, 0.45);
 }
-.op-btn--ghost:hover {
-  background: rgba(248, 241, 225, 0.12);
+@media (hover: hover) and (pointer: fine) {
+  .op-btn--ghost:hover {
+    background: rgba(248, 241, 225, 0.12);
+  }
 }
 .op-btn:focus-visible {
   outline: 2px solid var(--cream);
@@ -513,10 +517,15 @@
   height: 15px;
   flex-shrink: 0;
 }
-.op-menu-btn:hover,
 .op-menu-btn[aria-expanded='true'] {
   background: var(--sage-pale);
   border-color: var(--sage);
+}
+@media (hover: hover) and (pointer: fine) {
+  .op-menu-btn:hover {
+    background: var(--sage-pale);
+    border-color: var(--sage);
+  }
 }
 /* Abre hacia arriba: el botón está al pie de la card. */
 .op-menu-lista {
@@ -546,10 +555,15 @@
   text-align: left;
   cursor: pointer;
 }
-.op-menu-lista button:hover,
 .op-menu-lista button:focus-visible {
   background: var(--sage-pale);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .op-menu-lista button:hover {
+    background: var(--sage-pale);
+    outline: none;
+  }
 }
 
 /* Transportista (Andreani / Correo Argentino) en la etiqueta: franja entre

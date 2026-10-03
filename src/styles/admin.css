@@ -6,6 +6,7 @@
 .admin-root {
   background: var(--cream-deep);
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   justify-content: center;
 }
@@ -15,6 +16,7 @@
   width: 100%;
   max-width: 430px;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--cream-deep);
   position: relative;
   display: flex;
@@ -254,10 +256,12 @@
   border-radius: 100px;
   font-family: inherit;
 }
-.order-restaurar:hover {
-  background: var(--sage);
-  border-color: var(--sage);
-  color: #fff;
+@media (hover: hover) and (pointer: fine) {
+  .order-restaurar:hover {
+    background: var(--sage);
+    border-color: var(--sage);
+    color: #fff;
+  }
 }
 .order-borrar {
   background: none;
@@ -269,9 +273,11 @@
   padding: 4px 6px;
   border-radius: 8px;
 }
-.order-borrar:hover {
-  color: var(--danger);
-  background: rgba(201, 100, 90, 0.08);
+@media (hover: hover) and (pointer: fine) {
+  .order-borrar:hover {
+    color: var(--danger);
+    background: rgba(201, 100, 90, 0.08);
+  }
 }
 
 /* ---------- Buscador y filtros de pedidos ---------- */
@@ -338,8 +344,10 @@
   font-family: inherit;
   cursor: pointer;
 }
-.orders-mas:hover {
-  background: var(--sage-pale);
+@media (hover: hover) and (pointer: fine) {
+  .orders-mas:hover {
+    background: var(--sage-pale);
+  }
 }
 
 /* ---------- Franja de estadísticas ---------- */
@@ -656,6 +664,7 @@
   border-radius: 20px 20px 0 0;
   padding: 10px 20px calc(24px + env(safe-area-inset-bottom));
   max-height: 92vh;
+  max-height: 92dvh;
   overflow-y: auto;
 }
 .sheet .handle {
@@ -1014,8 +1023,10 @@
 .order-product-result:last-child {
   border-bottom: none;
 }
-.order-product-result:hover {
-  background: var(--sage-pale);
+@media (hover: hover) and (pointer: fine) {
+  .order-product-result:hover {
+    background: var(--sage-pale);
+  }
 }
 .order-product-result .name {
   font-size: 0.88rem;
@@ -1103,6 +1114,7 @@
 /* ---------- Login ---------- */
 .login-root {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
   max-width: 430px;
   margin: 0 auto;
@@ -1603,7 +1615,7 @@
    bloque contenedor del ImageZoom (position: fixed) mientras dura. */
 @media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
   .admin-root .overlay.open .sheet {
-    animation: admin-modal-in 0.18s ease-out;
+    animation: admin-modal-in 0.18s var(--ease-out);
   }
 }
 @keyframes admin-modal-in {
@@ -2648,7 +2660,7 @@
 .order-card {
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .prod-card:hover,
   .order-card:hover {
     box-shadow: 0 6px 18px rgba(51, 48, 42, 0.1);

@@ -18,7 +18,7 @@
 }
 /* Hover prefijado con .shop (no se filtra al panel admin, que carga esta hoja)
    y solo con mouse, para que en táctil no quede "pegado" tras el toque. */
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .shop .btn-primary:not(:disabled):hover {
     background: var(--sage-deep);
   }
@@ -62,7 +62,7 @@
   outline: 2px solid var(--sage-deep);
   outline-offset: 2px;
 }
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .cart-icon:hover {
     box-shadow: 0 4px 12px rgba(51, 48, 42, 0.18);
   }
@@ -147,9 +147,11 @@
   padding: 9px 12px;
   border-radius: 8px;
 }
-.account-menu a:hover,
-.account-menu button:hover {
-  background: var(--cream-deep);
+@media (hover: hover) and (pointer: fine) {
+  .account-menu a:hover,
+  .account-menu button:hover {
+    background: var(--cream-deep);
+  }
 }
 
 /* ---------- Modal de éxito del pedido ---------- */
@@ -202,9 +204,11 @@
   justify-content: center;
   cursor: pointer;
 }
-.success-close:hover {
-  background: rgba(51, 48, 42, 0.12);
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .success-close:hover {
+    background: rgba(51, 48, 42, 0.12);
+    color: var(--ink);
+  }
 }
 .success-close svg {
   width: 16px;
@@ -318,9 +322,11 @@
   text-decoration: none;
   transition: border-color 0.15s ease, color 0.15s ease;
 }
-.success-link:hover {
-  border-color: var(--sage);
-  color: var(--sage-deep);
+@media (hover: hover) and (pointer: fine) {
+  .success-link:hover {
+    border-color: var(--sage);
+    color: var(--sage-deep);
+  }
 }
 /* "Volver al muestrario" reutiliza .pp-back (misma pill que en el resto del
    muestrario); acá solo ajustamos el espaciado al gap del modal. */
@@ -365,12 +371,13 @@
   z-index: 50;
   background: rgba(51, 48, 42, 0);
   visibility: hidden;
-  transition: background 0.25s ease, visibility 0s linear 0.25s;
+  /* Cierra más rápido de lo que abre: la respuesta del sistema es rápida. */
+  transition: background 0.2s ease, visibility 0s linear 0.2s;
 }
 .drawer-overlay.open {
   background: rgba(51, 48, 42, 0.45);
   visibility: visible;
-  transition: background 0.25s ease;
+  transition: background 0.28s ease;
 }
 .drawer {
   position: absolute;
@@ -385,11 +392,12 @@
   padding-top: env(safe-area-inset-top);
   padding-right: env(safe-area-inset-right);
   transform: translateX(100%);
-  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: transform 0.2s var(--ease-out);
   box-shadow: -12px 0 30px rgba(51, 48, 42, 0.18);
 }
 .drawer.open {
   transform: translateX(0);
+  transition: transform 0.3s var(--ease-drawer);
 }
 .drawer-head {
   display: flex;
@@ -1505,8 +1513,10 @@
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-.talle:hover:not(:disabled) {
-  border-color: var(--sage);
+@media (hover: hover) and (pointer: fine) {
+  .talle:hover:not(:disabled) {
+    border-color: var(--sage);
+  }
 }
 .talle.elegido {
   border-color: var(--sage-deep);

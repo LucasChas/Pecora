@@ -4,6 +4,12 @@
    Cambiá acá los valores y se propagan a toda la app.
    ============================================================ */
 :root {
+  /* Curvas de animación: las de CSS (ease, ease-out) son flojas.
+     ease-out fuerte para entradas/salidas y respuesta a toques; la del
+     cajón imita la de iOS. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --cream: #F8F1E1;         /* fondo principal (lino cálido)      */
   --cream-deep: #EEE1C4;    /* fondo secundario / cards           */
   --ink: #3B2F22;           /* texto principal (marrón cálido)    */
