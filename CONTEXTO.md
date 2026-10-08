@@ -50,6 +50,7 @@ VITE_SUPABASE_ANON_KEY=<anon key, está en .env local y en Vercel>
 VITE_WHATSAPP_NUMBER=5493543582028      # formato internacional, sin + ni espacios
 VITE_INSTAGRAM_USER=pecorababy          # sin @; vacío = oculta los botones de IG
 VITE_APP_MODE=                          # catalog | admin | vacío (local = todas las rutas)
+VITE_TURNSTILE_SITE_KEY=                # site key de Cloudflare Turnstile (CAPTCHA de la compra sin cuenta)
 ```
 
 **`VITE_APP_MODE` define qué expone cada deploy** (así hay dos URLs distintas):
@@ -182,6 +183,7 @@ Publicadas en `supabase_realtime`: `productos`, `categorias`, `pedidos`.
 | `20261003010000_avisos_tienda.sql` | Avisos automáticos por mail (Edge Function `avisos-tienda`): pedido enviado a la clienta (`pedidos.enviado_at`, `aviso_envio_enviado_at`; espera el seguimiento hasta 2 h), stock bajo a la dueña (`productos.stock_bajo_desde`, `aviso_stock_bajo_at`; umbral 3), carrito abandonado (tabla `carritos` con RLS propia, `profiles.recordar_carrito`) y resumen mensual (`reporte_mensual_datos`). Programa las tareas con pg_cron. Tests: `supabase/tests/avisos_tienda.test.sql`. |
 | `20261004010000_talles.sql` | Talles por producto (opcional): tabla `producto_talles` (talle, stock ≥ 0, orden; único por producto sin importar mayúsculas), lectura pública y cambios solo del staff. `productos.stock` de un producto con talles = suma de sus talles (trigger `producto_talles_despues` → `sincronizar_stock_talles`; `productos_bloquear_stock_talles` ignora cambios directos). `crear_pedido` exige `talle_id` en esos productos, descuenta del talle y guarda el ítem como "Nombre (talle X)" con `talle_id`/`talle`; `ajustar_stock_pedido` devuelve al talle. Tests: `supabase/tests/talles.test.sql`. |
 | `20261005010000_compra_invitada.sql` | Compra sin cuenta: `crear_pedido` acepta llamadas sin sesión (EXECUTE para `anon`); sin sesión el email es obligatorio y no hay cupones. `pedidos_proteger_checkout` pone topes a las invitadas (por email y por teléfono: 3 cada 10 min y 6 por día; 40 por hora en total). `mis_pedidos` y `compra_verificada` cuentan también los pedidos de invitada con el email confirmado de la cuenta. Tests: `supabase/tests/compra_invitada.test.sql`. |
+| `20261008120000_proteger_compra_invitada.sql` | Protecciones de la compra como invitada. `crear_pedido` **sin EXECUTE para `anon`**: las invitadas compran con la Edge Function `crear-pedido-invitada` (CAPTCHA de Cloudflare Turnstile + `crear_pedido` con la service_role). Topes de la compra web (con cuenta o sin), antes de tocar el stock: 10 unidades por producto (y talle) y 30 por pedido; los pedidos manuales del staff no tienen tope. Se quita el tope global de 40 por hora (cualquiera lo podía gastar). Tabla `intentos_invitada` (hash de la IP) y `registrar_intento_invitada(p_ip_hash)` (solo `service_role`): 5 cada 10 min y 20 por día por conexión. Tests: `supabase/tests/proteger_compra_invitada.test.sql`. |
 
 ### Cómo se aplican
 
@@ -356,7 +358,7 @@ WhatsApp, Instagram, Facebook y X leen las meta sin ejecutar JavaScript, así qu
 - **Carrito lateral (drawer)**: se abre al agregar o al tocar el ícono; cantidades, subtotal, bloqueo de scroll, cierre por Escape/backdrop.
 
 ### Cuentas de clientas
-- Registro/login en `/cuenta`. **Login obligatorio antes del checkout** (redirige con `?next=`).
+- Registro/login en `/cuenta`. Se puede comprar **con cuenta o como invitada**; la invitada pasa por un CAPTCHA (Turnstile) y la Edge Function `crear-pedido-invitada`.
 - **`/mi-cuenta`**: datos (nombre/teléfono), cupones visibles, favoritos, direcciones, avisos de stock, reseñas, cambiar contraseña o email, preferencia de mails y eliminar cuenta. `/cuenta` con sesión redirige acá.
 - **`/mis-pedidos`**: historial con **estado en tiempo real** → cuando la admin cambia el estado, la clienta lo ve al instante. Cada pedido (no cancelado) tiene **"Descargar comprobante"** (`common/OrderPrintView` tipo `comprobante`: A4 "Comprobante de compra", no válido como factura; se guarda como PDF desde el diálogo de impresión) y cada producto comprado por la web tiene **"Calificar"** / sus estrellas con "Editar" (`account/CalificarProducto`, mismo formulario que la ficha).
 

@@ -55,26 +55,34 @@ Las brechas grandes están en tres lugares:
 
 ## Críticos (hacer ya)
 
+> **Estado:** C1–C3 resueltos en `20261008120000_proteger_compra_invitada.sql`
+> + Edge Function `crear-pedido-invitada` + CAPTCHA en el checkout. Falta
+> desplegar (ver `supabase/functions/README.md`). Quedan pendientes el
+> vencimiento automático de reservas (decisión de negocio, ver C1) y el cambio
+> de Gmail a un proveedor transaccional.
+
 **C1. Sin sesión se puede vaciar el stock de toda la tienda.**
 - `crear_pedido` se puede llamar como `anon` (`supabase/migrations/20261005010000_compra_invitada.sql:304-306`).
 - La RPC solo rechaza cantidades ≤ 0 (`:129-131`): no hay tope por ítem. Un pedido acepta hasta 50 ítems.
 - El pedido `nuevo` reserva el stock sin vencimiento.
 - Los topes por email y teléfono se esquivan cambiando esos datos en cada llamada.
 - **Arreglo:**
-  - Tope por ítem (por ejemplo ≤ 10) y por pedido.
-  - Estado `pendiente_pago` con vencimiento y un `pg_cron` que libere el stock a los 30–60 min.
-  - CAPTCHA (Cloudflare Turnstile) verificado en el servidor para las invitadas.
+  - ✅ Tope de 10 unidades por producto y 30 por pedido (`crear_pedido`, antes de tocar el stock).
+  - ✅ CAPTCHA (Cloudflare Turnstile) verificado en el servidor para las invitadas; la anon key ya no puede llamar a `crear_pedido`.
+  - ⏳ Vencimiento de reservas: hoy los pedidos se coordinan por WhatsApp y la admin los confirma a mano, así que liberar stock a los 30–60 min cancelaría pedidos reales. Tiene sentido con Mercado Pago (estado `pendiente_pago`); sin eso, habría que definir un plazo (por ejemplo, 48 h sin confirmar).
 
 **C2. El tope global de 40 pedidos por hora permite bloquear el checkout a propósito.**
 - El contador es global para todas las invitadas (`compra_invitada.sql:371-377`): un atacante lo consume y las clientas reales no pueden comprar.
-- **Arreglo:** limitar por IP o con CAPTCHA en una Edge Function intermedia, no con un contador global.
+- **Arreglo:** ✅ se quitó el tope global; ahora hay CAPTCHA y un tope por conexión (5 cada 10 min, 20 por día) en `crear-pedido-invitada`.
 
 **C3. El recibo de invitada se puede usar para mandar spam o phishing.**
 - A una invitada no se le verifica el email.
 - El recibo sale desde el Gmail de la tienda e incluye `nombre` y `notas` (hasta 1000 caracteres) escritos por quien compra.
+- Revisando el template, el recibo no incluye las notas: el texto libre que llega es el **nombre** (hasta 120 caracteres) en el saludo.
 - **Arreglo:**
-  - No incluir texto libre en el recibo de invitada.
-  - Pasar a un proveedor transaccional (Resend, Postmark o SES) con dominio propio y SPF, DKIM y DMARC. Gmail además corta en unos 500 mails por día.
+  - ✅ El saludo usa solo el primer nombre si es una palabra de letras (hasta 20); si no, saluda sin nombre. Se suma "Si no hiciste este pedido, podés ignorar este mail".
+  - ✅ El CAPTCHA y el tope por conexión limitan cuántos recibos se pueden disparar.
+  - ⏳ Pasar a un proveedor transaccional (Resend, Postmark o SES) con dominio propio y SPF, DKIM y DMARC. Gmail además corta en unos 500 mails por día.
 
 ## Alta prioridad
 

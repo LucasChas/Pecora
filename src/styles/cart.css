@@ -1664,3 +1664,13 @@
     align-self: flex-start;
   }
 }
+
+/* CAPTCHA de la compra como invitada (Turnstile). Casi siempre está vacío:
+   el recuadro solo aparece si Cloudflare necesita que la clienta lo toque. */
+.captcha {
+  display: flex;
+  justify-content: center;
+}
+.captcha:has(iframe) {
+  margin: 4px 0 12px;
+}

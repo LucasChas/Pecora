@@ -10,6 +10,7 @@ import {
   formatFromHeader,
   parseItems,
   parseOwnerEmails,
+  primerNombre,
   resolverPanelUrl,
   toBase64Url,
   tokensIguales,
@@ -305,5 +306,22 @@ describe('resolverPanelUrl', () => {
     expect(resolverPanelUrl(undefined, undefined)).toBeNull()
     expect(resolverPanelUrl('', '')).toBeNull()
     expect(resolverPanelUrl('javascript:alert(1)', null)).toBeNull()
+  })
+})
+
+describe('primerNombre', () => {
+  it('deja solo la primera palabra si es un nombre', () => {
+    expect(primerNombre('  Ana María López ')).toBe('Ana')
+    expect(primerNombre("D'Angelo")).toBe("D'Angelo")
+    expect(primerNombre('José-Luis')).toBe('José-Luis')
+  })
+
+  it('sin nombre usable devuelve null (saludo sin nombre)', () => {
+    expect(primerNombre('')).toBeNull()
+    expect(primerNombre(null)).toBeNull()
+    expect(primerNombre('bit.ly/abc')).toBeNull()
+    expect(primerNombre('Transferí-al-CBU-0000000000000000')).toBeNull()
+    expect(primerNombre('http://x.test hola')).toBeNull()
+    expect(primerNombre('123')).toBeNull()
   })
 })

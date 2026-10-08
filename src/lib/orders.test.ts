@@ -10,10 +10,14 @@ const consulta = vi.hoisted(() => ({
   maybeSingle: vi.fn(),
 }))
 const from = vi.hoisted(() => vi.fn())
-vi.mock('./supabaseClient', () => ({ supabase: { rpc, from } }))
+const invoke = vi.hoisted(() => vi.fn())
+vi.mock('./supabaseClient', () => ({ supabase: { rpc, from, functions: { invoke } } }))
 
+import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js'
 import {
   MENSAJE_CUPON_NO_DISPONIBLE,
+  MENSAJE_INVITADA_NO_DISPONIBLE,
+  resultadoInvitada,
   PROVINCIAS_AR,
   calcularSubtotal,
   cargarMisPedidos,
@@ -500,5 +504,92 @@ describe('mis pedidos', () => {
     expect(rpc).toHaveBeenCalledWith('mis_pedidos', { p_numero: 9 })
     rpc.mockResolvedValueOnce({ data: [], error: null })
     expect(await leerMiPedido(10, 'u1')).toBeNull()
+  })
+})
+
+describe('resultadoInvitada', () => {
+  it('200 con número: el pedido quedó registrado', () => {
+    expect(resultadoInvitada(200, { numero: '42' })).toEqual({ tipo: 'ok', numero: 42 })
+  })
+
+  it('200 sin número válido: error (no se reintenta a ciegas)', () => {
+    expect(resultadoInvitada(200, {}).tipo).toBe('error')
+  })
+
+  it('función sin desplegar o base sin la migración: se usa el RPC directo', () => {
+    expect(resultadoInvitada(404, null)).toEqual({ tipo: 'usar_rpc' })
+    expect(resultadoInvitada(503, { codigo: 'sin_permiso', error: 'x' })).toEqual({ tipo: 'usar_rpc' })
+  })
+
+  it('muestra el mensaje de la función y marca la cotización vencida', () => {
+    expect(resultadoInvitada(400, { codigo: 'P0001', error: 'Sin stock' })).toEqual({
+      tipo: 'error',
+      mensaje: 'Sin stock',
+      cotizacionVencida: false,
+    })
+    expect(resultadoInvitada(400, { codigo: '22023', error: 'Volvé a cotizar' })).toMatchObject({
+      cotizacionVencida: true,
+    })
+    expect(resultadoInvitada(500, 'html')).toMatchObject({ tipo: 'error' })
+  })
+})
+
+describe('crearPedido como invitada (con CAPTCHA)', () => {
+  const base: NuevoPedido = {
+    datos: { nombre: 'Ana', telefono: '3541 123456', email: 'ana@ejemplo.com', entrega: 'coordinar' },
+    items: [{ id: 'a', nombre: 'Body', precio: 1500, cantidad: 1 }],
+    idempotencyKey: '11111111-2222-4333-8444-555555555555',
+    captcha: 'tok',
+  }
+  const httpError = (status: number, cuerpo: unknown) =>
+    new FunctionsHttpError(new Response(JSON.stringify(cuerpo), { status }))
+
+  beforeEach(() => {
+    rpc.mockReset()
+    invoke.mockReset()
+  })
+
+  it('va por crear-pedido-invitada con el token y sin cupón', async () => {
+    invoke.mockResolvedValueOnce({ data: { numero: 9 }, error: null })
+    await expect(crearPedido({ ...base, cupon: 'PROMO' })).resolves.toBe(9)
+    expect(rpc).not.toHaveBeenCalled()
+    const [nombre, opciones] = invoke.mock.calls[0]
+    expect(nombre).toBe('crear-pedido-invitada')
+    expect(opciones.body.turnstile_token).toBe('tok')
+    expect(opciones.body.pedido).toMatchObject({
+      p_email: 'ana@ejemplo.com',
+      p_idempotency_key: base.idempotencyKey,
+      p_cotizacion_envio: null,
+    })
+    expect(opciones.body.pedido).not.toHaveProperty('p_cupon')
+  })
+
+  it('muestra el mensaje de la base', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: httpError(400, { codigo: 'P0001', error: 'Sin stock' }) })
+    await expect(crearPedido(base)).rejects.toThrow('Sin stock')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('cotización vencida: ErrorCotizacionVencida', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: httpError(400, { codigo: '22023', error: 'x' }) })
+    await expect(crearPedido(base)).rejects.toBeInstanceOf(ErrorCotizacionVencida)
+  })
+
+  it('función sin desplegar: sigue con el RPC directo', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: httpError(404, {}) })
+    rpc.mockResolvedValueOnce({ data: 5, error: null })
+    await expect(crearPedido(base)).resolves.toBe(5)
+    expect(rpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('sin conexión: no reintenta por otro lado', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: new FunctionsFetchError(new Error('Failed to fetch')) })
+    await expect(crearPedido(base)).rejects.toThrow(/conectarnos/)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('sin CAPTCHA, la base rechaza a las invitadas (42501) con un mensaje claro', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'permission denied for function crear_pedido' } })
+    await expect(crearPedido({ ...base, captcha: null })).rejects.toThrow(MENSAJE_INVITADA_NO_DISPONIBLE)
   })
 })
