@@ -91,6 +91,19 @@ export function parseItems(raw: unknown): ReciboItem[] {
     .filter((item): item is ReciboItem => item !== null);
 }
 
+/**
+ * Nombre para el saludo del recibo: solo la primera palabra, si es un nombre
+ * (letras, apóstrofo o guion, hasta 20). Si no, null y el saludo va sin
+ * nombre. El nombre lo escribe quien hace el pedido y el recibo sale desde el
+ * mail de la tienda hacia la dirección que se haya escrito: con el nombre
+ * completo, se podía mandar un texto cualquiera ("transferí a ...", un link)
+ * a terceros con la firma de la tienda.
+ */
+export function primerNombre(nombre: string | null | undefined): string | null {
+  const primero = (nombre ?? "").trim().split(/\s+/)[0] ?? "";
+  return /^[\p{L}][\p{L}'’-]{0,19}$/u.test(primero) ? primero : null;
+}
+
 export function formatFecha(iso: string, conHora = false): string {
   try {
     return new Date(iso).toLocaleString("es-AR", {

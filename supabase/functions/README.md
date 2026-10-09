@@ -742,3 +742,76 @@ el preflight CORS por su cuenta). Logs con prefijo `[cotizar-envio]`.
   por zona. `crear_pedido` sin `p_cotizacion_envio` se comporta como antes.
 - Revertir el esquema: ver el bloque "Volver atrás" al final de
   `*_envios_transportistas.sql`.
+
+## `crear-pedido-invitada` (compra sin cuenta con CAPTCHA)
+
+Desde la migración `*_proteger_compra_invitada.sql`, `crear_pedido` ya no se
+puede llamar con la anon key. Antes cualquiera podía crear pedidos sin pasar
+por la página: reservar todo el stock, gastar el tope global de pedidos de
+invitadas o mandar comprobantes a cualquier mail. Ahora una invitada compra a
+través de esta función, que:
+
+1. verifica el CAPTCHA de **Cloudflare Turnstile** del checkout (token de un
+   solo uso; en general la clienta no ve nada);
+2. aplica un tope por conexión (`registrar_intento_invitada`: 5 pedidos cada
+   10 minutos y 20 por día). En la base solo queda un hash de la IP. La IP sale
+   de `cf-connecting-ip` / `x-real-ip`, nunca de `x-forwarded-for`, que lo puede
+   escribir quien llama. Si la plataforma no manda ninguno de los dos, el tope no
+   se aplica: queda solo el CAPTCHA y se avisa en el log;
+3. llama a `crear_pedido` con la service_role, sin sesión: la base lo registra
+   como pedido de invitada, con sus validaciones y topes. Se mantienen los topes
+   por email y teléfono, y se suman 10 unidades por producto y 30 por pedido.
+
+Las clientas con cuenta siguen llamando al RPC directo, como antes.
+
+### Secretos
+
+```bash
+# Cloudflare → Turnstile → Add widget (modo "Managed"), con el dominio del
+# muestrario (y localhost para probar). Da una site key (pública) y una secret key.
+pnpm dlx supabase@latest secrets set TURNSTILE_SECRET_KEY=<secret-key>
+# CATALOG_ORIGIN ya está si se configuró cotizar-envio.
+```
+
+La **site key** va en Vercel, en el proyecto del muestrario:
+`VITE_TURNSTILE_SITE_KEY` (Production). Para probar en local hay claves de
+prueba de Cloudflare: la site key `1x00000000000000000000AA` y la secret
+`1x0000000000000000000000000000000AA` siempre pasan.
+
+### Despliegue (en este orden)
+
+```bash
+# 1) Secreto y función (verificación JWT default: NO usar --no-verify-jwt)
+pnpm dlx supabase@latest secrets set TURNSTILE_SECRET_KEY=<secret-key>
+pnpm dlx supabase@latest functions deploy crear-pedido-invitada
+# 2) Vercel (muestrario): VITE_TURNSTILE_SITE_KEY=<site-key> en Production.
+# 3) Mergear a main. Esperar a que Vercel termine de publicar el front y
+#    RECIÉN AHÍ aprobar el workflow de la base (supabase-production).
+```
+
+Por qué en este orden:
+- **Front nuevo con la base vieja:** la función no tiene permiso sobre
+  `crear_pedido`, responde `sin_permiso` y el front vuelve al RPC directo, así
+  que se puede comprar igual.
+- **Front viejo con la base nueva:** el front viejo llama al RPC directo y la
+  base lo rechaza, así que una invitada no puede comprar. Por eso la base se
+  aprueba al final.
+- **Sin `VITE_TURNSTILE_SITE_KEY` con la migración aplicada:** la compra sin
+  cuenta muestra "no está disponible, iniciá sesión". Las compras con cuenta
+  siguen funcionando.
+
+### Prueba manual
+
+En el muestrario, sin sesión: hacer un pedido chico. Tiene que llegar el
+comprobante y aparecer en el panel. En los logs de la función, buscar líneas
+con `[crear-pedido-invitada]`:
+- `turnstile rechazado`: el token no pasó (dominio mal cargado en Cloudflare o
+  secret equivocada).
+- `sin IP confiable`: la plataforma no informa la IP, así que el tope por
+  conexión no se aplica.
+
+### Volver atrás
+
+- Revertir el esquema con una migración nueva que vuelva a dar
+  `grant execute on function public.crear_pedido(...) to anon`. El front cae
+  solo al RPC directo si la función no está desplegada (404).

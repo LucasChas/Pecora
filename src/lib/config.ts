@@ -21,6 +21,11 @@ const INSTAGRAM_USER = import.meta.env.VITE_INSTAGRAM_USER || ''
 // sirve window.location. Viene del .env; si falta, usa el dominio de producción.
 const CATALOG_URL = import.meta.env.VITE_CATALOG_URL || 'https://pecora-muestrario.vercel.app'
 
+// Clave pública del CAPTCHA (Cloudflare Turnstile) de la compra como invitada.
+// Vacía = no se muestra el CAPTCHA y la compra sin cuenta no funciona (desde
+// la migración *_proteger_compra_invitada la base la rechaza).
+export const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
+
 // Mensajes prellenados de WhatsApp. Cambiá el texto acá si querés otro tono.
 function mensajeWhatsApp(producto: ProductoConCategoria): string {
   const disponible = producto.stock > 0
