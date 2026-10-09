@@ -58,6 +58,7 @@ import {
   formatFromHeader,
   parseItems,
   parseOwnerEmails,
+  primerNombre,
   resolverPanelUrl,
   toNumber,
   waClienteUrl,
@@ -336,7 +337,7 @@ Deno.serve(async (req: Request) => {
       {
         numero: pedido.numero,
         fecha: formatFecha(pedido.created_at),
-        nombre: pedido.nombre,
+        nombre: primerNombre(pedido.nombre),
         items,
         totales,
         entrega,

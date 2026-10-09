@@ -7,7 +7,7 @@ import { conTalles, ordenarTalles } from '../lib/productosConsulta'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { money } from '../lib/format'
-import { waPedidoConfirmadoLink, type DatosPedido } from '../lib/config'
+import { TURNSTILE_SITE_KEY, waPedidoConfirmadoLink, type DatosPedido } from '../lib/config'
 import {
   PROVINCIAS_AR,
   calcularSubtotal,
@@ -43,6 +43,7 @@ import { useCotizacionTransportistas } from '../hooks/useCotizacionTransportista
 import OrderSuccess from '../components/cart/OrderSuccess'
 import OpcionesEnvio from '../components/cart/OpcionesEnvio'
 import Miniatura from '../components/common/Miniatura'
+import Captcha, { type CaptchaHandle } from '../components/common/Captcha'
 import { borrarBorrador, errorEmail, errorTelefono, guardarBorrador, leerBorrador } from '../lib/borradorCheckout'
 import {
   MAX_DIRECCIONES,
@@ -112,6 +113,14 @@ export default function CheckoutPage() {
   const [aviso, setAviso] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmado, setConfirmado] = useState<PedidoConfirmado | null>(null)
+
+  // ---- CAPTCHA de la compra como invitada (Turnstile) ----
+  // Cada token sirve para un solo intento: después de mandar el pedido se
+  // pide uno nuevo.
+  const captchaRef = useRef<CaptchaHandle>(null)
+  const [captcha, setCaptcha] = useState<string | null>(null)
+  const [captchaFallo, setCaptchaFallo] = useState(false)
+  const pideCaptcha = !session && TURNSTILE_SITE_KEY !== ''
 
   // ---- Cupón ----
   const [cuponInput, setCuponInput] = useState('')
@@ -490,7 +499,16 @@ export default function CheckoutPage() {
         return
       }
     }
+    if (pideCaptcha && !captcha) {
+      setError(
+        captchaFallo
+          ? 'No pudimos verificar que no seas un robot. Recargá la página, desactivá el bloqueador de anuncios o iniciá sesión.'
+          : 'Estamos verificando que no seas un robot. Esperá unos segundos y volvé a confirmar.',
+      )
+      return
+    }
     setEnviando(true)
+    let usoCaptcha = false
     try {
       const { corregidos, cambios } = await revalidarCarrito()
       if (cambios.length > 0) {
@@ -531,12 +549,14 @@ export default function CheckoutPage() {
       // crear_pedido (SECURITY DEFINER) registra el pedido y devuelve el número
       // de orden, sin exponer la lectura de pedidos (ver lib/orders). La base
       // valida el cupón y calcula el descuento y el costo del envío.
+      usoCaptcha = pideCaptcha
       const numero = await crearPedido({
         datos: { ...datos, telefono, email: email.trim() },
         items: corregidos,
         idempotencyKey: claveIdempotencia(),
         cupon: codigoCupon || null,
         cotizacionEnvio: envio && opcionElegida ? opcionElegida.cotizacionId : null,
+        captcha: pideCaptcha ? captcha : null,
       })
       claveRef.current = null
 
@@ -609,6 +629,7 @@ export default function CheckoutPage() {
       )
     } finally {
       setEnviando(false)
+      if (usoCaptcha) captchaRef.current?.reset()
     }
   }
 
@@ -852,6 +873,18 @@ export default function CheckoutPage() {
                     </p>
                   )}
                 </div>
+
+                {pideCaptcha && (
+                  <Captcha
+                    ref={captchaRef}
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onToken={(t) => {
+                      setCaptcha(t)
+                      if (t) setCaptchaFallo(false)
+                    }}
+                    onError={() => setCaptchaFallo(true)}
+                  />
+                )}
 
                 <button
                   type="submit"
