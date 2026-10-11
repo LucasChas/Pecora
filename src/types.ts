@@ -72,7 +72,10 @@ export interface Perfil {
 // 'enviado' = despachado por correo, todavía no entregado (migración 20261001030000).
 export type EstadoPedido = 'nuevo' | 'confirmado' | 'enviado' | 'entregado' | 'cancelado'
 
-export type OrigenPedido = 'checkout' | 'admin'
+export type OrigenPedido = 'checkout' | 'admin' | 'feria'
+
+// Cómo pagó una venta de feria (migración *_ventas_feria).
+export type MedioPago = 'efectivo' | 'transferencia' | 'mercadopago'
 
 export type EntregaPedido = 'envio' | 'coordinar'
 
@@ -141,6 +144,12 @@ export interface Pedido {
   // Sucursal de destino (solo servicio 'sucursal'), como la guardó la base.
   sucursal_envio?: string | null
   cotizacion_envio_id?: string | null
+
+  // ---- Venta en la feria (migración *_ventas_feria) ----
+  // Solo en pedidos con origen 'feria': la feria (su nombre queda en
+  // `nombre`) y el medio de pago.
+  feria_id?: string | null
+  medio_pago?: MedioPago | null
 }
 
 // ---- Envíos con transportistas (Edge Function cotizar-envio) ----

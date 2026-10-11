@@ -33,7 +33,20 @@ export interface Estadisticas {
   mas_vendidos: MasVendidoStat[]
   clientas_nuevas: number
   clientas_con_compra: number
-  por_origen: { checkout: TotalesOrigen; admin: TotalesOrigen }
+  por_origen: { checkout: TotalesOrigen; admin: TotalesOrigen; feria: TotalesOrigen }
+  // Ventas en la feria del período, de la más reciente a la más vieja.
+  por_feria: VentaFeriaStat[]
+}
+
+export interface VentaFeriaStat {
+  feria_id: string
+  nombre: string
+  fecha: string // 'YYYY-MM-DD'
+  pedidos: number
+  total: number
+  efectivo: number
+  transferencia: number
+  mercadopago: number
 }
 
 export type Periodo = 'este-mes' | 'mes-pasado' | 'ultimos-3' | 'este-anio' | 'personalizado'
@@ -194,6 +207,20 @@ export function normalizarEstadisticas(data: unknown): Estadisticas {
       importe: aNumero(v.importe),
     }))
 
+  const porFeria = (Array.isArray(d.por_feria) ? d.por_feria : [])
+    .map(objeto)
+    .filter((v) => typeof v.feria_id === 'string')
+    .map((v) => ({
+      feria_id: v.feria_id as string,
+      nombre: typeof v.nombre === 'string' ? v.nombre : 'Feria',
+      fecha: typeof v.fecha === 'string' ? v.fecha.slice(0, 10) : '',
+      pedidos: aNumero(v.pedidos),
+      total: aNumero(v.total),
+      efectivo: aNumero(v.efectivo),
+      transferencia: aNumero(v.transferencia),
+      mercadopago: aNumero(v.mercadopago),
+    }))
+
   const pedidos = aNumero(d.pedidos_periodo)
   const total = aNumero(d.total_periodo)
   const po = objeto(d.por_origen)
@@ -208,7 +235,8 @@ export function normalizarEstadisticas(data: unknown): Estadisticas {
     mas_vendidos: masVendidos,
     clientas_nuevas: aNumero(d.clientas_nuevas),
     clientas_con_compra: aNumero(d.clientas_con_compra),
-    por_origen: { checkout: origen(po.checkout), admin: origen(po.admin) },
+    por_origen: { checkout: origen(po.checkout), admin: origen(po.admin), feria: origen(po.feria) },
+    por_feria: porFeria,
   }
 }
 

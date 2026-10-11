@@ -264,7 +264,7 @@ Deno.serve(async (req: Request) => {
   // Carga manual de la admin (pedido por WhatsApp): no se manda nada. Se
   // corta antes de buscar el email de la clienta en auth.users.
   if (esCargaManual(pedido.origen)) {
-    console.log(`${LOG_PREFIX} pedido ${pedidoId}: carga manual (origen admin) — no se envían mails`);
+    console.log(`${LOG_PREFIX} pedido ${pedidoId}: carga manual (origen ${pedido.origen}) — no se envían mails`);
     return jsonResponse({ ok: true, skipped: "manual" });
   }
 

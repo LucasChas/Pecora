@@ -365,6 +365,10 @@
 .est-origen-punto--manual {
   background: var(--ink-soft);
 }
+.est-origen-seg--feria,
+.est-origen-punto--feria {
+  background: var(--clay);
+}
 .est-origen-leyenda {
   list-style: none;
   margin: 12px 0 0;
@@ -389,6 +393,30 @@
   color: var(--ink-soft);
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Ventas por feria ---------- */
+.est-ferias {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.est-feria {
+  display: grid;
+  gap: 2px;
+}
+.est-feria-cabecera {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+.est-feria-nombre {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Secciones: Ventas / Rentabilidad / Gastos ---------- */
