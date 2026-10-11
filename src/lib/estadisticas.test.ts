@@ -108,7 +108,32 @@ describe('normalizarEstadisticas', () => {
     expect(e.ticket_promedio).toBeCloseTo(425.125)
     expect(e.mas_vendidos[0]).toEqual({ producto_id: 'a', nombre: 'Vela', unidades: 7, importe: 700 })
     expect(e.clientas_con_compra).toBe(3)
-    expect(e.por_origen).toEqual({ checkout: { pedidos: 3, total: 1500.5 }, admin: { pedidos: 0, total: 0 } })
+    expect(e.por_origen).toEqual({
+      checkout: { pedidos: 3, total: 1500.5 },
+      admin: { pedidos: 0, total: 0 },
+      feria: { pedidos: 0, total: 0 },
+    })
+    expect(e.por_feria).toEqual([])
+  })
+
+  it('normaliza las ventas por feria (montos como texto, filas sin id afuera)', () => {
+    const e = normalizarEstadisticas({
+      por_origen: { feria: { pedidos: 2, total: '5000' } },
+      por_feria: [
+        {
+          feria_id: 'f1', nombre: 'Feria Plaza', fecha: '2026-10-10', pedidos: 2,
+          total: '5000', efectivo: '1000', transferencia: 4000, mercadopago: 0,
+        },
+        { nombre: 'Sin id' },
+      ],
+    })
+    expect(e.por_origen.feria).toEqual({ pedidos: 2, total: 5000 })
+    expect(e.por_feria).toEqual([
+      {
+        feria_id: 'f1', nombre: 'Feria Plaza', fecha: '2026-10-10', pedidos: 2,
+        total: 5000, efectivo: 1000, transferencia: 4000, mercadopago: 0,
+      },
+    ])
   })
 
   it('con null devuelve todo en cero', () => {

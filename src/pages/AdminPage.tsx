@@ -173,7 +173,7 @@ export default function AdminPage() {
   // Pedido nuevo con el panel abierto: aviso con atajo, y vibración en el
   // celular. Antes solo cambiaba el número del badge.
   function avisarPedidoNuevo(pedido: Pedido) {
-    if (pedido.origen === 'admin') return // lo acaba de cargar alguien del panel
+    if (pedido.origen !== 'checkout') return // lo acaba de cargar alguien del panel
     navigator.vibrate?.(200)
     const verPedidos = () => {
       setVista('pedidos')

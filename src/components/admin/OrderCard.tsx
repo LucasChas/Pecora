@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import type { EstadoPedido, Pedido } from '../../types'
+import type { EstadoPedido, OrigenPedido, Pedido } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
 import { money } from '../../lib/format'
 import { ETIQUETA_ESTADO, detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
 import { etiquetaEnvioPedido, sucursalDePedido } from '../../lib/transportistas'
 import { linkWhatsappPedido } from '../../lib/whatsapp'
+import { etiquetaMedioPago } from '../../lib/ferias'
 import OrderPrintView, { type TipoImpresion } from './OrderPrintView'
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
   // Solo admin: borrado definitivo desde la papelera. Por defecto oculto.
   puedeBorrarDefinitivo?: boolean
 }
+
+const ETIQUETA_ORIGEN: Record<OrigenPedido, string> = { checkout: 'Web', admin: 'Manual', feria: 'Feria' }
 
 const ESTADOS: EstadoPedido[] = ['nuevo', 'confirmado', 'enviado', 'entregado', 'cancelado']
 
@@ -307,7 +310,7 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
         <div>
           <span className="order-num">Pedido #{pedido.numero}</span>
           <span className={`origin-badge origin-badge--${pedido.origen}`}>
-            {pedido.origen === 'admin' ? 'Manual' : 'Web'}
+            {ETIQUETA_ORIGEN[pedido.origen] ?? 'Web'}
           </span>
           <span className="order-fecha">{fecha(pedido.created_at)}</span>
           {tienePago && !pedido.pagado_at && pedido.estado !== 'cancelado' && !enPapelera && (
@@ -330,34 +333,44 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
         </select>
       </div>
 
-      <div className="order-cliente">
-        <strong>{pedido.nombre}</strong>
-        {linkWa ? (
-          <a className="order-wa" href={linkWa} target="_blank" rel="noopener noreferrer">
-            {pedido.telefono} · WhatsApp
-          </a>
-        ) : (
-          <span className="order-email">{pedido.telefono || 'Sin teléfono'}</span>
-        )}
-        {pedido.email && <span className="order-email">{pedido.email}</span>}
-      </div>
-
-      <div className="order-entrega">
-        {pedido.entrega === 'envio' ? (
-          <>
-            📦 Envío a: {pedido.direccion}, {pedido.localidad} (CP {pedido.cp})
-            {pedido.provincia ? `, ${pedido.provincia}` : ''}
-            {envioTransportista && (
-              <div className="order-transportista">
-                <strong>🚚 {envioTransportista}</strong>
-                {sucursal && <span>Sucursal: {sucursal}</span>}
-              </div>
+      {pedido.origen === 'feria' ? (
+        // Venta en la feria: no hay clienta ni entrega, solo la feria y cómo pagó.
+        <div className="order-cliente">
+          <strong>🎪 {pedido.nombre}</strong>
+          {pedido.medio_pago && <span className="order-email">Pagó con {etiquetaMedioPago(pedido.medio_pago)}</span>}
+        </div>
+      ) : (
+        <>
+          <div className="order-cliente">
+            <strong>{pedido.nombre}</strong>
+            {linkWa ? (
+              <a className="order-wa" href={linkWa} target="_blank" rel="noopener noreferrer">
+                {pedido.telefono} · WhatsApp
+              </a>
+            ) : (
+              <span className="order-email">{pedido.telefono || 'Sin teléfono'}</span>
             )}
-          </>
-        ) : (
-          <>🛍️ Retiro / a coordinar</>
-        )}
-      </div>
+            {pedido.email && <span className="order-email">{pedido.email}</span>}
+          </div>
+
+          <div className="order-entrega">
+            {pedido.entrega === 'envio' ? (
+              <>
+                📦 Envío a: {pedido.direccion}, {pedido.localidad} (CP {pedido.cp})
+                {pedido.provincia ? `, ${pedido.provincia}` : ''}
+                {envioTransportista && (
+                  <div className="order-transportista">
+                    <strong>🚚 {envioTransportista}</strong>
+                    {sucursal && <span>Sucursal: {sucursal}</span>}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>🛍️ Retiro / a coordinar</>
+            )}
+          </div>
+        </>
+      )}
 
       {tienePago && !enPapelera && pedido.estado !== 'cancelado' && (
         <div className="order-pago">

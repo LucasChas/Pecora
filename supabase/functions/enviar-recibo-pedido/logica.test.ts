@@ -99,8 +99,9 @@ describe('decidirEnvios', () => {
 })
 
 describe('esCargaManual', () => {
-  it('solo el origen admin es carga manual', () => {
+  it('solo los orígenes admin y feria son carga manual', () => {
     expect(esCargaManual('admin')).toBe(true)
+    expect(esCargaManual('feria')).toBe(true)
     expect(esCargaManual('checkout')).toBe(false)
     expect(esCargaManual('')).toBe(false)
   })

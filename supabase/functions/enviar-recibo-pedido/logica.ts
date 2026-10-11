@@ -32,9 +32,12 @@ export type DecisionEnvios =
   | { tipo: "manual" }
   | { tipo: "envios"; recibo: EstadoInicial; aviso: EstadoInicial };
 
-/** Los pedidos cargados a mano por la admin (origen 'admin') no mandan mails. */
+/**
+ * Los pedidos cargados a mano por la admin (origen 'admin') y las ventas de
+ * feria (origen 'feria') no mandan mails.
+ */
 export function esCargaManual(origen: string): boolean {
-  return origen === "admin";
+  return origen === "admin" || origen === "feria";
 }
 
 /**
