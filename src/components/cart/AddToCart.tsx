@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ProductoConCategoria } from '../../types'
-import { claveItem, useCart } from '../../context/CartContext'
+import { claveItem, MAX_POR_PRODUCTO, maximoPedible, useCart } from '../../context/CartContext'
 import { tieneTalles } from '../../lib/productosConsulta'
 import GuiaTalles from '../catalog/GuiaTalles'
 
@@ -26,10 +26,11 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
   const talle = conTalles ? (talles.find((t) => t.id === talleId) ?? null) : null
   const stock = conTalles ? (talle?.stock ?? 0) : producto.stock
 
-  // Lo que ya está en el carrito cuenta contra el stock (del talle elegido).
+  // Lo que ya está en el carrito cuenta contra el stock (del talle elegido) y
+  // contra el tope por producto de la compra web.
   const enCarrito =
     items.find((i) => claveItem(i) === claveItem({ id: producto.id, talleId: talle?.id }))?.cantidad ?? 0
-  const disponible = Math.max(0, stock - enCarrito)
+  const disponible = Math.max(0, maximoPedible({ stock }) - enCarrito)
   const elegida = Math.min(cantidad, Math.max(1, disponible))
 
   const bajar = () => setCantidad(Math.max(1, elegida - 1))
@@ -136,11 +137,18 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
         ) : conTalles && !talle ? (
           'Elegí un talle'
         ) : disponible <= 0 ? (
-          'Ya tenés todo el stock en el carrito'
+          stock > MAX_POR_PRODUCTO
+            ? `Máximo ${MAX_POR_PRODUCTO} por compra`
+            : 'Ya tenés todo el stock en el carrito'
         ) : (
           'Agregar al carrito'
         )}
       </button>
+      {disponible <= 0 && stock > MAX_POR_PRODUCTO && (
+        <p className="add-cart-nota">
+          Ya tenés {enCarrito} en el carrito. Si necesitás más, escribinos por WhatsApp.
+        </p>
+      )}
       {enCarrito > 0 && disponible > 0 && (
         <p className="add-cart-nota">
           Ya tenés {enCarrito} en el carrito · podés sumar {disponible} más.

@@ -28,8 +28,7 @@ select is_empty(
           'es_admin', 'es_staff',                 -- usadas por las policies RLS
           'cotizar_envio', 'mas_vendidos',        -- checkout y catálogo
           'resenas_de_producto', 'resumen_resenas',
-          'baja_aviso_stock',                     -- link de baja del mail (token)
-          'crear_pedido'                          -- compra como invitada
+          'baja_aviso_stock'                      -- link de baja del mail (token)
         ) $$,
   'anon can execute only the public SECURITY DEFINER RPCs'
 );

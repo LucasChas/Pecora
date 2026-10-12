@@ -95,8 +95,8 @@ select is(
   has_function_privilege('anon',
     'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text, uuid)',
     'EXECUTE'),
-  true,
-  'anon can execute crear_pedido (guest checkout, migration compra_invitada)'
+  false,
+  'anon cannot execute crear_pedido (guests go through crear-pedido-invitada, migration proteger_compra_invitada)'
 );
 -- 9
 select is(
@@ -281,8 +281,8 @@ select throws_ok(
        'Anon', '333', null, 'coordinar', null, null, null, null,
        '[{"id":"b0000000-0000-4000-8000-00000000000a","cantidad":1}]'::jsonb,
        0, 'checkout', null, null) $$,
-  'P0001', 'Ingresá un email válido: ahí te mandamos el comprobante del pedido.',
-  'a guest order needs an email'
+  '42501', null,
+  'anon cannot call crear_pedido directly'
 );
 
 -- ----------------------------------------------------------------------------

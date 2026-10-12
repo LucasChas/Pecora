@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
 import { money } from './format'
 import { ErrorCotizacionVencida, esCotizacionVencida, etiquetaEnvioPedido } from './transportistas'
@@ -207,6 +208,77 @@ export interface NuevoPedido {
   // la cotización; si venció o no corresponde, rechaza con 22023 y crearPedido
   // lanza ErrorCotizacionVencida.
   cotizacionEnvio?: string | null
+  // Compra como invitada (sin sesión): token del CAPTCHA (Cloudflare
+  // Turnstile). Con token, el pedido va por la Edge Function
+  // crear-pedido-invitada: desde la migración *_proteger_compra_invitada la
+  // anon key ya no puede llamar a crear_pedido.
+  captcha?: string | null
+}
+
+// Sin sesión y sin pasar por crear-pedido-invitada (falta el CAPTCHA o la
+// función), la base rechaza el pedido con 42501.
+export const MENSAJE_INVITADA_NO_DISPONIBLE =
+  'La compra sin cuenta no está disponible en este momento. Iniciá sesión o escribinos por WhatsApp.'
+
+export const NOMBRE_FUNCION_INVITADA = 'crear-pedido-invitada'
+
+// Respuesta de crear-pedido-invitada (status HTTP y cuerpo JSON):
+//   ok: el número de pedido;
+//   usar_rpc: la función no está desplegada (404) o la base todavía no tiene
+//     la migración (sin_permiso): se sigue con el RPC directo, como antes;
+//   error: el mensaje para mostrar (los de crear_pedido vienen redactados).
+//     cotizacionVencida: la base rechazó la cotización del envío (22023).
+export type ResultadoInvitada =
+  | { tipo: 'ok'; numero: number }
+  | { tipo: 'usar_rpc' }
+  | { tipo: 'error'; mensaje: string; cotizacionVencida: boolean }
+
+export function resultadoInvitada(status: number, cuerpo: unknown): ResultadoInvitada {
+  const c = (cuerpo ?? {}) as Record<string, unknown>
+  if (status === 200) {
+    const numero = numeroDePedido(c.numero)
+    return numero === null
+      ? {
+          tipo: 'error',
+          mensaje: 'No pudimos confirmar el número del pedido. Escribinos por WhatsApp antes de volver a intentar.',
+          cotizacionVencida: false,
+        }
+      : { tipo: 'ok', numero }
+  }
+  if (status === 404 || c.codigo === 'sin_permiso') return { tipo: 'usar_rpc' }
+  const mensaje =
+    typeof c.error === 'string' && c.error ? c.error : 'No pudimos registrar el pedido. Probá de nuevo en un momento.'
+  return { tipo: 'error', mensaje, cotizacionVencida: c.codigo === '22023' }
+}
+
+// Llama a crear-pedido-invitada. Devuelve el número, o null si hay que
+// seguir con el RPC directo (ver resultadoInvitada).
+async function crearPedidoInvitada(captcha: string, pedido: Record<string, unknown>): Promise<number | null> {
+  let status: number
+  let cuerpo: unknown
+  const { data, error } = await supabase.functions.invoke(NOMBRE_FUNCION_INVITADA, {
+    body: { turnstile_token: captcha, pedido },
+  })
+  if (!error) {
+    status = 200
+    cuerpo = data
+  } else if (error instanceof FunctionsHttpError) {
+    const respuesta = error.context as Response | undefined
+    status = respuesta?.status ?? 500
+    try {
+      cuerpo = await respuesta?.json()
+    } catch {
+      cuerpo = null
+    }
+  } else {
+    throw new Error('No pudimos conectarnos para registrar el pedido. Revisá tu conexión y volvé a intentar.')
+  }
+
+  const r = resultadoInvitada(status, cuerpo)
+  if (r.tipo === 'ok') return r.numero
+  if (r.tipo === 'usar_rpc') return null
+  if (r.cotizacionVencida) throw new ErrorCotizacionVencida()
+  throw new Error(r.mensaje)
 }
 
 // Mensaje cuando la clienta cargó un cupón pero la base todavía no acepta
@@ -277,6 +349,7 @@ export async function crearPedido({
   idempotencyKey,
   cupon,
   cotizacionEnvio,
+  captcha,
 }: NuevoPedido): Promise<number> {
   const envio = datos.entrega === 'envio'
   const firma11 = {
@@ -315,6 +388,15 @@ export async function crearPedido({
   }
   const codigoCupon = textoOpcional(cupon)?.toUpperCase() ?? null
   const cotizacion = envio ? textoOpcional(cotizacionEnvio) : null
+
+  if (captcha) {
+    const numero = await crearPedidoInvitada(captcha, { ...firma13, p_cotizacion_envio: cotizacion })
+    if (numero !== null) return numero
+    console.warn(
+      `${PREFIJO_LOG} ${NOMBRE_FUNCION_INVITADA} no está disponible (sin desplegar o falta la migración): ` +
+        'se registra con el RPC directo.',
+    )
+  }
 
   let data: unknown
   let error: ErrorRpc | null = null
@@ -366,6 +448,7 @@ export async function crearPedido({
         'No pudimos conectarnos para registrar el pedido. Revisá tu conexión y volvé a intentar.',
       )
     }
+    if (error.code === '42501') throw new Error(MENSAJE_INVITADA_NO_DISPONIBLE)
     throw new Error(error.message || 'No pudimos registrar el pedido. Probá de nuevo en un momento.')
   }
 

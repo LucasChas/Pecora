@@ -13,6 +13,10 @@ interface ImportMetaEnv {
   // Dirección del remitente que se imprime en la nota de entrega y la etiqueta
   // de envío. Opcional: si falta, esos documentos muestran "—".
   readonly VITE_REMITENTE_DIRECCION?: string
+  // Clave pública (site key) del widget de Cloudflare Turnstile: el CAPTCHA
+  // de la compra como invitada. Sin ella, la compra sin cuenta no funciona
+  // (desde la migración *_proteger_compra_invitada).
+  readonly VITE_TURNSTILE_SITE_KEY?: string
   // 'catalog' | 'admin' | undefined. Define qué vista expone el deploy.
   readonly VITE_APP_MODE?: 'catalog' | 'admin'
 }

@@ -32,7 +32,8 @@ export interface TotalesPedido {
 export interface ReciboData {
   numero: number;
   fecha: string; // ya formateada, ej: "06/08/2026"
-  nombre: string;
+  /** Solo el primer nombre (ver primerNombre en logica.ts); null = saludo sin nombre. */
+  nombre: string | null;
   items: ReciboItem[];
   totales: TotalesPedido;
   entrega: Entrega;
@@ -232,7 +233,9 @@ export function renderRecibo(
   data: ReciboData,
   branding: ReciboBranding,
 ): { subject: string; html: string } {
-  const nombre = escapeHtml(data.nombre);
+  const saludo = data.nombre
+    ? `¡Gracias por tu compra, ${escapeHtml(data.nombre)}!`
+    : "¡Gracias por tu compra!";
   const brandName = escapeHtml(branding.brandName);
   const entregaLabel = ENTREGA_LABEL[data.entrega] ?? escapeHtml(data.entrega);
 
@@ -257,7 +260,7 @@ export function renderRecibo(
     title: escapeHtml(subject),
     header: `
                 ${logoBlock}
-                <h1 style="margin:0;font-size:20px;color:#222;">¡Gracias por tu compra, ${nombre}!</h1>
+                <h1 style="margin:0;font-size:20px;color:#222;">${saludo}</h1>
                 <p style="margin:8px 0 0;font-size:14px;color:#666;">
                   <!-- TODO(owner-copy): revisar texto del email -->
                   Te confirmamos que recibimos tu pedido del ${escapeHtml(data.fecha)}.
@@ -274,6 +277,9 @@ export function renderRecibo(
             </tr>
             ${whatsappBlock}`,
     footer: `
+                <p style="font-size:12px;color:#999;margin:0;">
+                  Si no hiciste este pedido, podés ignorar este mail.
+                </p>
                 <p style="font-size:12px;color:#999;margin:16px 0 0;">
                   ${brandName} · <a href="${escapeHtml(branding.storeUrl)}" style="color:#999;">${escapeHtml(branding.storeUrl)}</a>
                 </p>

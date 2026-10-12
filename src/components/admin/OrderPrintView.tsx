@@ -138,7 +138,7 @@ function NotaEntrega({ pedido }: { pedido: Pedido }) {
           <h1>Nota de entrega</h1>
           <p className="op-nota-numero">N° {pedido.numero}</p>
           <p className="op-nota-meta">
-            {fecha(pedido.created_at)} · {pedido.origen === 'admin' ? 'Pedido manual' : 'Pedido web'}
+            {fecha(pedido.created_at)} · {pedido.origen === 'admin' ? 'Pedido manual' : pedido.origen === 'feria' ? 'Venta en la feria' : 'Pedido web'}
           </p>
         </div>
       </header>
@@ -154,7 +154,7 @@ function NotaEntrega({ pedido }: { pedido: Pedido }) {
         <div className="op-bloque">
           <h2>Destinatario</h2>
           <p className="op-bloque-nombre">{pedido.nombre}</p>
-          <p>Tel. {pedido.telefono}</p>
+          {pedido.telefono && <p>Tel. {pedido.telefono}</p>}
           {pedido.email && <p>{pedido.email}</p>}
           {esEnvio ? (
             <>

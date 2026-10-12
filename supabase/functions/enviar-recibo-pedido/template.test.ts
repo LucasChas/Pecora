@@ -85,6 +85,15 @@ describe('renderRecibo', () => {
     expect(html).toContain('https://x.test/&quot;&gt;&lt;script&gt;')
   })
 
+  it('saluda por el nombre o, sin nombre, en general', () => {
+    expect(renderRecibo(recibo(), branding).html).toContain('¡Gracias por tu compra, Ana!')
+    expect(renderRecibo(recibo({ nombre: null }), branding).html).toContain('¡Gracias por tu compra!</h1>')
+  })
+
+  it('aclara qué hacer si no hiciste el pedido', () => {
+    expect(renderRecibo(recibo(), branding).html).toContain('Si no hiciste este pedido, podés ignorar este mail.')
+  })
+
   it('sin descuento ni envío muestra solo el total', () => {
     const { html } = renderRecibo(recibo(), branding)
     expect(html).toContain('Total: $2.500,00')

@@ -31,6 +31,16 @@ export interface CartItem {
   talle?: string | null
 }
 
+// Tope de unidades por producto (y talle) en una compra web: el mismo que
+// pone crear_pedido (migración *_proteger_compra_invitada). Para más, la
+// clienta escribe por WhatsApp.
+export const MAX_POR_PRODUCTO = 10
+
+// Cuántas unidades se pueden pedir de una línea: el stock, hasta el tope.
+export function maximoPedible(i: Pick<CartItem, 'stock'>): number {
+  return Math.min(i.stock, MAX_POR_PRODUCTO)
+}
+
 // Nombre para mostrar en el carrito y el checkout ("Body · Talle 3-6 m").
 export function nombreConTalle(i: Pick<CartItem, 'nombre' | 'talle'>): string {
   return i.talle ? `${i.nombre} · Talle ${i.talle}` : i.nombre
@@ -155,12 +165,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => {
       const clave = claveItem({ id: producto.id, talleId: talle?.id })
       const existente = prev.find((i) => claveItem(i) === clave)
-      // No dejamos superar el stock conocido (del talle, si tiene).
-      const tope = talle ? talle.stock : producto.stock
+      // No dejamos superar el stock conocido (del talle, si tiene) ni el tope
+      // por producto.
+      const stock = talle ? talle.stock : producto.stock
+      const tope = maximoPedible({ stock })
       if (existente) {
         return prev.map((i) =>
           claveItem(i) === clave
-            ? { ...i, stock: tope, cantidad: Math.min(i.cantidad + cantidad, tope) }
+            ? { ...i, stock, cantidad: Math.min(i.cantidad + cantidad, tope) }
             : i,
         )
       }
@@ -171,7 +183,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           nombre: producto.nombre,
           precio: producto.precio,
           imagen: portadaDe(producto),
-          stock: tope,
+          stock,
           cantidad: Math.min(cantidad, tope),
           slug: producto.slug,
           ...(talle ? { talleId: talle.id, talle: talle.talle } : {}),
@@ -185,7 +197,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const setCantidad = useCallback((clave: string, cantidad: number) => {
     setItems((prev) =>
       prev.map((i) =>
-        claveItem(i) === clave ? { ...i, cantidad: Math.max(1, Math.min(cantidad, i.stock)) } : i,
+        claveItem(i) === clave ? { ...i, cantidad: Math.max(1, Math.min(cantidad, maximoPedible(i))) } : i,
       ),
     )
   }, [])

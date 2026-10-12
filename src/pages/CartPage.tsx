@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
 import HeaderActions from '../components/account/HeaderActions'
-import { claveItem, nombreConTalle, useCart } from '../context/CartContext'
+import { claveItem, maximoPedible, nombreConTalle, useCart } from '../context/CartContext'
 import { money } from '../lib/format'
 import { useDialog } from '../context/DialogContext'
 import Miniatura from '../components/common/Miniatura'
@@ -76,7 +76,7 @@ export default function CartPage() {
                         type="button"
                         onClick={() => setCantidad(claveItem(i), i.cantidad + 1)}
                         aria-label={`Sumar una unidad de ${i.nombre}`}
-                        disabled={i.cantidad >= i.stock}
+                        disabled={i.cantidad >= maximoPedible(i)}
                       >
                         +
                       </button>

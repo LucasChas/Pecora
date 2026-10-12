@@ -17,6 +17,7 @@ import {
 } from '../../lib/estadisticas'
 import { montoCompacto, techo } from '../../lib/graficos'
 import { useAncho } from '../../hooks/useAncho'
+import { etiquetaFeria } from '../../lib/ferias'
 import GastosVista from './GastosVista'
 import RentabilidadVista from './RentabilidadVista'
 import '../../styles/estadisticas.css'
@@ -234,9 +235,16 @@ function Contenido({ datos, rango }: { datos: Estadisticas; rango: Rango }) {
           </article>
 
           <article className="est-card">
-            <h3 className="est-card-titulo">Web vs. manual</h3>
+            <h3 className="est-card-titulo">Web, manual y feria</h3>
             <PorOrigen datos={datos} />
           </article>
+
+          {datos.por_feria.length > 0 && (
+            <article className="est-card">
+              <h3 className="est-card-titulo">Ventas por feria</h3>
+              <PorFeria datos={datos} />
+            </article>
+          )}
         </div>
       )}
     </div>
@@ -402,30 +410,32 @@ function TopVendidos({ datos }: { datos: Estadisticas }) {
   )
 }
 
-// ---- Web vs. manual --------------------------------------------------------
+// ---- Web, manual y feria ---------------------------------------------------
 
 function PorOrigen({ datos }: { datos: Estadisticas }) {
-  const { checkout, admin } = datos.por_origen
-  const total = checkout.total + admin.total
+  const { checkout, admin, feria } = datos.por_origen
+  const total = checkout.total + admin.total + feria.total
   const pctWeb = porcentaje(checkout.total, total)
-  const pctManual = total > 0 ? 100 - pctWeb : 0
+  const pctManual = porcentaje(admin.total, total)
+  // El resto, así las tres partes suman 100 aunque se redondee.
+  const pctFeria = total > 0 ? 100 - pctWeb - pctManual : 0
   const filas = [
     { clave: 'web', nombre: 'Tienda web', d: checkout, pct: pctWeb },
     { clave: 'manual', nombre: 'Cargados a mano', d: admin, pct: pctManual },
+    { clave: 'feria', nombre: 'Ventas en la feria', d: feria, pct: pctFeria },
   ]
   return (
     <div className="est-origen">
       <div
         className="est-origen-barra"
         role="img"
-        aria-label={`Tienda web ${pctWeb}% del total, cargados a mano ${pctManual}%`}
+        aria-label={`Tienda web ${pctWeb}% del total, cargados a mano ${pctManual}%, feria ${pctFeria}%`}
       >
-        {total > 0 ? (
-          <>
-            <span className="est-origen-seg est-origen-seg--web" style={{ width: `${pctWeb}%` }} />
-            <span className="est-origen-seg est-origen-seg--manual" style={{ width: `${pctManual}%` }} />
-          </>
-        ) : null}
+        {total > 0
+          ? filas.map((f) => (
+              <span key={f.clave} className={`est-origen-seg est-origen-seg--${f.clave}`} style={{ width: `${f.pct}%` }} />
+            ))
+          : null}
       </div>
       <ul className="est-origen-leyenda">
         {filas.map((f) => (
@@ -440,5 +450,35 @@ function PorOrigen({ datos }: { datos: Estadisticas }) {
         ))}
       </ul>
     </div>
+  )
+}
+
+// ---- Ventas por feria ----------------------------------------------------------
+// Total de cada feria y cuánto entró por cada medio de pago (para cuadrar la
+// caja).
+
+function PorFeria({ datos }: { datos: Estadisticas }) {
+  return (
+    <ul className="est-ferias">
+      {datos.por_feria.map((f) => {
+        const medios = [
+          { nombre: 'Efectivo', monto: f.efectivo },
+          { nombre: 'Transferencia', monto: f.transferencia },
+          { nombre: 'Mercado Pago', monto: f.mercadopago },
+        ].filter((m) => m.monto > 0)
+        return (
+          <li key={f.feria_id} className="est-feria">
+            <div className="est-feria-cabecera">
+              <span className="est-feria-nombre">{etiquetaFeria(f)}</span>
+              <strong>{money(f.total)}</strong>
+            </div>
+            <span className="est-origen-dato">
+              {numero(f.pedidos)} {f.pedidos === 1 ? 'venta' : 'ventas'}
+              {medios.map((m) => ` · ${m.nombre} ${money(m.monto)}`).join('')}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }

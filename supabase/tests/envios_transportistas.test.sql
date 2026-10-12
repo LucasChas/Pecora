@@ -162,9 +162,9 @@ select results_eq(
   $$ select r.rol::text, has_function_privilege(r.rol,
             'public.crear_pedido(text, text, text, text, text, text, text, text, jsonb, numeric, text, text, uuid, text, uuid)',
             'EXECUTE')
-       from (values ('anon'), ('authenticated')) r(rol) order by 1 $$,
-  $$ values ('anon'::text, true), ('authenticated', true) $$,
-  'crear_pedido: anon (guest checkout) and authenticated'
+       from (values ('anon'), ('authenticated'), ('service_role')) r(rol) order by 1 $$,
+  $$ values ('anon'::text, false), ('authenticated', true), ('service_role', true) $$,
+  'crear_pedido: authenticated and service_role (guests via crear-pedido-invitada), not anon'
 );
 
 -- ----------------------------------------------------------------------------

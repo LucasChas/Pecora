@@ -13,7 +13,7 @@ vi.mock('./supabaseClient', () => ({
   },
 }))
 
-import { ajustarPrecios, errorPorcentaje, porcentajeDe } from './precios'
+import { ajustarPrecios, errorPorcentaje, errorPrecio, fijarPrecios, porcentajeDe, precioDe } from './precios'
 
 beforeEach(() => {
   estado.respuesta = { data: null, error: null }
@@ -52,6 +52,38 @@ describe('ajustarPrecios', () => {
     estado.respuesta = { data: null, error: { code: '42501', message: 'x' } }
     expect(await ajustarPrecios({ porcentaje: 10, categoriaId: null, redondeo: 0 }, true)).toEqual({
       error: 'Tu cuenta no puede cambiar precios.',
+    })
+  })
+})
+
+describe('errorPrecio', () => {
+  it('acepta precios escritos a la argentina y rechaza 0 o negativos', () => {
+    expect(precioDe('5.000')).toBe(5000)
+    expect(precioDe('$ 1.500,50')).toBe(1500.5)
+    expect(errorPrecio('5000')).toBeNull()
+    expect(errorPrecio('')).toMatch(/precio/)
+    expect(errorPrecio('abc')).toMatch(/precio/)
+    expect(errorPrecio('0')).toMatch(/mayor/)
+    expect(errorPrecio('-10')).toMatch(/mayor/)
+    expect(errorPrecio('1000000000')).toMatch(/alto/)
+  })
+})
+
+describe('fijarPrecios', () => {
+  it('manda el precio y la categoría', async () => {
+    estado.respuesta = {
+      data: { cambios: [{ id: 'p1', nombre: 'Medias', antes: '3000', despues: '5000' }], cantidad: 1 },
+      error: null,
+    }
+    const r = await fijarPrecios({ precio: 5000, categoriaId: 'c1' }, false)
+    expect(estado.args).toEqual({ p_precio: 5000, p_categoria_id: 'c1', p_simular: false })
+    expect(r).toEqual({ cambios: [{ id: 'p1', nombre: 'Medias', antes: 3000, despues: 5000 }] })
+  })
+
+  it('avisa si falta la migración', async () => {
+    estado.respuesta = { data: null, error: { code: 'PGRST202', message: 'x' } }
+    expect(await fijarPrecios({ precio: 5000, categoriaId: null }, true)).toEqual({
+      error: 'Falta aplicar la migración fijar_precios en Supabase.',
     })
   })
 })

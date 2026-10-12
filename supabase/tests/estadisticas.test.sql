@@ -240,8 +240,8 @@ select is(
 -- 15
 select is(
   (select j->'por_origen' from r),
-  '{"checkout":{"pedidos":4,"total":900},"admin":{"pedidos":1,"total":1500}}'::jsonb,
-  'por_origen splits checkout and manual orders'
+  '{"checkout":{"pedidos":4,"total":900},"admin":{"pedidos":1,"total":1500},"feria":{"pedidos":0,"total":0}}'::jsonb,
+  'por_origen splits checkout, manual and feria orders'
 );
 -- 16
 select is(
@@ -249,7 +249,7 @@ select is(
      select array_agg(k order by k) as jsonb_object_keys_sorted
        from r, jsonb_object_keys(r.j) k) s),
   array['clientas_con_compra', 'clientas_nuevas', 'mas_vendidos', 'pedidos_periodo',
-        'por_origen', 'ticket_promedio', 'total_periodo', 'ventas_por_mes'],
+        'por_feria', 'por_origen', 'ticket_promedio', 'total_periodo', 'ventas_por_mes'],
   'estadisticas returns exactly the contract keys'
 );
 -- 17 (a single day: Jan 31st)
@@ -275,7 +275,8 @@ select is(
                              'origen', j->'por_origen')
      from (select public.estadisticas('2020-01-01', '2020-01-31') as j) s),
   '{"pedidos":0,"ticket":0,"top":[],
-    "origen":{"checkout":{"pedidos":0,"total":0},"admin":{"pedidos":0,"total":0}}}'::jsonb,
+    "origen":{"checkout":{"pedidos":0,"total":0},"admin":{"pedidos":0,"total":0},
+              "feria":{"pedidos":0,"total":0}}}'::jsonb,
   'a range without orders returns zeros and empty lists'
 );
 -- 20

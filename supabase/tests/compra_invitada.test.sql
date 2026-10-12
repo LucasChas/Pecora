@@ -17,10 +17,12 @@ returns bigint language sql as $$
     '[{"id":"c2b00000-0000-4000-8000-000000000001","cantidad":1}]'::jsonb, 0,
     'checkout', null, null, p_cupon, null)
 $$;
-grant execute on function pg_temp.pedir(text, text, text) to anon;
+-- Desde 20261008120000_proteger_compra_invitada, sin sesión la llama la
+-- Edge Function crear-pedido-invitada con la service_role.
+grant execute on function pg_temp.pedir(text, text, text) to service_role;
 
-set local role anon;
-set local request.jwt.claims = '{"role":"anon"}';
+set local role service_role;
+set local request.jwt.claims = '{"role":"service_role"}';
 
 -- 1
 select lives_ok($$ select pg_temp.pedir('  Ana@Invitada.test ') $$, 'a guest can place an order with an email');
@@ -47,7 +49,7 @@ select is(
   'and it reserves stock like any order'
 );
 
-set local role anon;
+set local role service_role;
 -- 7
 select lives_ok($$ select pg_temp.pedir('ana@invitada.test'); select pg_temp.pedir('ANA@invitada.test') $$,
   'up to 3 orders in 10 minutes with the same email');
