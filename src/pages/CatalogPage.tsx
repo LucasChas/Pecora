@@ -4,7 +4,7 @@ import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
 import BuscadorCatalogo from '../components/catalog/BuscadorCatalogo'
 import BandaConfianza from '../components/catalog/BandaConfianza'
-import CategoryFilters from '../components/common/CategoryFilters'
+import CategoriasCatalogo from '../components/catalog/CategoriasCatalogo'
 import ProductGrid from '../components/catalog/ProductGrid'
 import MasVendidos from '../components/catalog/MasVendidos'
 import HeaderActions from '../components/account/HeaderActions'
@@ -124,7 +124,7 @@ export default function CatalogPage() {
 
   return (
     <div className="catalog-root">
-      <header className="cart-header">
+      <header className="cart-header header-fijo">
         <Logo />
         <HeaderActions />
       </header>
@@ -135,10 +135,11 @@ export default function CatalogPage() {
       <BuscadorCatalogo value={busqueda} onChange={setBusqueda} productos={productos} />
 
       <main>
-        <CategoryFilters
+        <CategoriasCatalogo
           categorias={categorias.map((c) => c.nombre)}
           activa={categoriaActiva}
           onSelect={setCategoria}
+          productos={productos}
         />
 
         {loading ? (
@@ -221,7 +222,7 @@ export default function CatalogPage() {
                     onChange={(e) => setParam('precio', e.target.value || null)}
                     aria-label="Filtrar por precio"
                   >
-                    <option value="">Todos los precios</option>
+                    <option value="">Precio</option>
                     {rangos.map((r) => (
                       <option key={r.valor} value={r.valor}>
                         {r.texto}
@@ -238,6 +239,7 @@ export default function CatalogPage() {
                 type="button"
                 className={soloDisponibles ? 'filtro-toggle activo' : 'filtro-toggle'}
                 aria-pressed={soloDisponibles}
+                aria-label="Mostrar solo disponibles"
                 onClick={() => setParam('stock', soloDisponibles ? null : '1')}
               >
                 {soloDisponibles && (
@@ -245,7 +247,7 @@ export default function CatalogPage() {
                     <path d="M5 12.5l4.5 4.5L19 7.5" />
                   </svg>
                 )}
-                Solo disponibles
+                Disponibles
               </button>
               <label className="filtro-select filtro-orden">
                 <span className="filtro-etiqueta">Ordenar</span>

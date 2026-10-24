@@ -11,9 +11,10 @@ describe('avisoStockBajo', () => {
     expect(avisoStockBajo(1)).toBe('¡Último disponible!')
   })
 
-  it(`de 2 a ${STOCK_BAJO} unidades avisa la cantidad`, () => {
-    expect(avisoStockBajo(2)).toBe('¡Últimas 2 unidades!')
-    expect(avisoStockBajo(STOCK_BAJO)).toBe(`¡Últimas ${STOCK_BAJO} unidades!`)
+  it('con 2 o 3 unidades no avisa (es el stock normal de una tanda artesanal)', () => {
+    expect(STOCK_BAJO).toBe(1)
+    expect(avisoStockBajo(2)).toBeNull()
+    expect(avisoStockBajo(3)).toBeNull()
   })
 
   it('por encima del umbral no hay aviso', () => {
