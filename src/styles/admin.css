@@ -232,6 +232,16 @@
   border-radius: 8px;
   padding: 8px 10px;
 }
+/* Pedido para regalo: se destaca (hay que envolverlo y poner la tarjeta). */
+.order-notas--regalo {
+  background: #FBEBD3;
+  color: #6E4716;
+  white-space: pre-line;
+}
+.order-fila-regalo {
+  font-weight: 700;
+  color: #8A5A1C;
+}
 /* Card que está en la papelera: apagada, para distinguirla de un vistazo. */
 .order-card.en-papelera {
   opacity: 0.72;

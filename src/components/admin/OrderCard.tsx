@@ -3,7 +3,7 @@ import type { EstadoPedido, OrigenPedido, Pedido } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
 import { money } from '../../lib/format'
-import { ETIQUETA_ESTADO, detalleDe, haceCuanto, textoEnvio, totalesDe } from '../../lib/orders'
+import { ETIQUETA_ESTADO, detalleDe, esRegalo, haceCuanto, textoEnvio, totalesDe } from '../../lib/orders'
 import { etiquetaEnvioPedido, sucursalDePedido } from '../../lib/transportistas'
 import { linkWhatsappPedido } from '../../lib/whatsapp'
 import { etiquetaMedioPago } from '../../lib/ferias'
@@ -337,7 +337,11 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
             <span className="order-fila-entrega">
               {pedido.origen === 'feria' ? '🎪 Feria' : esEnvio ? '📦 Envío' : '🛍️ Retiro'}
             </span>
-            {pedido.notas && <span title="Tiene notas">📝</span>}
+            {esRegalo(pedido.notas) ? (
+              <span className="order-fila-regalo">🎁 Regalo</span>
+            ) : (
+              pedido.notas && <span title="Tiene notas">📝</span>
+            )}
             {mails && <span className="order-fila-alerta">Mail sin enviar</span>}
           </span>
         </button>
@@ -492,7 +496,12 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
         </div>
       </div>
 
-      {pedido.notas && <p className="order-notas">📝 {pedido.notas}</p>}
+      {pedido.notas &&
+        (esRegalo(pedido.notas) ? (
+          <p className="order-notas order-notas--regalo">{pedido.notas}</p>
+        ) : (
+          <p className="order-notas">📝 {pedido.notas}</p>
+        ))}
 
       {mails && (
         <div className="order-mails">
