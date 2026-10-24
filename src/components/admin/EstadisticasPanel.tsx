@@ -7,9 +7,11 @@ import {
   etiquetaMes,
   fechaISO,
   porcentaje,
+  rangoAnterior,
   rangoDePeriodo,
   sinDatos,
   validarRango,
+  variacion,
   type Estadisticas,
   type Periodo,
   type Rango,
@@ -31,7 +33,9 @@ import '../../styles/estadisticas.css'
 type Estado =
   | { tipo: 'cargando' }
   | { tipo: 'error'; mensaje: string; faltaMigracion: boolean }
-  | { tipo: 'listo'; datos: Estadisticas }
+  // anterior: el período con el que se compara (null si esa consulta falló:
+  // las tarjetas se muestran igual, sin flechas).
+  | { tipo: 'listo'; datos: Estadisticas; anterior: Estadisticas | null }
 
 const TOP = 10
 
@@ -71,12 +75,13 @@ export default function EstadisticasPanel() {
   const cargar = useCallback(async (r: Rango) => {
     const pedido = ++pedidoRef.current
     setEstado({ tipo: 'cargando' })
-    const res = await cargarEstadisticas(r)
+    // El período y el anterior (para comparar), en paralelo.
+    const [res, ant] = await Promise.all([cargarEstadisticas(r), cargarEstadisticas(rangoAnterior(r))])
     // Si cambiaron el período mientras cargaba, esta respuesta ya no cuenta.
     if (pedido !== pedidoRef.current) return
     setEstado(
       res.ok
-        ? { tipo: 'listo', datos: res.datos }
+        ? { tipo: 'listo', datos: res.datos, anterior: ant.ok ? ant.datos : null }
         : { tipo: 'error', mensaje: res.mensaje, faltaMigracion: res.faltaMigracion },
     )
   }, [])
@@ -200,25 +205,42 @@ export default function EstadisticasPanel() {
             )}
           </div>
         ) : (
-          <Contenido datos={estado.datos} rango={rango} />
+          <Contenido datos={estado.datos} anterior={estado.anterior} rango={rango} />
         )}
       </div>
     </section>
   )
 }
 
-function Contenido({ datos, rango }: { datos: Estadisticas; rango: Rango }) {
+function Contenido({
+  datos,
+  anterior,
+  rango,
+}: {
+  datos: Estadisticas
+  anterior: Estadisticas | null
+  rango: Rango
+}) {
   const meses = useMemo(() => completarMeses(datos.ventas_por_mes, rango), [datos, rango])
+  const previo = rangoAnterior(rango)
+  // Variación de cada número contra el período anterior (null = sin flecha).
+  const v = (clave: 'total_periodo' | 'pedidos_periodo' | 'ticket_promedio' | 'clientas_nuevas' | 'clientas_con_compra') =>
+    anterior ? variacion(datos[clave], anterior[clave]) : null
 
   return (
     <div className="est-contenido">
       <dl className="est-kpis">
-        <Kpi etiqueta="Ventas del período" valor={money(datos.total_periodo)} destacado />
-        <Kpi etiqueta="Pedidos" valor={numero(datos.pedidos_periodo)} />
-        <Kpi etiqueta="Ticket promedio" valor={money(datos.ticket_promedio)} />
-        <Kpi etiqueta="Clientas nuevas" valor={numero(datos.clientas_nuevas)} />
-        <Kpi etiqueta="Clientas que compraron" valor={numero(datos.clientas_con_compra)} />
+        <Kpi etiqueta="Ventas del período" valor={money(datos.total_periodo)} cambio={v('total_periodo')} destacado />
+        <Kpi etiqueta="Pedidos" valor={numero(datos.pedidos_periodo)} cambio={v('pedidos_periodo')} />
+        <Kpi etiqueta="Ticket promedio" valor={money(datos.ticket_promedio)} cambio={v('ticket_promedio')} />
+        <Kpi etiqueta="Clientas nuevas" valor={numero(datos.clientas_nuevas)} cambio={v('clientas_nuevas')} />
+        <Kpi etiqueta="Clientas que compraron" valor={numero(datos.clientas_con_compra)} cambio={v('clientas_con_compra')} />
       </dl>
+      {anterior && (
+        <p className="est-comparacion">
+          Las flechas comparan con {fechaCorta(previo.desde)} – {fechaCorta(previo.hasta)}.
+        </p>
+      )}
 
       {sinDatos(datos) ? (
         <p className="est-vacio">No hubo ventas en este período.</p>
@@ -251,11 +273,36 @@ function Contenido({ datos, rango }: { datos: Estadisticas; rango: Rango }) {
   )
 }
 
-function Kpi({ etiqueta, valor, destacado }: { etiqueta: string; valor: string; destacado?: boolean }) {
+function Kpi({
+  etiqueta,
+  valor,
+  cambio = null,
+  destacado,
+}: {
+  etiqueta: string
+  valor: string
+  // Variación % contra el período anterior; null = no se muestra.
+  cambio?: number | null
+  destacado?: boolean
+}) {
   return (
     <div className={`est-kpi${destacado ? ' est-kpi--destacado' : ''}`}>
       <dt className="est-kpi-etiqueta">{etiqueta}</dt>
-      <dd className="est-kpi-valor">{valor}</dd>
+      <dd className="est-kpi-valor">
+        {valor}
+        {cambio !== null && (
+          <span
+            className={`est-cambio ${cambio > 0 ? 'sube' : cambio < 0 ? 'baja' : 'igual'}`}
+            aria-label={
+              cambio === 0
+                ? 'Igual que el período anterior'
+                : `${Math.abs(cambio)}% ${cambio > 0 ? 'más' : 'menos'} que el período anterior`
+            }
+          >
+            {cambio > 0 ? '▲' : cambio < 0 ? '▼' : '='} {Math.abs(cambio)}%
+          </span>
+        )}
+      </dd>
     </div>
   )
 }

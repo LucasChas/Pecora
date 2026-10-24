@@ -16,6 +16,8 @@ import {
   rangoDePeriodo,
   sinDatos,
   validarRango,
+  rangoAnterior,
+  variacion,
 } from './estadisticas'
 
 describe('rangoDePeriodo', () => {
@@ -190,5 +192,58 @@ describe('cargarEstadisticas', () => {
     rpc.mockRejectedValue(new Error('Failed to fetch'))
     const r = await cargarEstadisticas({ desde: '2026-09-01', hasta: '2026-09-28' })
     expect(r.ok).toBe(false)
+  })
+})
+
+describe('rangoAnterior', () => {
+  it('este mes al día 24: del 1 al 24 del mes anterior', () => {
+    expect(rangoAnterior({ desde: '2026-10-01', hasta: '2026-10-24' })).toEqual({
+      desde: '2026-09-01',
+      hasta: '2026-09-24',
+    })
+  })
+  it('mes completo: el mes anterior completo (aunque tenga otro largo)', () => {
+    expect(rangoAnterior({ desde: '2026-09-01', hasta: '2026-09-30' })).toEqual({
+      desde: '2026-08-01',
+      hasta: '2026-08-31',
+    })
+    expect(rangoAnterior({ desde: '2026-03-01', hasta: '2026-03-31' })).toEqual({
+      desde: '2026-02-01',
+      hasta: '2026-02-28',
+    })
+  })
+  it('últimos 3 meses: los 3 anteriores', () => {
+    expect(rangoAnterior({ desde: '2026-08-01', hasta: '2026-10-24' })).toEqual({
+      desde: '2026-05-01',
+      hasta: '2026-07-24',
+    })
+  })
+  it('este año: los mismos días del año anterior', () => {
+    expect(rangoAnterior({ desde: '2026-01-01', hasta: '2026-10-24' })).toEqual({
+      desde: '2025-01-01',
+      hasta: '2025-10-24',
+    })
+  })
+  it('rango libre: la misma cantidad de días, justo antes', () => {
+    expect(rangoAnterior({ desde: '2026-10-10', hasta: '2026-10-16' })).toEqual({
+      desde: '2026-10-03',
+      hasta: '2026-10-09',
+    })
+    expect(rangoAnterior({ desde: '2026-03-02', hasta: '2026-03-02' })).toEqual({
+      desde: '2026-03-01',
+      hasta: '2026-03-01',
+    })
+  })
+})
+
+describe('variacion', () => {
+  it('porcentaje entero, positivo o negativo', () => {
+    expect(variacion(118, 100)).toBe(18)
+    expect(variacion(96, 100)).toBe(-4)
+    expect(variacion(100, 100)).toBe(0)
+  })
+  it('sin base para comparar: null', () => {
+    expect(variacion(50, 0)).toBeNull()
+    expect(variacion(0, 0)).toBeNull()
   })
 })
