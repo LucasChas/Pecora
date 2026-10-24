@@ -993,11 +993,6 @@
   border-color: var(--sage);
   background: var(--sage-pale);
 }
-.pago-op.disabled {
-  opacity: 0.72;
-  cursor: not-allowed;
-  background: var(--cream);
-}
 .pago-op input {
   accent-color: var(--sage);
   margin-top: 2px;
@@ -1014,24 +1009,18 @@
   font-size: 0.8rem;
   color: var(--ink-soft);
 }
-.badge-pronto {
-  display: inline-block;
-  margin-left: 6px;
-  background: var(--clay);
-  color: #fff;
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 2px 7px;
-  border-radius: 100px;
-  vertical-align: middle;
-}
 
 /* Resumen (columna derecha) */
 .summary-card {
   position: sticky;
   top: 24px;
+}
+/* Botón para plegar el resumen: solo en celular y tablet (ver abajo). */
+.summary-toggle {
+  display: none;
+}
+.checkout-notas {
+  margin: 14px 0 0;
 }
 .summary-items {
   display: flex;
@@ -1110,6 +1099,53 @@
   }
   .summary-card {
     position: static;
+  }
+  /* Resumen plegado: una barra con "Ver resumen (n)" y el total. */
+  .summary-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .summary-toggle span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--sage-deep);
+  }
+  .summary-toggle svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s var(--ease-out);
+  }
+  .summary-toggle[aria-expanded='true'] svg {
+    transform: rotate(180deg);
+  }
+  .summary-toggle strong {
+    font-size: 1.1rem;
+  }
+  .summary-cuerpo {
+    display: none;
+  }
+  .summary-cuerpo.abierto {
+    display: block;
+    margin-top: 12px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .summary-card:has(.summary-cuerpo:not(.abierto)) {
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
 }
 /* Desktop: formulario + resumen. La columna del resumen se estira al alto de
