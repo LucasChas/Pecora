@@ -34,6 +34,7 @@ import {
   parsearMedidas,
   textoPrecioOpcion,
   type OpcionEnvio,
+  resumenEnvioFicha,
 } from './transportistas'
 
 const plano = (s: string) => s.replace(/\s/g, ' ')
@@ -457,5 +458,29 @@ describe('medidas del producto', () => {
       ancho: '20.5',
       largo: '',
     })
+  })
+})
+
+describe('resumenEnvioFicha', () => {
+  it('la más barata de cada transportista + servicio, ordenadas por precio', () => {
+    const lineas = resumenEnvioFicha(
+      [
+        opcion({ cotizacionId: 'a', transportista: 'andreani', servicio: 'sucursal', precio: 5200, plazo: null }),
+        opcion({ cotizacionId: 'b', transportista: 'andreani', servicio: 'sucursal', precio: 4100, plazo: null }),
+        opcion({ cotizacionId: 'c', transportista: 'andreani', servicio: 'domicilio', precio: 6300, plazo: '3 a 5 días' }),
+        opcion({ cotizacionId: 'd', transportista: 'correo_argentino', servicio: 'domicilio', precio: 4800, plazo: null }),
+      ],
+      null,
+    )
+    expect(lineas.map((l) => l.precio)).toEqual([4100, 4800, 6300])
+    expect(lineas[2].texto).toContain('3 a 5 días')
+  })
+
+  it('sin transportistas: la zona, si cubre el destino', () => {
+    expect(resumenEnvioFicha([], { disponible: true, costo: 3500, zonaNombre: 'Córdoba Capital' })).toEqual([
+      { texto: 'Envío a domicilio (Córdoba Capital)', precio: 3500 },
+    ])
+    expect(resumenEnvioFicha([], { disponible: false, costo: 0, zonaNombre: null })).toEqual([])
+    expect(resumenEnvioFicha([], null)).toEqual([])
   })
 })
