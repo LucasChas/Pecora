@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ProductoConCategoria } from '../types'
-import { MAXIMO_RELACIONADOS, elegirRelacionados } from './relacionados'
+import { MAXIMO_RELACIONADOS, elegirRelacionados, palabrasDeLinea, sugerenciasCarrito } from './relacionados'
 
 // ---- Datos de prueba ---------------------------------------------------------
 
@@ -139,5 +139,55 @@ describe('elegirRelacionados', () => {
     const copia = [...todos]
     elegirRelacionados(actual, todos)
     expect(todos).toEqual(copia)
+  })
+})
+
+describe('sugerencias del carrito', () => {
+  const p = (id: string, nombre: string, categoria_id: string, stock = 3, talles: unknown[] | null = null) => ({
+    id,
+    nombre,
+    categoria_id,
+    stock,
+    talles,
+  })
+  const todos = [
+    p('set', 'Set Selva', 'sets'),
+    p('set-pink', 'Set Selva Pink', 'sets'),
+    p('porta', 'Portachupete Selva', 'porta'),
+    p('babita', 'Babita Selva', 'babitas', 0),
+    p('babero', 'Babero "Selva"', 'baberos'),
+    p('bosque', 'Set Bosque', 'sets'),
+    p('toalla', 'Toalla Café', 'toallas'),
+  ]
+
+  it('saca la línea de diseño del nombre', () => {
+    expect(palabrasDeLinea('Set Selva Pink')).toEqual(['selva', 'pink'])
+    expect(palabrasDeLinea('Mantita de apego Conejo')).toEqual(['apego', 'conejo'])
+    expect(palabrasDeLinea('Cestos mini "Floral"')).toEqual(['floral'])
+    expect(palabrasDeLinea('León')).toEqual([])
+  })
+
+  it('prioriza la misma línea y después la misma categoría', () => {
+    const r = sugerenciasCarrito(['set'], todos, 4).map((x) => x.id)
+    // Misma línea exacta primero; "Set Selva Pink" es otra variante y baja.
+    expect(r).toEqual(['porta', 'babero', 'set-pink', 'bosque'])
+  })
+
+  it('no sugiere agotados, con talles, ya en el carrito ni sin relación', () => {
+    const conTalle = [...todos, p('body', 'Body Selva', 'bodies', 5, [{ id: 't' }])]
+    const r = sugerenciasCarrito(['set', 'porta'], conTalle, 10).map((x) => x.id)
+    expect(r).not.toContain('babita')
+    expect(r).not.toContain('body')
+    expect(r).not.toContain('porta')
+    expect(r).not.toContain('toalla')
+  })
+
+  it('carrito vacío o con productos desconocidos: nada', () => {
+    expect(sugerenciasCarrito([], todos)).toEqual([])
+    expect(sugerenciasCarrito(['no-existe'], todos)).toEqual([])
+  })
+
+  it('por defecto, hasta 2', () => {
+    expect(sugerenciasCarrito(['set'], todos)).toHaveLength(2)
   })
 })

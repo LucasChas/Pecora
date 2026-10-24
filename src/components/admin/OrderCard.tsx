@@ -3,7 +3,7 @@ import type { EstadoPedido, OrigenPedido, Pedido } from '../../types'
 import { supabase } from '../../lib/supabaseClient'
 import { useDialog } from '../../context/DialogContext'
 import { money } from '../../lib/format'
-import { ETIQUETA_ESTADO, detalleDe, textoEnvio, totalesDe } from '../../lib/orders'
+import { ETIQUETA_ESTADO, detalleDe, haceCuanto, textoEnvio, totalesDe } from '../../lib/orders'
 import { etiquetaEnvioPedido, sucursalDePedido } from '../../lib/transportistas'
 import { linkWhatsappPedido } from '../../lib/whatsapp'
 import { etiquetaMedioPago } from '../../lib/ferias'
@@ -63,9 +63,12 @@ function fecha(iso: string): string {
   })
 }
 
-// Card de un pedido en el panel: datos de la clienta, entrega, ítems, totales,
-// un selector para cambiar el estado y el menú "Imprimir" (nota de entrega y,
-// si es envío, etiqueta).
+// Card de un pedido en el panel. Cerrada es una fila compacta (número,
+// clienta, hace cuánto, total y etiquetas de estado, pago y entrega): así
+// entran 6 o 7 pedidos por pantalla, en vez de uno. Al tocarla se abre con
+// todo: datos de la clienta, entrega, ítems, totales, un selector para
+// cambiar el estado y el menú "Imprimir" (nota de entrega y, si es envío,
+// etiqueta).
 export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinitivo = false }: Props) {
   const { confirmar, avisar, notificar } = useDialog()
   const enPapelera = pedido.eliminado_at !== null
@@ -76,6 +79,7 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
   const envioTransportista = etiquetaEnvioPedido(pedido)
   const sucursal = envioTransportista ? sucursalDePedido(pedido) : null
   const mails = mailsPendientes(pedido, ahora ?? Date.now())
+  const [abierta, setAbierta] = useState(false)
 
   // Estado que se muestra en el selector: cambia al instante al elegir (antes
   // volvía al anterior hasta que respondía la base y parecía que no anduvo).
@@ -304,18 +308,64 @@ export default function OrderCard({ pedido, onChanged, ahora, puedeBorrarDefinit
     onChanged()
   }
 
+  const sinPagar = tienePago && !pedido.pagado_at && pedido.estado !== 'cancelado' && !enPapelera
+  const clase = `order-card estado-${pedido.estado}${enPapelera ? ' en-papelera' : ''}`
+
+  if (!abierta) {
+    return (
+      <div className={`${clase} order-card--fila`}>
+        <button
+          type="button"
+          className="order-fila"
+          aria-expanded={false}
+          aria-label={`Abrir el pedido #${pedido.numero} de ${pedido.nombre}`}
+          onClick={() => setAbierta(true)}
+        >
+          <span className="order-fila-l1">
+            <span className="order-fila-nombre">
+              #{pedido.numero} · {pedido.nombre}
+            </span>
+            <strong>{money(totales.total)}</strong>
+          </span>
+          <span className="order-fila-l2">
+            <span>{haceCuanto(pedido.created_at, ahora)}</span>
+            <span className={`order-fila-estado ${pedido.estado}`}>{ETIQUETA_ESTADO[pedido.estado]}</span>
+            {sinPagar && <span className="order-pill-pago">Sin pagar</span>}
+            {tienePago && pedido.pagado_at && pedido.estado !== 'cancelado' && (
+              <span className="order-pill-pagado">Pagado</span>
+            )}
+            <span className="order-fila-entrega">
+              {pedido.origen === 'feria' ? '🎪 Feria' : esEnvio ? '📦 Envío' : '🛍️ Retiro'}
+            </span>
+            {pedido.notas && <span title="Tiene notas">📝</span>}
+            {mails && <span className="order-fila-alerta">Mail sin enviar</span>}
+          </span>
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className={`order-card estado-${pedido.estado}${enPapelera ? ' en-papelera' : ''}`}>
+    <div className={clase}>
       <div className="order-top">
         <div>
-          <span className="order-num">Pedido #{pedido.numero}</span>
+          <button
+            type="button"
+            className="order-num order-cerrar"
+            aria-expanded={true}
+            onClick={() => setAbierta(false)}
+            title="Cerrar el pedido"
+          >
+            Pedido #{pedido.numero}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M6 15l6-6 6 6" />
+            </svg>
+          </button>
           <span className={`origin-badge origin-badge--${pedido.origen}`}>
             {ETIQUETA_ORIGEN[pedido.origen] ?? 'Web'}
           </span>
           <span className="order-fecha">{fecha(pedido.created_at)}</span>
-          {tienePago && !pedido.pagado_at && pedido.estado !== 'cancelado' && !enPapelera && (
-            <span className="order-pill-pago">Sin pagar</span>
-          )}
+          {sinPagar && <span className="order-pill-pago">Sin pagar</span>}
         </div>
         {/* En la papelera no se cambia el estado: primero hay que restaurarlo. */}
         <select

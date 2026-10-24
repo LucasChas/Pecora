@@ -1,7 +1,10 @@
 import { supabase } from './supabaseClient'
 
-// Umbral para avisar "pocas unidades" en el catálogo.
-export const STOCK_BAJO = 3
+// Umbral para avisar "pocas unidades" (catálogo y panel). La producción es
+// artesanal y casi todo se carga con 2 o 3 unidades: con un umbral de 3, 36 de
+// 44 productos decían "¡Últimas unidades!" y el aviso no significaba nada (y la
+// tienda parecía vacía). Por eso solo se avisa con la última unidad.
+export const STOCK_BAJO = 1
 
 // Mensaje de stock bajo para mostrar en la card / detalle (o null si no aplica).
 // Solo tiene sentido cuando hay stock (> 0).

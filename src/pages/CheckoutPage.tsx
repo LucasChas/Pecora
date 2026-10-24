@@ -85,7 +85,7 @@ type MetodoPago = 'whatsapp' | 'mercadopago'
 // cotización del envío, método de pago, revalidación de stock/precios contra
 // la base y registro del pedido.
 export default function CheckoutPage() {
-  const { items, subtotal, reemplazar, vaciar } = useCart()
+  const { items, subtotal, cantidadTotal, reemplazar, vaciar } = useCart()
   const { session, perfil, loading: cargandoSesion } = useAuth()
   useTitulo('Finalizar compra')
 
@@ -100,6 +100,7 @@ export default function CheckoutPage() {
   const [cp, setCp] = useState(borrador.cp ?? '')
   const [provincia, setProvincia] = useState(borrador.provincia ?? '')
   const [notas, setNotas] = useState(borrador.notas ?? '')
+  const [resumenAbierto, setResumenAbierto] = useState(false)
   const telefonoRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const mensajesRef = useRef<HTMLDivElement>(null)
@@ -830,6 +831,11 @@ export default function CheckoutPage() {
                       )}
                     </div>
                   )}
+                  {/* Notas dentro de Entrega (antes quedaban sueltas entre tarjetas). */}
+                  <div className="field checkout-notas">
+                    <label htmlFor="checkout-notas">Notas (opcional)</label>
+                    <textarea id="checkout-notas" maxLength={1000} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Horarios, si es para regalo, etc." />
+                  </div>
                 </section>
 
                 <section className="checkout-card">
@@ -844,22 +850,11 @@ export default function CheckoutPage() {
                         <span>Acordás el pago (efectivo, transferencia…) al confirmar el pedido.</span>
                       </div>
                     </label>
-                    <label className="pago-op disabled" title="Lo activamos muy pronto">
-                      <input type="radio" name="pago" disabled />
-                      <div className="pago-txt">
-                        <strong>
-                          Pagar online <span className="badge-pronto">Muy pronto</span>
-                        </strong>
-                        <span>Con MercadoPago: tarjeta, débito o dinero en cuenta.</span>
-                      </div>
-                    </label>
+                    {/* "Pagar online" vuelve cuando esté Mercado Pago: mostrar una
+                        opción deshabilitada ("muy pronto") en el último paso
+                        generaba dudas. */}
                   </div>
                 </section>
-
-                <div className="field">
-                  <label htmlFor="checkout-notas">Notas (opcional)</label>
-                  <textarea id="checkout-notas" maxLength={1000} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Aclaraciones, horarios, etc." />
-                </div>
 
                 <div ref={mensajesRef}>
                   {aviso && (
@@ -891,7 +886,11 @@ export default function CheckoutPage() {
                   className="btn btn-primary"
                   disabled={enviando || validandoCupon || recotizando}
                 >
-                  {recotizando ? 'Actualizando envío…' : enviando ? 'Registrando…' : 'Confirmar pedido'}
+                  {recotizando
+                    ? 'Actualizando envío…'
+                    : enviando
+                      ? 'Registrando…'
+                      : `Confirmar pedido · ${money(totales.total)}`}
                 </button>
                 <Link className="pp-back" to="/carrito">
                   ← Volver al carrito
@@ -901,112 +900,132 @@ export default function CheckoutPage() {
               {/* ---------- Columna resumen ---------- */}
               <aside className="checkout-col-summary">
                 <div className="checkout-card summary-card">
-                  <h2 className="checkout-h">Tu pedido</h2>
-                  <div className="summary-items">
-                    {items.map((i) => (
-                      <div className="summary-item" key={claveItem(i)}>
-                        <div className="summary-thumb">
-                          <Miniatura src={i.imagen} alt={i.nombre} width={60} height={60} />
-                          <span className="summary-qty">{i.cantidad}</span>
+                  {/* Celular y tablet: el resumen va arriba y plegado (antes
+                      empujaba el formulario media pantalla). El total queda
+                      siempre a la vista. En desktop está siempre abierto. */}
+                  <button
+                    type="button"
+                    className="summary-toggle"
+                    aria-expanded={resumenAbierto}
+                    aria-controls="checkout-resumen"
+                    onClick={() => setResumenAbierto((v) => !v)}
+                  >
+                    <span>
+                      {resumenAbierto ? 'Ocultar resumen' : 'Ver resumen'} ({cantidadTotal})
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </span>
+                    <strong>{money(totales.total)}</strong>
+                  </button>
+                  <div id="checkout-resumen" className={resumenAbierto ? 'summary-cuerpo abierto' : 'summary-cuerpo'}>
+                    <h2 className="checkout-h">Tu pedido</h2>
+                    <div className="summary-items">
+                      {items.map((i) => (
+                        <div className="summary-item" key={claveItem(i)}>
+                          <div className="summary-thumb">
+                            <Miniatura src={i.imagen} alt={i.nombre} width={60} height={60} />
+                            <span className="summary-qty">{i.cantidad}</span>
+                          </div>
+                          <span className="summary-name">{nombreConTalle(i)}</span>
+                          <span className="summary-total">{money(i.precio * i.cantidad)}</span>
                         </div>
-                        <span className="summary-name">{nombreConTalle(i)}</span>
-                        <span className="summary-total">{money(i.precio * i.cantidad)}</span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
 
-                  {/* Cupón: fuera del <form> para que Enter aplique el cupón
-                      y no confirme el pedido. */}
-                  <div className="cupon-box">
-                    {!session ? (
-                      <p className="cupon-invitada">
-                        ¿Tenés un cupón? <Link to="/cuenta?next=/checkout">Ingresá a tu cuenta</Link> para
-                        usarlo.
-                      </p>
-                    ) : cupon ? (
-                      <div className="cupon-aplicado">
-                        <span className="cupon-chip">{cupon.resultado.codigo}</span>
-                        <span className="cupon-desc">
-                          {cupon.resultado.envioGratis && cupon.resultado.descuento <= 0
-                            ? 'Envío gratis'
-                            : `− ${money(cupon.resultado.descuento)}`}
-                        </span>
-                        <button
-                          type="button"
-                          className="cupon-quitar"
-                          onClick={quitarCupon}
-                          aria-label={`Quitar el cupón ${cupon.resultado.codigo}`}
-                        >
-                          Quitar
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <label className="cupon-label" htmlFor="checkout-cupon">
-                          ¿Tenés un cupón?
-                        </label>
-                        <div className="cupon-fila">
-                          <input
-                            id="checkout-cupon"
-                            type="text"
-                            value={cuponInput}
-                            onChange={(e) => {
-                              setCuponInput(e.target.value)
-                              setMensajeCupon(null)
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault()
-                                aplicarCupon()
-                              }
-                            }}
-                            placeholder="Código"
-                            autoComplete="off"
-                            autoCapitalize="characters"
-                            spellCheck={false}
-                            aria-invalid={mensajeCupon ? true : undefined}
-                            aria-describedby={mensajeCupon ? 'checkout-cupon-msg' : undefined}
-                          />
+                    {/* Cupón: fuera del <form> para que Enter aplique el cupón
+                        y no confirme el pedido. */}
+                    <div className="cupon-box">
+                      {!session ? (
+                        <p className="cupon-invitada">
+                          ¿Tenés un cupón? <Link to="/cuenta?next=/checkout">Ingresá a tu cuenta</Link> para
+                          usarlo.
+                        </p>
+                      ) : cupon ? (
+                        <div className="cupon-aplicado">
+                          <span className="cupon-chip">{cupon.resultado.codigo}</span>
+                          <span className="cupon-desc">
+                            {cupon.resultado.envioGratis && cupon.resultado.descuento <= 0
+                              ? 'Envío gratis'
+                              : `− ${money(cupon.resultado.descuento)}`}
+                          </span>
                           <button
                             type="button"
-                            className="cupon-aplicar"
-                            onClick={aplicarCupon}
-                            disabled={validandoCupon || cuponInput.trim() === ''}
+                            className="cupon-quitar"
+                            onClick={quitarCupon}
+                            aria-label={`Quitar el cupón ${cupon.resultado.codigo}`}
                           >
-                            {validandoCupon ? 'Validando…' : 'Aplicar'}
+                            Quitar
                           </button>
                         </div>
-                      </>
-                    )}
-                    <p id="checkout-cupon-msg" className="cupon-msg" role="status">
-                      {mensajeCupon ?? cupon?.resultado.mensaje ?? ''}
-                    </p>
-                  </div>
-
-                  <div className="summary-linea">
-                    <span>Subtotal</span>
-                    <span>{money(totales.subtotal)}</span>
-                  </div>
-                  {totales.descuento > 0 && (
-                    <div className="summary-linea summary-descuento">
-                      <span>Descuento ({codigoCupon})</span>
-                      <span>− {money(totales.descuento)}</span>
+                      ) : (
+                        <>
+                          <label className="cupon-label" htmlFor="checkout-cupon">
+                            ¿Tenés un cupón?
+                          </label>
+                          <div className="cupon-fila">
+                            <input
+                              id="checkout-cupon"
+                              type="text"
+                              value={cuponInput}
+                              onChange={(e) => {
+                                setCuponInput(e.target.value)
+                                setMensajeCupon(null)
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  aplicarCupon()
+                                }
+                              }}
+                              placeholder="Código"
+                              autoComplete="off"
+                              autoCapitalize="characters"
+                              spellCheck={false}
+                              aria-invalid={mensajeCupon ? true : undefined}
+                              aria-describedby={mensajeCupon ? 'checkout-cupon-msg' : undefined}
+                            />
+                            <button
+                              type="button"
+                              className="cupon-aplicar"
+                              onClick={aplicarCupon}
+                              disabled={validandoCupon || cuponInput.trim() === ''}
+                            >
+                              {validandoCupon ? 'Validando…' : 'Aplicar'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      <p id="checkout-cupon-msg" className="cupon-msg" role="status">
+                        {mensajeCupon ?? cupon?.resultado.mensaje ?? ''}
+                      </p>
                     </div>
-                  )}
-                  <div className="summary-linea muted">
-                    <span>Envío{zonaEstimada ? ` (${zonaEstimada})` : ''}</span>
-                    <span>{textoEnvioResumen}</span>
+
+                    <div className="summary-linea">
+                      <span>Subtotal</span>
+                      <span>{money(totales.subtotal)}</span>
+                    </div>
+                    {totales.descuento > 0 && (
+                      <div className="summary-linea summary-descuento">
+                        <span>Descuento ({codigoCupon})</span>
+                        <span>− {money(totales.descuento)}</span>
+                      </div>
+                    )}
+                    <div className="summary-linea muted">
+                      <span>Envío{zonaEstimada ? ` (${zonaEstimada})` : ''}</span>
+                      <span>{textoEnvioResumen}</span>
+                    </div>
+                    <div className="summary-linea total">
+                      <span>{hayEstimacion ? 'Total estimado' : 'Total'}</span>
+                      <strong>{money(totales.total)}</strong>
+                    </div>
+                    {envioACoordinar && (
+                      <p className="summary-nota">El costo del envío se suma al coordinarlo.</p>
+                    )}
+                    {hayEstimacion && (
+                      <p className="summary-nota">El total final se confirma al registrar el pedido.</p>
+                    )}
                   </div>
-                  <div className="summary-linea total">
-                    <span>{hayEstimacion ? 'Total estimado' : 'Total'}</span>
-                    <strong>{money(totales.total)}</strong>
-                  </div>
-                  {envioACoordinar && (
-                    <p className="summary-nota">El costo del envío se suma al coordinarlo.</p>
-                  )}
-                  {hayEstimacion && (
-                    <p className="summary-nota">El total final se confirma al registrar el pedido.</p>
-                  )}
                 </div>
               </aside>
             </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { enRango, leerRangoUrl, rangosDePrecio, redondearCorte, sugerencias } from './filtrosCatalogo'
+import { enRango, esNovedad, fotosPorCategoria, leerRangoUrl, rangosDePrecio, redondearCorte, sugerencias } from './filtrosCatalogo'
 
 describe('rangos de precio', () => {
   it('redondea los cortes', () => {
@@ -61,5 +61,50 @@ describe('sugerencias', () => {
 
   it('nada con menos de 2 letras', () => {
     expect(sugerencias(productos, 'm')).toEqual([])
+  })
+})
+
+describe('fotosPorCategoria', () => {
+  const p = (categoria_nombre: string | null, stock: number, imagenes: string[] = [], imagen_url: string | null = null) => ({
+    categoria_nombre,
+    stock,
+    imagenes,
+    imagen_url,
+  })
+
+  it('toma la primera foto de cada categoría, prefiriendo productos con stock', () => {
+    const fotos = fotosPorCategoria([
+      p('Mantas', 0, ['agotada.jpg']),
+      p('Mantas', 2, ['', 'manta.jpg']),
+      p('Sets', 1, [], 'set.jpg'),
+      p('Sets', 3, ['otro-set.jpg']),
+    ])
+    expect(fotos.get('Mantas')).toBe('manta.jpg')
+    expect(fotos.get('Sets')).toBe('set.jpg')
+  })
+
+  it('usa un producto agotado si es el único con foto', () => {
+    expect(fotosPorCategoria([p('Toallas', 0, ['toalla.jpg']), p('Toallas', 4)]).get('Toallas')).toBe('toalla.jpg')
+  })
+
+  it('ignora productos sin categoría o sin foto', () => {
+    const fotos = fotosPorCategoria([p(null, 1, ['x.jpg']), p('Baberos', 1)])
+    expect(fotos.size).toBe(0)
+  })
+})
+
+describe('esNovedad', () => {
+  const ahora = Date.parse('2026-10-24T12:00:00Z')
+  it('nuevo durante los primeros 14 días', () => {
+    expect(esNovedad('2026-10-24T08:00:00Z', ahora)).toBe(true)
+    expect(esNovedad('2026-10-11T12:00:01Z', ahora)).toBe(true)
+  })
+  it('deja de serlo a los 14 días', () => {
+    expect(esNovedad('2026-10-10T12:00:00Z', ahora)).toBe(false)
+  })
+  it('fechas vacías, inválidas o futuras no cuentan', () => {
+    expect(esNovedad(null, ahora)).toBe(false)
+    expect(esNovedad('no es fecha', ahora)).toBe(false)
+    expect(esNovedad('2026-11-01T00:00:00Z', ahora)).toBe(false)
   })
 })

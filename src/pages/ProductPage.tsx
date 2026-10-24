@@ -95,7 +95,7 @@ export default function ProductPage() {
 
   return (
     <div className="catalog-root">
-      <header className="cart-header">
+      <header className="cart-header header-fijo">
         <Link to="/">
           <Logo />
         </Link>

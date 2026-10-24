@@ -1,14 +1,24 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { claveItem, maximoPedible, nombreConTalle, useCart } from '../../context/CartContext'
 import { money } from '../../lib/format'
+import { portadaDe } from '../../lib/images'
+import { sugerenciasCarrito } from '../../lib/relacionados'
+import { productosEnCache } from '../../hooks/useProducts'
 import Miniatura from '../common/Miniatura'
 
 // Carrito lateral (drawer) que se desliza desde la derecha. Es la vista rápida
 // del carrito: se abre al agregar un producto o al tocar el ícono del header.
 export default function CartDrawer() {
-  const { items, subtotal, cantidadTotal, setCantidad, quitar, drawerAbierto, cerrarDrawer } =
+  const { items, subtotal, cantidadTotal, setCantidad, quitar, agregar, drawerAbierto, cerrarDrawer } =
     useCart()
+  // "Completá tu compra": hasta 2 productos de la misma línea o categoría que
+  // lo del carrito, con la lista que ya trajo el muestrario (sin otro pedido).
+  const idsEnCarrito = items.map((i) => i.id).join(',')
+  const sugeridos = useMemo(
+    () => (drawerAbierto ? sugerenciasCarrito(idsEnCarrito.split(','), productosEnCache()) : []),
+    [drawerAbierto, idsEnCarrito],
+  )
   const navigate = useNavigate()
   const panelRef = useRef<HTMLElement>(null)
   const cerrarRef = useRef<HTMLButtonElement>(null)
@@ -129,12 +139,48 @@ export default function CartDrawer() {
                   </div>
                   <div className="drawer-item-right">
                     <span className="drawer-item-total">{money(i.precio * i.cantidad)}</span>
-                    <button className="drawer-remove" onClick={() => quitar(claveItem(i))} aria-label={`Quitar ${i.nombre} del carrito`}>
-                      Quitar
+                    <button
+                      className="drawer-remove"
+                      onClick={() => quitar(claveItem(i))}
+                      aria-label={`Quitar ${i.nombre} del carrito`}
+                      title="Quitar"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+                      </svg>
                     </button>
                   </div>
                 </div>
               ))}
+
+              {sugeridos.length > 0 && (
+                <section className="drawer-sugeridos" aria-labelledby="drawer-sugeridos-titulo">
+                  <h3 id="drawer-sugeridos-titulo">Completá tu compra</h3>
+                  {sugeridos.map((p) => (
+                    <div className="drawer-sugerido" key={p.id}>
+                      <Miniatura src={portadaDe(p)} alt="" width={52} height={52} />
+                      <div className="drawer-sugerido-info">
+                        <button
+                          type="button"
+                          className="drawer-sugerido-nombre"
+                          onClick={() => irA(`/producto/${p.slug ?? p.id}`)}
+                        >
+                          {p.nombre}
+                        </button>
+                        <span>{money(p.precio)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="drawer-sugerido-agregar"
+                        onClick={() => agregar(p)}
+                        aria-label={`Agregar ${p.nombre} al carrito`}
+                      >
+                        + Agregar
+                      </button>
+                    </div>
+                  ))}
+                </section>
+              )}
             </div>
 
             <footer className="drawer-foot">
@@ -142,9 +188,9 @@ export default function CartDrawer() {
                 <span>Subtotal</span>
                 <strong>{money(subtotal)}</strong>
               </div>
-              <p className="drawer-nota">El pago y el envío los coordinamos por WhatsApp.</p>
+              <p className="drawer-nota">El envío se calcula en el siguiente paso. El pago lo coordinamos por WhatsApp.</p>
               <button className="btn btn-primary" onClick={() => irA('/checkout')}>
-                Finalizar compra
+                Finalizar compra · {money(subtotal)}
               </button>
               <button className="drawer-seguir" onClick={cerrarDrawer}>
                 Seguir comprando

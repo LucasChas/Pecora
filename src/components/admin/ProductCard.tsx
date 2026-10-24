@@ -14,7 +14,8 @@ interface Props {
 
 // Card de producto en el panel admin, con edición inline de precio y stock.
 // Los cambios se guardan al salir del campo (onBlur) y Realtime refresca la
-// vista (acá y en el catálogo público).
+// vista (acá y en el catálogo público). Tocar la foto o el nombre abre la
+// edición completa (antes había una fila aparte "Editar foto y datos").
 export default function ProductCard({ producto, onEditar, onChanged }: Props) {
   const { avisar, notificar } = useDialog()
   const disponible = producto.stock > 0
@@ -111,15 +112,28 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
   return (
     <div className="prod-card">
       {/* Portada = primera de la galería (igual que el catálogo), en miniatura. */}
-      <Miniatura src={portadaDe(producto)} alt="" width={60} height={60} />
+      <button
+        type="button"
+        className="prod-foto"
+        onClick={() => onEditar(producto)}
+        aria-label={`Editar foto y datos de ${producto.nombre}`}
+        tabIndex={-1}
+      >
+        <Miniatura src={portadaDe(producto)} alt="" width={60} height={60} />
+      </button>
       <div className="prod-main">
         <div className="prod-top">
-          <div>
-            <div className="prod-name">{producto.nombre}</div>
-            <div className="prod-cat">{producto.categoria_nombre ?? 'Sin categoría'}</div>
-          </div>
+          <button
+            type="button"
+            className="prod-abrir"
+            onClick={() => onEditar(producto)}
+            aria-label={`Editar foto y datos de ${producto.nombre}`}
+          >
+            <span className="prod-name">{producto.nombre}</span>
+            <span className="prod-cat">{producto.categoria_nombre ?? 'Sin categoría'}</span>
+          </button>
           <span className={!disponible ? 'status-pill off' : pocoStock ? 'status-pill low' : 'status-pill ok'}>
-            {!disponible ? 'Sin stock' : pocoStock ? `Quedan ${producto.stock}` : 'Disponible'}
+            {!disponible ? 'Sin stock' : pocoStock ? (producto.stock === 1 ? 'Queda 1' : `Quedan ${producto.stock}`) : 'Disponible'}
           </span>
         </div>
 
@@ -148,7 +162,7 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
               <span className="mini-field-rotulo">Stock por talle</span>
               <ul className="prod-talles" aria-label={`Stock por talle de ${producto.nombre}`}>
                 {producto.talles.map((t) => (
-                  <li key={t.id} className={t.stock <= 0 ? 'sin' : t.stock <= 3 ? 'poco' : undefined}>
+                  <li key={t.id} className={t.stock <= 0 ? 'sin' : t.stock <= STOCK_BAJO ? 'poco' : undefined}>
                     {t.talle} <strong>{t.stock}</strong>
                   </li>
                 ))}
@@ -187,12 +201,6 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
               </div>
             </div>
           )}
-        </div>
-
-        <div className="prod-actions">
-          <button className="link-btn" onClick={() => onEditar(producto)}>
-            Editar foto y datos
-          </button>
         </div>
       </div>
     </div>

@@ -104,3 +104,36 @@ export function sugerencias<T extends { nombre: string; stock: number; categoria
     .slice(0, max)
     .map((x) => x.p)
 }
+
+/**
+ * Foto representativa de cada categoría para la fila de categorías de la
+ * portada: la del primer producto (en el orden recibido) que tenga foto
+ * propia, prefiriendo los que tienen stock. Las categorías sin ninguna foto
+ * no aparecen en el mapa (la UI muestra la inicial).
+ */
+export function fotosPorCategoria<
+  T extends { categoria_nombre?: string | null; stock: number; imagenes?: string[] | null; imagen_url?: string | null },
+>(productos: readonly T[]): Map<string, string> {
+  const conStock = new Map<string, string>()
+  const sinStock = new Map<string, string>()
+  for (const p of productos) {
+    const cat = p.categoria_nombre
+    const foto = (p.imagenes ?? []).find(Boolean) ?? p.imagen_url
+    if (!cat || !foto) continue
+    const destino = p.stock > 0 ? conStock : sinStock
+    if (!destino.has(cat)) destino.set(cat, foto)
+  }
+  for (const [cat, foto] of sinStock) if (!conStock.has(cat)) conStock.set(cat, foto)
+  return conStock
+}
+
+// Días que un producto recién cargado lleva la etiqueta "Nuevo".
+export const DIAS_NOVEDAD = 14
+
+/** true si el producto se cargó hace menos de DIAS_NOVEDAD días. */
+export function esNovedad(createdAt: string | null | undefined, ahora: number = Date.now()): boolean {
+  if (!createdAt) return false
+  const t = Date.parse(createdAt)
+  if (Number.isNaN(t)) return false
+  return ahora - t >= 0 && ahora - t < DIAS_NOVEDAD * 24 * 60 * 60 * 1000
+}
