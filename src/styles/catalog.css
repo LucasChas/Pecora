@@ -313,8 +313,11 @@
     padding: 4px 14px 6px;
     scroll-padding-inline: 14px;
   }
+  /* Ancho según el nombre (entre 64 y 90 px): "Portachupetes" no se sale. */
   .categoria {
-    width: 68px;
+    width: auto;
+    min-width: 64px;
+    max-width: 90px;
   }
   .categoria-foto {
     width: 60px;
@@ -444,10 +447,11 @@
   padding: 5px 10px;
   border-radius: 100px;
 }
+/* Última unidad: ámbar suave, informa sin alarmar (antes era rojo). */
 .badge--pocas {
-  background: #fff;
-  color: var(--danger);
-  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.15);
+  background: #FBEBD3;
+  color: #8A5A1C;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.12);
 }
 .card-body {
   padding: 14px 16px 18px;
@@ -456,14 +460,6 @@
   gap: 4px;
   flex: 1;
 }
-.card-cat {
-  margin: 0;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--sage);
-}
 .card-body h3 {
   font-family: 'Fraunces', serif;
   font-weight: 500;
@@ -471,18 +467,6 @@
   line-height: 1.25;
   margin: 0;
   color: var(--ink);
-}
-/* Siempre dos líneas como máximo, en todos los tamaños. */
-.card-body .desc {
-  font-size: 0.83rem;
-  color: var(--ink-soft);
-  line-height: 1.4;
-  margin: 2px 0 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
 }
 /* Precio y estrellas abajo de todo: alineados entre cards de la misma fila. */
 .card-pie {
@@ -709,6 +693,33 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+/* Agotado: un solo botón que lleva al aviso de reposición de la ficha. */
+.card-avisar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.card-avisar svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-avisar:hover {
+    border-color: var(--sage);
+    background: var(--sage-pale);
+  }
 }
 /* Sin CTA (producto disponible): restaurar el padding inferior completo para
    que la card no quede con el precio pegado al borde. */
@@ -993,8 +1004,8 @@
 .pd-low-stock {
   margin: 0;
   font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--danger);
+  font-weight: 600;
+  color: #8A5A1C;
 }
 .pd-note {
   margin: 6px 0 0;
@@ -2070,11 +2081,28 @@
   .filtro-orden {
     margin-left: 0;
   }
-  /* Bajan de renglón en el celular: antes eran una fila deslizable y el
-     orden quedaba fuera de la pantalla. */
+  /* Celular: los tres en un solo renglón de columnas iguales (antes bajaban
+     a dos renglones). Sin scroll de costado, así el orden nunca queda afuera;
+     si un texto no entra, el select lo recorta. */
   .catalogo-filtros {
-    flex-wrap: wrap;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .catalogo-filtros .filtro-select,
+  .catalogo-filtros .filtro-select select,
+  .catalogo-filtros .filtro-toggle {
+    width: 100%;
+    min-width: 0;
+  }
+  .catalogo-filtros .filtro-select select {
+    padding: 6px 8px;
+    text-overflow: ellipsis;
+  }
+  .catalogo-filtros .filtro-toggle {
+    justify-content: center;
+    padding: 6px 8px;
+    font-size: 0.85rem;
   }
 }
 .no-results--filtros {
@@ -2181,10 +2209,6 @@
   /* "4,0 · 2 reseñas" en la ficha: lleva a las reseñas. */
   .pd-rating {
     min-height: 40px;
-  }
-  /* Categoría arriba del nombre en las cards. */
-  .card-cat {
-    font-size: 0.72rem;
   }
 }
 

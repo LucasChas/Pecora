@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { ProductoConCategoria } from '../../types'
 import { fotosPorCategoria } from '../../lib/filtrosCatalogo'
 import Miniatura from '../common/Miniatura'
@@ -18,10 +18,26 @@ interface Props {
 export default function CategoriasCatalogo({ categorias, activa, onSelect, productos }: Props) {
   const fotos = useMemo(() => fotosPorCategoria(productos), [productos])
   const opciones = ['Todos', ...categorias]
+  const filaRef = useRef<HTMLUListElement>(null)
+
+  // Si la categoría activa quedó fuera de la fila (ej. se entró por un link
+  // con ?cat=), se desliza la fila hasta mostrarla. Solo la fila, no la página.
+  useEffect(() => {
+    const fila = filaRef.current
+    const boton = fila?.querySelector<HTMLElement>('.categoria.activa')
+    if (!fila || !boton) return
+    const item = boton.parentElement as HTMLElement
+    const margen = parseFloat(getComputedStyle(fila).paddingLeft) || 0
+    const izq = item.offsetLeft - fila.offsetLeft
+    const der = izq + item.offsetWidth
+    if (izq < fila.scrollLeft + margen || der > fila.scrollLeft + fila.clientWidth - margen) {
+      fila.scrollTo({ left: Math.max(0, izq - margen) })
+    }
+  }, [activa, categorias.length])
 
   return (
     <nav className="categorias" aria-label="Categorías">
-      <ul className="categorias-fila">
+      <ul className="categorias-fila" ref={filaRef}>
         {opciones.map((c) => {
           const activo = c === activa
           const foto = c === 'Todos' ? null : fotos.get(c)

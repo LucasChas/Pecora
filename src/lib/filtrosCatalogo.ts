@@ -126,3 +126,14 @@ export function fotosPorCategoria<
   for (const [cat, foto] of sinStock) if (!conStock.has(cat)) conStock.set(cat, foto)
   return conStock
 }
+
+// Días que un producto recién cargado lleva la etiqueta "Nuevo".
+export const DIAS_NOVEDAD = 14
+
+/** true si el producto se cargó hace menos de DIAS_NOVEDAD días. */
+export function esNovedad(createdAt: string | null | undefined, ahora: number = Date.now()): boolean {
+  if (!createdAt) return false
+  const t = Date.parse(createdAt)
+  if (Number.isNaN(t)) return false
+  return ahora - t >= 0 && ahora - t < DIAS_NOVEDAD * 24 * 60 * 60 * 1000
+}

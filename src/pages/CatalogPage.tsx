@@ -222,7 +222,7 @@ export default function CatalogPage() {
                     onChange={(e) => setParam('precio', e.target.value || null)}
                     aria-label="Filtrar por precio"
                   >
-                    <option value="">Todos los precios</option>
+                    <option value="">Precio</option>
                     {rangos.map((r) => (
                       <option key={r.valor} value={r.valor}>
                         {r.texto}
@@ -239,6 +239,7 @@ export default function CatalogPage() {
                 type="button"
                 className={soloDisponibles ? 'filtro-toggle activo' : 'filtro-toggle'}
                 aria-pressed={soloDisponibles}
+                aria-label="Mostrar solo disponibles"
                 onClick={() => setParam('stock', soloDisponibles ? null : '1')}
               >
                 {soloDisponibles && (
@@ -246,7 +247,7 @@ export default function CatalogPage() {
                     <path d="M5 12.5l4.5 4.5L19 7.5" />
                   </svg>
                 )}
-                Solo disponibles
+                Disponibles
               </button>
               <label className="filtro-select filtro-orden">
                 <span className="filtro-etiqueta">Ordenar</span>

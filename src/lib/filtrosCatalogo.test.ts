@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { enRango, fotosPorCategoria, leerRangoUrl, rangosDePrecio, redondearCorte, sugerencias } from './filtrosCatalogo'
+import { enRango, esNovedad, fotosPorCategoria, leerRangoUrl, rangosDePrecio, redondearCorte, sugerencias } from './filtrosCatalogo'
 
 describe('rangos de precio', () => {
   it('redondea los cortes', () => {
@@ -90,5 +90,21 @@ describe('fotosPorCategoria', () => {
   it('ignora productos sin categoría o sin foto', () => {
     const fotos = fotosPorCategoria([p(null, 1, ['x.jpg']), p('Baberos', 1)])
     expect(fotos.size).toBe(0)
+  })
+})
+
+describe('esNovedad', () => {
+  const ahora = Date.parse('2026-10-24T12:00:00Z')
+  it('nuevo durante los primeros 14 días', () => {
+    expect(esNovedad('2026-10-24T08:00:00Z', ahora)).toBe(true)
+    expect(esNovedad('2026-10-11T12:00:01Z', ahora)).toBe(true)
+  })
+  it('deja de serlo a los 14 días', () => {
+    expect(esNovedad('2026-10-10T12:00:00Z', ahora)).toBe(false)
+  })
+  it('fechas vacías, inválidas o futuras no cuentan', () => {
+    expect(esNovedad(null, ahora)).toBe(false)
+    expect(esNovedad('no es fecha', ahora)).toBe(false)
+    expect(esNovedad('2026-11-01T00:00:00Z', ahora)).toBe(false)
   })
 })
