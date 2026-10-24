@@ -162,7 +162,7 @@ export default function ProductCard({ producto, onEditar, onChanged }: Props) {
               <span className="mini-field-rotulo">Stock por talle</span>
               <ul className="prod-talles" aria-label={`Stock por talle de ${producto.nombre}`}>
                 {producto.talles.map((t) => (
-                  <li key={t.id} className={t.stock <= 0 ? 'sin' : t.stock <= 3 ? 'poco' : undefined}>
+                  <li key={t.id} className={t.stock <= 0 ? 'sin' : t.stock <= STOCK_BAJO ? 'poco' : undefined}>
                     {t.talle} <strong>{t.stock}</strong>
                   </li>
                 ))}

@@ -1390,6 +1390,8 @@
   .admin-root .list--pedidos {
     grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
     gap: 16px;
+    /* Una card abierta no estira a las cerradas de su fila. */
+    align-items: start;
   }
   .admin-root .list > .empty,
   .admin-root .list > .orders-mas {
@@ -3294,5 +3296,100 @@
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
+  }
+}
+
+/* ============================================================
+   Pedido cerrado: fila compacta. Se abre al tocarla (OrderCard).
+   ============================================================ */
+.order-card--fila {
+  padding: 0;
+  gap: 0;
+}
+.order-fila {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  border-radius: inherit;
+}
+.order-fila-l1 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.92rem;
+}
+.order-fila-nombre {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.order-fila-l1 strong {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.order-fila-l2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.order-fila-l2 .order-pill-pago {
+  margin-left: 0;
+}
+.order-fila-estado {
+  font-weight: 700;
+  color: var(--ink);
+}
+.order-fila-estado.nuevo {
+  color: var(--sage-deep);
+}
+.order-fila-estado.cancelado {
+  color: var(--danger);
+}
+.order-pill-pagado {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: var(--success-pale);
+  color: #4F7A35;
+}
+.order-fila-alerta {
+  font-weight: 700;
+  color: var(--danger);
+}
+/* "Pedido #1042 ▴": cierra la card abierta. */
+.order-cerrar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+.order-cerrar svg {
+  width: 16px;
+  height: 16px;
+  color: var(--ink-soft);
+}
+@media (max-width: 767px) {
+  .admin-root .order-cerrar {
+    min-height: 40px;
   }
 }

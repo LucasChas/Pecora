@@ -32,6 +32,7 @@ import {
   textoEnvio,
   totalesDe,
   type NuevoPedido,
+  haceCuanto,
 } from './orders'
 import { ErrorCotizacionVencida, MENSAJE_COTIZACION_VENCIDA } from './transportistas'
 
@@ -591,5 +592,28 @@ describe('crearPedido como invitada (con CAPTCHA)', () => {
   it('sin CAPTCHA, la base rechaza a las invitadas (42501) con un mensaje claro', async () => {
     rpc.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'permission denied for function crear_pedido' } })
     await expect(crearPedido({ ...base, captcha: null })).rejects.toThrow(MENSAJE_INVITADA_NO_DISPONIBLE)
+  })
+})
+
+describe('haceCuanto', () => {
+  // Fechas locales: el texto usa la hora del dispositivo.
+  const ahora = new Date(2026, 9, 24, 15, 0).getTime()
+  const en = (dia: number, h: number, m: number) => new Date(2026, 9, dia, h, m).toISOString()
+
+  it('minutos y horas cercanas', () => {
+    expect(haceCuanto(en(24, 14, 59), ahora)).toBe('hace 1 min')
+    expect(haceCuanto(en(24, 14, 48), ahora)).toBe('hace 12 min')
+    expect(haceCuanto(en(24, 11, 30), ahora)).toBe('hace 3 h')
+    expect(haceCuanto(new Date(ahora - 10_000).toISOString(), ahora)).toBe('recién')
+  })
+
+  it('hoy, ayer y fecha', () => {
+    expect(haceCuanto(en(24, 8, 5), ahora)).toBe('hoy 08:05')
+    expect(haceCuanto(en(23, 18, 40), ahora)).toBe('ayer 18:40')
+    expect(haceCuanto(en(21, 9, 0), ahora)).toBe('21/10 09:00')
+  })
+
+  it('fecha inválida: vacío', () => {
+    expect(haceCuanto('x', ahora)).toBe('')
   })
 })

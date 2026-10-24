@@ -540,3 +540,24 @@ export const ETIQUETA_ESTADO: Record<EstadoPedido, string> = {
   entregado: 'Entregado',
   cancelado: 'Cancelado',
 }
+
+// "hace 12 min", "hace 3 h", "ayer 18:40" o "21/10 18:40": cuándo entró un
+// pedido, para la fila compacta de la lista del panel.
+export function haceCuanto(iso: string, ahora: number = Date.now()): string {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return ''
+  const min = Math.floor((ahora - t) / 60000)
+  if (min < 1) return 'recién'
+  if (min < 60) return `hace ${min} min`
+  if (min < 6 * 60) return `hace ${Math.floor(min / 60)} h`
+  const d = new Date(t)
+  const hora = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const hoy = new Date(ahora)
+  const mismoDia = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  if (mismoDia(d, hoy)) return `hoy ${hora}`
+  const ayer = new Date(ahora - 24 * 60 * 60 * 1000)
+  if (mismoDia(d, ayer)) return `ayer ${hora}`
+  const dia = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+  return `${dia} ${hora}`
+}
