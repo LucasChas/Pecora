@@ -57,6 +57,7 @@ export function entradasSitemap(sitio: string, productos: readonly FilaProducto[
     { loc: `${sitio}/`, prioridad: '1.0' },
     { loc: `${sitio}/privacidad`, prioridad: '0.2' },
     { loc: `${sitio}/terminos`, prioridad: '0.2' },
+    { loc: `${sitio}/ayuda`, prioridad: '0.4' },
   ]
   const vistos = new Set<string>()
   const fichas: EntradaSitemap[] = []

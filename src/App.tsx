@@ -16,6 +16,8 @@ import ScrollManager from './components/ScrollManager'
 import { PrivacyPage } from './pages/PrivacyPage'
 import { TermsPage } from './pages/TermsPage'
 import BajaAvisoPage from './pages/BajaAvisoPage'
+import AyudaPage from './pages/AyudaPage'
+import ArrepentimientoPage from './pages/ArrepentimientoPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 // El panel se descarga aparte, solo cuando se abre: antes el muestrario
@@ -84,6 +86,8 @@ function RutasCatalogo() {
       <Route path="/mis-pedidos/:numero/comprobante" element={<ComprobantePage />} />
       <Route path="/privacidad" element={<PrivacyPage />} />
       <Route path="/terminos" element={<TermsPage />} />
+      <Route path="/ayuda" element={<AyudaPage />} />
+      <Route path="/arrepentimiento" element={<ArrepentimientoPage />} />
       <Route path="/aviso/baja" element={<BajaAvisoPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Route>

@@ -211,6 +211,35 @@
 .est-kpi--destacado .est-kpi-valor {
   font-size: 1.7rem;
 }
+/* Variación contra el período anterior: ▲ verde, ▼ rojo, = gris. */
+.est-cambio {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 100px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.est-cambio.sube {
+  background: var(--success-pale);
+  color: #4F7A35;
+}
+.est-cambio.baja {
+  background: var(--danger-pale);
+  color: #A8463D;
+}
+.est-cambio.igual {
+  background: var(--cream);
+  color: var(--ink-soft);
+}
+.est-comparacion {
+  margin: -6px 0 14px;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
 
 /* ---------- Tarjetas ---------- */
 .est-grid {

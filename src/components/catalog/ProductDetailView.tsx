@@ -19,6 +19,7 @@ import ImageZoom from '../common/ImageZoom'
 import Miniatura from '../common/Miniatura'
 import { Estrellas } from './ResenasProducto'
 import BotonFavorito from './BotonFavorito'
+import CalcularEnvio from './CalcularEnvio'
 import { estrellasDePromedio, formatearPromedio, textoCantidad } from '../../lib/resenas'
 import { useResumenesResenas } from '../../hooks/useResumenesResenas'
 
@@ -229,6 +230,9 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
 
           {/* CTA principal de ecommerce: agregar al carrito */}
           <AddToCart producto={producto} />
+
+          {/* Costo del envío antes del checkout (con stock). */}
+          {disponible && <CalcularEnvio producto={producto} />}
 
           {/* "Avisame cuando vuelva": mail cuando vuelva a haber stock. */}
           {!disponible && <AvisoReposicion productoId={producto.id} />}

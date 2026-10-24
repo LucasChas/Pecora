@@ -1022,6 +1022,40 @@
 .checkout-notas {
   margin: 14px 0 0;
 }
+/* "Es para regalo" (se guarda al principio de las notas del pedido). */
+.checkout-regalo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.checkout-regalo.activo {
+  border-color: var(--sage);
+  background: var(--sage-pale);
+}
+.checkout-regalo input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--sage);
+}
+.checkout-regalo > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.checkout-regalo strong {
+  font-size: 0.9rem;
+}
+.checkout-regalo > span > span {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
 .summary-items {
   display: flex;
   flex-direction: column;

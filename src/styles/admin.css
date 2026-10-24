@@ -232,6 +232,16 @@
   border-radius: 8px;
   padding: 8px 10px;
 }
+/* Pedido para regalo: se destaca (hay que envolverlo y poner la tarjeta). */
+.order-notas--regalo {
+  background: #FBEBD3;
+  color: #6E4716;
+  white-space: pre-line;
+}
+.order-fila-regalo {
+  font-weight: 700;
+  color: #8A5A1C;
+}
 /* Card que está en la papelera: apagada, para distinguirla de un vistazo. */
 .order-card.en-papelera {
   opacity: 0.72;
@@ -3391,5 +3401,169 @@
 @media (max-width: 767px) {
   .admin-root .order-cerrar {
     min-height: 40px;
+  }
+}
+
+/* ============================================================
+   Inicio del panel (InicioPanel): lo pendiente del día, ventas del mes
+   y accesos rápidos.
+   ============================================================ */
+.inicio {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 16px 24px;
+}
+.inicio-titulo {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: var(--ink);
+}
+.inicio-card {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.06);
+  padding: 14px 16px;
+}
+.inicio-subtitulo {
+  margin: 0 0 4px;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+.inicio-al-dia {
+  margin: 6px 0 2px;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+.inicio-tareas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.inicio-tareas li + li {
+  border-top: 1px solid var(--line);
+}
+.inicio-tarea {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.inicio-tarea > svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--ink-soft);
+}
+.inicio-num {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.inicio-num--nuevo {
+  background: #FBEBD3;
+  color: #8A5A1C;
+}
+.inicio-num--alerta {
+  background: var(--danger-pale);
+  color: #A8463D;
+}
+.inicio-num--info {
+  background: #E2EAF2;
+  color: #4A6684;
+}
+.inicio-num--neutro {
+  background: var(--cream);
+  color: var(--ink-soft);
+}
+.inicio-tarea-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.inicio-tarea-txt strong {
+  font-size: 0.92rem;
+}
+.inicio-tarea-txt span {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.inicio-ventas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.inicio-ventas-etiqueta {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.inicio-ventas-valor {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.7rem;
+  font-variant-numeric: tabular-nums;
+}
+.inicio-ventas-detalle {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.inicio-accesos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.inicio-accesos button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 84px;
+  padding: 12px 6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(51, 48, 42, 0.06);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: center;
+  cursor: pointer;
+}
+.inicio-accesos svg {
+  width: 24px;
+  height: 24px;
+  color: var(--sage-deep);
+}
+@media (min-width: 768px) {
+  .admin-root .inicio {
+    max-width: 720px;
+    padding: 24px var(--admin-gutter) 32px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .inicio-tarea:hover strong {
+    color: var(--sage-deep);
+  }
+  .inicio-accesos button:hover {
+    box-shadow: 0 0 0 1px var(--sage);
   }
 }

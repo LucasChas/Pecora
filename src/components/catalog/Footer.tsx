@@ -42,6 +42,24 @@ export default function Footer() {
           )}
         </div>
 
+        {/* Ayuda: lo que antes siempre terminaba en un WhatsApp. El botón de
+            arrepentimiento tiene que estar a la vista (Res. 424/2020). */}
+        <nav className="site-footer-ayuda" aria-label="Ayuda">
+          <Link to="/ayuda#comprar" className="site-footer-link">
+            Cómo comprar
+          </Link>
+          <Link to="/ayuda#envios" className="site-footer-link">
+            Envíos y retiro
+          </Link>
+          <Link to="/ayuda#cambios" className="site-footer-link">
+            Cambios y devoluciones
+          </Link>
+          <Link to="/arrepentimiento" className="site-footer-arrep">
+            Botón de arrepentimiento
+          </Link>
+        </nav>
+        <p className="site-footer-pagos">Pagás por transferencia o en efectivo</p>
+
         <InstalarApp />
 
         <div className="site-footer-legal">

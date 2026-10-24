@@ -93,6 +93,53 @@ export function rangoDePeriodo(periodo: Exclude<Periodo, 'personalizado'>, hoy: 
   }
 }
 
+// ---- Comparación con el período anterior ----------------------------------
+
+function diasDelMes(y: number, m0: number): number {
+  return new Date(y, m0 + 1, 0).getDate()
+}
+
+// Corre una fecha 'YYYY-MM-DD' `meses` meses hacia atrás. Si el día no existe
+// en el mes destino (31 de marzo -> febrero), queda el último día del mes; si
+// era el último día del mes, sigue siéndolo (30/09 -> 31/08).
+function restarMeses(iso: string, meses: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const destino = new Date(y, m - 1 - meses, 1)
+  const ultimo = diasDelMes(destino.getFullYear(), destino.getMonth())
+  const eraUltimo = d === diasDelMes(y, m - 1)
+  destino.setDate(eraUltimo ? ultimo : Math.min(d, ultimo))
+  return fechaISO(destino)
+}
+
+/**
+ * Período con el que se compara `r` (para las flechas ▲ ▼ de las tarjetas):
+ * - Arranca el 1 de enero ("Este año"): los mismos días del año anterior.
+ * - Arranca el día 1 de un mes ("Este mes", "Mes pasado", "Últimos 3
+ *   meses"): los mismos días, corridos tantos meses como abarca. "Este mes"
+ *   al día 24 se compara con el 1 al 24 del mes anterior, no con el mes entero.
+ * - Cualquier otro rango: la misma cantidad de días, justo antes.
+ */
+export function rangoAnterior(r: Rango): Rango {
+  const [y, m, d] = r.desde.split('-').map(Number)
+  if (d === 1) {
+    const meses = m === 1 ? 12 : mesesEntre(r.desde, r.hasta).length
+    return { desde: restarMeses(r.desde, meses), hasta: restarMeses(r.hasta, meses) }
+  }
+  const inicio = new Date(y, m - 1, d)
+  const [yh, mh, dh] = r.hasta.split('-').map(Number)
+  const dias = Math.round((new Date(yh, mh - 1, dh).getTime() - inicio.getTime()) / 86400000) + 1
+  return {
+    desde: fechaISO(new Date(y, m - 1, d - dias)),
+    hasta: fechaISO(new Date(y, m - 1, d - 1)),
+  }
+}
+
+/** Variación porcentual entera de `actual` contra `anterior`; null si antes no hubo nada. */
+export function variacion(actual: number, anterior: number): number | null {
+  if (!(anterior > 0) || !Number.isFinite(actual)) return null
+  return Math.round(((actual - anterior) / anterior) * 100)
+}
+
 const RE_FECHA = /^\d{4}-\d{2}-\d{2}$/
 
 function esFechaValida(s: string): boolean {

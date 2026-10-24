@@ -561,3 +561,25 @@ export function haceCuanto(iso: string, ahora: number = Date.now()): string {
   const dia = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
   return `${dia} ${hora}`
 }
+
+// ---- Pedido para regalo ----------------------------------------------------------
+// Sin columna propia: va al principio de las notas, con un prefijo fijo que
+// el panel reconoce (esRegalo) para marcar el pedido con 🎁.
+
+export const PREFIJO_REGALO = '🎁 Es para regalo'
+export const MAX_MENSAJE_REGALO = 200
+
+// Notas que se guardan en el pedido. Con regalo: "🎁 Es para regalo. Tarjeta:
+// "…"" y, abajo, las notas de la clienta. El total no pasa de 1000 caracteres
+// (el límite de la base).
+export function armarNotas(notas: string, regalo: { activo: boolean; mensaje: string }): string {
+  const resto = notas.trim()
+  if (!regalo.activo) return resto.slice(0, 1000)
+  const mensaje = regalo.mensaje.trim().replace(/\s+/g, ' ').slice(0, MAX_MENSAJE_REGALO)
+  const cabecera = mensaje ? `${PREFIJO_REGALO}. Tarjeta: "${mensaje}"` : PREFIJO_REGALO
+  return (resto ? `${cabecera}\n${resto}` : cabecera).slice(0, 1000)
+}
+
+export function esRegalo(notas: string | null | undefined): boolean {
+  return (notas ?? '').startsWith(PREFIJO_REGALO)
+}
