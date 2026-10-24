@@ -139,58 +139,6 @@
   -webkit-appearance: none;
 }
 
-/* ---------- Filtros por categoría (chips) ---------- */
-.filters {
-  max-width: 1100px;
-  margin: 18px auto 0;
-  padding: 0 24px;
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-.filters button {
-  font-family: 'Inter', sans-serif;
-  font-size: 0.85rem;
-  font-weight: 500;
-  padding: 9px 18px;
-  border-radius: 100px;
-  border: 1px solid var(--sage);
-  background: transparent;
-  color: var(--sage-deep);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.filters button.active {
-  background: var(--sage);
-  color: var(--cream);
-}
-/* Hover solo con mouse: en táctil el :hover queda "pegado" tras el toque. */
-@media (hover: hover) and (pointer: fine) {
-  .filters button:hover {
-    background: var(--sage);
-    color: var(--cream);
-  }
-}
-/* Chips con área de toque de 44px en pantallas táctiles. */
-@media (pointer: coarse), (max-width: 767px) {
-  .filters button {
-    min-height: 44px;
-  }
-}
-/* Celular: los chips de categoría bajan de renglón y se ven todos, sin
-   tener que deslizar de costado para descubrir las que quedaban afuera. */
-@media (max-width: 720px) {
-  .filters {
-    justify-content: flex-start;
-    margin-top: 4px;
-    gap: 8px;
-  }
-  .filters button {
-    white-space: nowrap;
-  }
-}
-
 /* ---------- Categorías de la portada (CategoriasCatalogo) ----------
    Una sola fila con foto en círculo. Si no entra, se desliza de costado y
    la última queda cortada contra el borde (así se nota que hay más). En

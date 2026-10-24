@@ -12,7 +12,6 @@ import LoginForm from '../components/admin/LoginForm'
 import StatsStrip from '../components/admin/StatsStrip'
 import ProductList from '../components/admin/ProductList'
 import SearchBar from '../components/common/SearchBar'
-import CategoryFilters from '../components/common/CategoryFilters'
 import ProductFormSheet from '../components/admin/ProductFormSheet'
 import CategoryManagerSheet from '../components/admin/CategoryManagerSheet'
 import ManualOrderSheet from '../components/admin/ManualOrderSheet'
@@ -126,8 +125,6 @@ export default function AdminPage() {
   // Filtro de stock: "Poco stock" avisa antes de que se agote (antes solo
   // existía "Sin stock", y se enteraba cuando ya no había).
   const [filtroStock, setFiltroStock] = useState<'todos' | 'poco' | 'sin'>('todos')
-  const conteoPocoStock = productos.filter((p) => p.stock > 0 && p.stock <= STOCK_BAJO).length
-  const conteoSinStock = productos.filter((p) => p.stock <= 0).length
 
   const productosFiltrados = useMemo(() => {
     return productos.filter((p) => {
@@ -295,38 +292,48 @@ export default function AdminPage() {
         </div>
 
         {/* Pestañas: Productos / Pedidos para todo el staff; Estadísticas y
-            Ajustes solo admin. Con 4 en el celular se desplazan de costado. */}
-        <div className={permisos.ajustes ? 'admin-tabs admin-tabs--scroll' : 'admin-tabs'}>
+            Ajustes solo admin. En el celular son una barra fija abajo, con
+            ícono (al alcance del pulgar y sin ocupar la parte de arriba de
+            cada vista); en pantallas anchas, botones arriba. */}
+        <nav className="admin-tabs" aria-label="Secciones del panel">
           <button
             className={vista === 'productos' ? 'active' : ''}
+            aria-current={vista === 'productos' ? 'page' : undefined}
             onClick={() => setVista('productos')}
           >
-            Productos
+            <IconoPestana d="M3 12V4h8l10 10-8 8zM7.5 7.5h.01" />
+            <span className="tab-texto">Productos</span>
           </button>
           <button
             className={vista === 'pedidos' ? 'active' : ''}
+            aria-current={vista === 'pedidos' ? 'page' : undefined}
             onClick={() => setVista('pedidos')}
           >
-            Pedidos
+            <IconoPestana d="M21 8L12 3 3 8v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8" />
+            <span className="tab-texto">Pedidos</span>
             {pedidosNuevos > 0 && <span className="tab-badge">{pedidosNuevos}</span>}
           </button>
           {permisos.estadisticas && (
             <button
               className={vista === 'estadisticas' ? 'active' : ''}
+              aria-current={vista === 'estadisticas' ? 'page' : undefined}
               onClick={() => setVista('estadisticas')}
             >
-              Estadísticas
+              <IconoPestana d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+              <span className="tab-texto">Estadísticas</span>
             </button>
           )}
           {permisos.ajustes && (
             <button
               className={vista === 'ajustes' ? 'active' : ''}
+              aria-current={vista === 'ajustes' ? 'page' : undefined}
               onClick={() => setVista('ajustes')}
             >
-              Ajustes
+              <IconoPestana d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+              <span className="tab-texto">Ajustes</span>
             </button>
           )}
-        </div>
+        </nav>
 
         {vista === 'productos' ? (
           <>
@@ -334,7 +341,7 @@ export default function AdminPage() {
             <div className="list-head">
               <div>
                 <h1>Productos</h1>
-                <p>Tocá un producto para editarlo.</p>
+                <p>Tocá la foto o el nombre para editar.</p>
               </div>
               <div className="head-actions">
                 <button className="head-action" onClick={() => setPreciosAbierta(true)}>
@@ -360,30 +367,23 @@ export default function AdminPage() {
                 placeholder="Buscar por nombre, categoría o SKU"
                 className="orders-search"
               />
-              <div className="orders-chips">
-                <CategoryFilters
-                  categorias={categorias.map((c) => c.nombre)}
-                  activa={categoriaProductoActiva}
-                  onSelect={setCategoriaProductoActiva}
-                  className="chip"
-                />
-                <button
-                  type="button"
-                  className={filtroStock === 'poco' ? 'chip active' : 'chip'}
-                  aria-pressed={filtroStock === 'poco'}
-                  onClick={() => setFiltroStock((f) => (f === 'poco' ? 'todos' : 'poco'))}
+              {/* Categoría en un desplegable: como chips eran 16 en 7 renglones
+                  antes del primer producto. El filtro de stock está en los
+                  números de arriba (StatsStrip). */}
+              <label className="filtro-categoria">
+                <span>Categoría</span>
+                <select
+                  value={categoriaProductoActiva}
+                  onChange={(e) => setCategoriaProductoActiva(e.target.value)}
                 >
-                  Poco stock{conteoPocoStock > 0 ? ` (${conteoPocoStock})` : ''}
-                </button>
-                <button
-                  type="button"
-                  className={filtroStock === 'sin' ? 'chip active' : 'chip'}
-                  aria-pressed={filtroStock === 'sin'}
-                  onClick={() => setFiltroStock((f) => (f === 'sin' ? 'todos' : 'sin'))}
-                >
-                  Sin stock{conteoSinStock > 0 ? ` (${conteoSinStock})` : ''}
-                </button>
-              </div>
+                  <option value="Todos">Todas</option>
+                  {categorias.map((c) => (
+                    <option key={c.id} value={c.nombre}>
+                      {c.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
 
             {/* Error de red: mensaje propio con reintento (antes caía en
@@ -526,5 +526,14 @@ export default function AdminPage() {
         onChanged={refetchPedidos}
       />
     </div>
+  )
+}
+
+// Ícono de línea de las pestañas (solo se ve en la barra de abajo del celular).
+function IconoPestana({ d }: { d: string }) {
+  return (
+    <svg className="tab-icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} />
+    </svg>
   )
 }

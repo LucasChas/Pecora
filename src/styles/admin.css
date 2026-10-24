@@ -91,6 +91,10 @@
   color: #fff;
   border-color: var(--sage);
 }
+/* El ícono solo se ve en la barra de abajo del celular. */
+.tab-icono {
+  display: none;
+}
 .tab-badge {
   display: inline-flex;
   align-items: center;
@@ -291,6 +295,29 @@
   gap: 10px;
   padding: 0 16px 10px;
 }
+/* Filtro de categoría de Productos: desplegable en un renglón. */
+.filtro-categoria {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.filtro-categoria select {
+  flex: 1;
+  min-width: 0;
+  max-width: 280px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 8px 12px;
+  min-height: 40px;
+}
 .orders-search {
   width: 100%;
   border: 1px solid var(--line);
@@ -444,6 +471,27 @@
   flex: 1;
   min-width: 0;
 }
+/* Foto y nombre abren la edición completa. */
+.prod-foto,
+.prod-abrir {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.prod-foto {
+  flex-shrink: 0;
+  align-self: flex-start;
+  border-radius: 10px;
+}
+.prod-abrir {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 .prod-top {
   display: flex;
   justify-content: space-between;
@@ -552,11 +600,6 @@
   cursor: default;
 }
 
-.prod-actions {
-  display: flex;
-  gap: 14px;
-  margin-top: 10px;
-}
 .link-btn {
   background: none;
   border: none;
@@ -1366,10 +1409,6 @@
     display: flex;
     flex-direction: column;
   }
-  .admin-root .prod-actions {
-    margin-top: auto;
-    padding-top: 10px;
-  }
   .admin-root .link-btn:not(.sheet-duplicar) {
     padding: 4px 6px;
     margin: -4px -6px;
@@ -2149,24 +2188,6 @@
    Fase 3: pestañas por rol, carga masiva (Importar productos) y Equipo.
    ============================================================================ */
 
-/* Con 4 pestañas (admin) en el celular: se desplazan de costado sin barra. */
-.admin-root .admin-tabs--scroll {
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x proximity;
-}
-.admin-root .admin-tabs--scroll::-webkit-scrollbar {
-  display: none;
-}
-.admin-root .admin-tabs--scroll button {
-  flex: 1 0 auto;
-  white-space: nowrap;
-  padding: 10px 14px;
-  font-size: 0.85rem;
-  scroll-snap-align: start;
-}
-
 /* ---------- Importar productos ---------- */
 .admin-root .imp-panel {
   display: block;
@@ -2311,11 +2332,6 @@
 @media (min-width: 768px) {
   .admin-root .imp-panel {
     max-width: 720px;
-  }
-  .admin-root .admin-tabs--scroll button {
-    flex: 0 0 auto;
-    padding: 10px 22px;
-    font-size: 0.9rem;
   }
 }
 
@@ -2714,11 +2730,6 @@
   padding-left: 20px;
 }
 
-/* ---------- Pestañas: al deslizarse, el imán respeta el margen ---------- */
-.admin-root .admin-tabs--scroll {
-  scroll-padding-inline: 16px;
-}
-
 /* ---------- Estadísticas alineada con las demás pestañas ---------- */
 .admin-root .est-panel {
   padding-left: 16px;
@@ -3043,19 +3054,6 @@
    períodos de Estadísticas) ahora baja de renglón y se ve completo.
    ============================================================ */
 @media (max-width: 767px) {
-  /* Pestañas del panel: 2 x 2 (o las 4 en fila si entran). */
-  .admin-root .admin-tabs--scroll {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    overflow: visible;
-    scroll-snap-type: none;
-  }
-  .admin-root .admin-tabs--scroll button {
-    min-width: 0;
-    padding: 9px 6px;
-    font-size: 0.85rem;
-  }
-
   /* Chips (categorías, estados, secciones de Ajustes, reseñas). */
   .admin-root .orders-chips {
     flex-wrap: wrap;
@@ -3070,15 +3068,6 @@
   .admin-root .est-periodo {
     min-height: 40px;
     padding: 7px 12px;
-  }
-}
-@media (min-width: 440px) and (max-width: 767px) {
-  .admin-root .admin-tabs--scroll {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .admin-root .admin-tabs--scroll button {
-    font-size: 0.8rem;
-    padding: 9px 4px;
   }
 }
 
@@ -3185,7 +3174,7 @@
 .admin-root .prod-top {
   flex-wrap: wrap;
 }
-.admin-root .prod-top > div:first-child {
+.admin-root .prod-top > .prod-abrir {
   flex: 1 1 140px;
   min-width: 0;
 }
@@ -3222,4 +3211,88 @@
 .admin-root .op-card-linea > :last-child {
   flex-shrink: 0;
   white-space: nowrap;
+}
+
+/* ============================================================
+   Celular: pestañas como barra fija abajo (estilo app), con ícono y número
+   de pedidos nuevos. Antes eran 4 botones grandes en 2 x 2 arriba de todo,
+   que ocupaban un quinto de la pantalla en cada vista.
+   ============================================================ */
+@media (max-width: 767px) {
+  .admin-root .admin-tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 7;
+    display: flex;
+    gap: 0;
+    padding: 4px max(6px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+    background: #fff;
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -4px 14px rgba(51, 48, 42, 0.06);
+  }
+  .admin-root .admin-tabs button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 54px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: 12px;
+    background: none;
+    color: var(--ink-soft);
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .admin-root .admin-tabs button.active {
+    background: none;
+    color: var(--sage-deep);
+  }
+  .admin-root .admin-tabs .tab-icono {
+    display: block;
+    width: 24px;
+    height: 24px;
+  }
+  .admin-root .admin-tabs button.active .tab-icono {
+    stroke-width: 2.2;
+  }
+  .admin-root .admin-tabs .tab-badge {
+    position: absolute;
+    top: 2px;
+    left: calc(50% + 6px);
+    margin: 0;
+  }
+  /* Lugar para la barra al final de cada vista, y el + arriba de ella. */
+  .admin-root .phone {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  .admin-root .fab {
+    bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Celular: card de producto más baja (entran más por pantalla). Los rótulos
+   "Precio"/"Stock" quedan para lectores de pantalla: el "$" y el −/+ ya
+   dicen qué es cada campo. */
+@media (max-width: 767px) {
+  .admin-root .prod-card {
+    padding: 10px 12px;
+  }
+  .admin-root .prod-fields {
+    margin-top: 8px;
+  }
+  .admin-root .mini-field label,
+  .admin-root .mini-field-rotulo {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }

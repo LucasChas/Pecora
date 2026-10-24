@@ -4,6 +4,7 @@ import { claveItem, MAX_POR_PRODUCTO, maximoPedible, useCart } from '../../conte
 import { tieneTalles } from '../../lib/productosConsulta'
 import GuiaTalles from '../catalog/GuiaTalles'
 import { money } from '../../lib/format'
+import { STOCK_BAJO } from '../../lib/stock'
 
 // Selector de talle (si el producto se vende por talle) + cantidad + botón
 // "Agregar al carrito", para la ficha del producto. Si no hay stock, no se
@@ -93,7 +94,7 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
                   aria-checked={elegido}
                   className={`talle${elegido ? ' elegido' : ''}${sinStock ? ' agotado' : ''}`}
                   disabled={sinStock}
-                  title={sinStock ? 'Sin stock' : t.stock <= 3 ? `Quedan ${t.stock}` : undefined}
+                  title={sinStock ? 'Sin stock' : t.stock <= STOCK_BAJO ? `Quedan ${t.stock}` : undefined}
                   onClick={() => {
                     setTalleId(t.id)
                     setCantidad(1)
@@ -105,7 +106,7 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
               )
             })}
           </div>
-          {talle && talle.stock <= 3 && (
+          {talle && talle.stock <= STOCK_BAJO && (
             <p className="talles-poco">{talle.stock === 1 ? 'Último disponible en este talle' : `Quedan ${talle.stock} en este talle`}</p>
           )}
           {faltaTalle && (
