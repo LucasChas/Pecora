@@ -41,10 +41,11 @@ describe('sitemap', () => {
       `${SITIO}/`,
       `${SITIO}/privacidad`,
       `${SITIO}/terminos`,
+      `${SITIO}/ayuda`,
       `${SITIO}/producto/babero`,
       `${SITIO}/producto/b`,
     ])
-    expect(e[3].lastmod).toBe('2026-09-30')
+    expect(e[4].lastmod).toBe('2026-09-30')
   })
 
   it('el XML escapa las URLs', () => {
