@@ -4,7 +4,7 @@ import Logo from '../components/Logo'
 import Scallop from '../components/Scallop'
 import BuscadorCatalogo from '../components/catalog/BuscadorCatalogo'
 import BandaConfianza from '../components/catalog/BandaConfianza'
-import CategoryFilters from '../components/common/CategoryFilters'
+import CategoriasCatalogo from '../components/catalog/CategoriasCatalogo'
 import ProductGrid from '../components/catalog/ProductGrid'
 import MasVendidos from '../components/catalog/MasVendidos'
 import HeaderActions from '../components/account/HeaderActions'
@@ -124,7 +124,7 @@ export default function CatalogPage() {
 
   return (
     <div className="catalog-root">
-      <header className="cart-header">
+      <header className="cart-header header-fijo">
         <Logo />
         <HeaderActions />
       </header>
@@ -135,10 +135,11 @@ export default function CatalogPage() {
       <BuscadorCatalogo value={busqueda} onChange={setBusqueda} productos={productos} />
 
       <main>
-        <CategoryFilters
+        <CategoriasCatalogo
           categorias={categorias.map((c) => c.nombre)}
           activa={categoriaActiva}
           onSelect={setCategoria}
+          productos={productos}
         />
 
         {loading ? (

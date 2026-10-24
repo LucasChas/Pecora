@@ -74,11 +74,29 @@
   margin: 0;
 }
 
+/* ---------- Header fijo (celular) ----------
+   En el muestrario y la ficha el header queda pegado arriba al scrollear:
+   carrito y cuenta siempre a mano. Solo en celular, donde el header es bajo. */
+@media (max-width: 620px) {
+  .catalog-root header.header-fijo {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    box-shadow: 0 1px 0 var(--line);
+  }
+}
+
 /* ---------- Buscador ---------- */
 .search-wrap {
   max-width: var(--shop-max, 1100px);
   margin: 34px auto 0;
   padding: 0 24px;
+}
+@media (max-width: 720px) {
+  .search-wrap {
+    margin-top: 18px;
+    padding: 0 16px;
+  }
 }
 .search-box {
   max-width: 420px;
@@ -170,6 +188,137 @@
   }
   .filters button {
     white-space: nowrap;
+  }
+}
+
+/* ---------- Categorías de la portada (CategoriasCatalogo) ----------
+   Una sola fila con foto en círculo. Si no entra, se desliza de costado y
+   la última queda cortada contra el borde (así se nota que hay más). En
+   pantallas anchas, si entran todas, quedan centradas. */
+.categorias {
+  margin: 18px calc(-1 * var(--shop-gutter, 24px)) 0;
+}
+.categorias-fila {
+  list-style: none;
+  margin: 0;
+  padding: 4px var(--shop-gutter, 24px) 6px;
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--shop-gutter, 24px);
+  scrollbar-width: none;
+}
+.categorias-fila::-webkit-scrollbar {
+  display: none;
+}
+.categorias-fila > li {
+  flex: none;
+  scroll-snap-align: start;
+}
+.categorias-fila > li:first-child {
+  margin-left: auto;
+}
+.categorias-fila > li:last-child {
+  margin-right: auto;
+}
+.categoria {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  width: 76px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: 'Inter', sans-serif;
+  color: var(--ink);
+  cursor: pointer;
+}
+.categoria-foto {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--cream-deep);
+  color: var(--sage-deep);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--line);
+  transition: box-shadow 0.15s ease;
+}
+.categoria-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.categoria-foto svg {
+  width: 26px;
+  height: 26px;
+}
+.categoria-inicial {
+  font-family: 'Fraunces', serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+.categoria-nombre {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--ink-soft);
+}
+.categoria.activa .categoria-foto {
+  box-shadow: 0 0 0 2px var(--sage);
+}
+.categoria.activa .categoria-nombre {
+  color: var(--ink);
+  font-weight: 700;
+}
+.categoria:focus-visible {
+  outline: none;
+}
+.categoria:focus-visible .categoria-foto {
+  box-shadow: 0 0 0 3px var(--sage-deep);
+}
+@media (hover: hover) and (pointer: fine) {
+  .categoria:hover .categoria-foto {
+    box-shadow: 0 0 0 2px var(--sage);
+  }
+}
+/* Desktop: entran en dos renglones centrados, sin scroll de costado (con
+   mouse no es obvio que se pueda deslizar). */
+@media (min-width: 1024px) {
+  .categorias-fila {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 16px;
+    overflow: visible;
+  }
+  .categorias-fila > li:first-child,
+  .categorias-fila > li:last-child {
+    margin: 0;
+  }
+}
+/* En celular el contenido tiene 14px de margen (ver .catalog-root main):
+   la fila llega de borde a borde y arranca alineada con el resto. */
+@media (max-width: 720px) {
+  .categorias {
+    margin: -6px -14px 0;
+  }
+  .categorias-fila {
+    gap: 10px;
+    padding: 4px 14px 6px;
+    scroll-padding-inline: 14px;
+  }
+  .categoria {
+    width: 68px;
+  }
+  .categoria-foto {
+    width: 60px;
+    height: 60px;
   }
 }
 
@@ -1810,22 +1959,40 @@
   font-size: 0.9rem;
   color: var(--ink);
 }
-/* Celular: grilla compacta (antes era un carrusel y solo se veía la
-   primera tarjeta). Ícono arriba y texto debajo para que entren dos por fila. */
+/* Celular: una sola franja de tres celdas (antes eran tres tarjetas que
+   ocupaban media pantalla). Se ve solo el título de cada punto. */
 @media (max-width: 720px) {
   .banda-confianza {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 20px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin-top: 16px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
   }
   .banda-confianza li {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 12px;
+    gap: 4px;
+    padding: 10px 6px;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    text-align: center;
   }
-  .banda-confianza li:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
+  .banda-confianza li + li {
+    border-left: 1px solid var(--line);
+  }
+  .banda-confianza svg {
+    width: 26px;
+    height: 26px;
+    padding: 5px;
+  }
+  .banda-confianza span {
+    font-size: 0;
+  }
+  .banda-confianza strong {
+    font-size: 0.72rem;
+    line-height: 1.25;
   }
 }
 
