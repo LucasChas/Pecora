@@ -188,7 +188,25 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
           {producto.categoria_nombre && <p className="pd-cat">{producto.categoria_nombre}</p>}
           <div className="pd-titulo">
             <h1 className="pd-name">{producto.nombre}</h1>
-            <BotonFavorito productoId={producto.id} nombre={producto.nombre} variante="ficha" />
+            <div className="pd-titulo-acciones">
+              {/* Compartir como ícono junto al nombre: antes eran dos botones
+                  grandes al pie que competían con la info de compra. */}
+              <button
+                type="button"
+                className="pd-compartir"
+                onClick={() => compartirProducto(producto)}
+                aria-label={compartirNativo ? 'Compartir' : 'Compartir por WhatsApp'}
+                title={compartirNativo ? 'Compartir' : 'Compartir por WhatsApp'}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+                </svg>
+              </button>
+              <BotonFavorito productoId={producto.id} nombre={producto.nombre} variante="ficha" />
+            </div>
           </div>
           {resumen && resumen.cantidad > 0 && (
             <a className="pd-rating" href="#rs-titulo">
@@ -269,22 +287,8 @@ export default function ProductDetailView({ producto }: { producto: ProductoConC
             <p className="pd-note">Escribinos por WhatsApp o Instagram para consultar disponibilidad.</p>
           )}
 
-          {/* Compartir: al final y en chico, para no competir con "Agregar al
-              carrito" ni con los botones de consulta. */}
+          {/* Copiar link: al final y en chico (compartir está junto al nombre). */}
           <div className="pd-share">
-            <button
-              type="button"
-              className="pd-share-btn"
-              onClick={() => compartirProducto(producto)}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
-              </svg>
-              {compartirNativo ? 'Compartir' : 'Compartir por WhatsApp'}
-            </button>
             <button type="button" className="pd-share-btn" onClick={onCopiarLink}>
               {avisoCopia === 'ok' ? (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

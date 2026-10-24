@@ -1316,9 +1316,9 @@
   }
 }
 @media (max-width: 720px) {
-  .pd-share-btn {
-    flex: 1 1 auto;
-    min-height: 44px;
+  .pd-share {
+    border-top: 0;
+    padding-top: 4px;
   }
 }
 
@@ -1849,6 +1849,42 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+/* Compartir + guardar, a la derecha del nombre. */
+.pd-titulo-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.pd-compartir {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.pd-compartir svg {
+  width: 18px;
+  height: 18px;
+}
+@media (pointer: coarse), (max-width: 767px) {
+  .pd-compartir {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .pd-compartir:hover {
+    border-color: var(--sage);
+    color: var(--ink);
+  }
 }
 .fav-btn--ficha {
   flex-shrink: 0;

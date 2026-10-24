@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ProductoConCategoria } from '../../types'
 import { claveItem, MAX_POR_PRODUCTO, maximoPedible, useCart } from '../../context/CartContext'
 import { tieneTalles } from '../../lib/productosConsulta'
 import GuiaTalles from '../catalog/GuiaTalles'
+import { money } from '../../lib/format'
 
 // Selector de talle (si el producto se vende por talle) + cantidad + botón
 // "Agregar al carrito", para la ficha del producto. Si no hay stock, no se
@@ -20,6 +21,23 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
     return conStock.length === 1 && talles.length === 1 ? conStock[0].id : null
   })
   const [faltaTalle, setFaltaTalle] = useState(false)
+
+  // Barra de compra fija (celular): aparece cuando el botón principal quedó
+  // arriba, fuera de la pantalla, así "Agregar" sigue a mano mientras se leen
+  // la descripción y las opiniones. En desktop no se muestra (CSS).
+  const botonRef = useRef<HTMLButtonElement>(null)
+  const talleRef = useRef<HTMLDivElement>(null)
+  const [botonOculto, setBotonOculto] = useState(false)
+  const hayStock = producto.stock > 0
+  useEffect(() => {
+    const boton = botonRef.current
+    if (!boton || typeof IntersectionObserver === 'undefined') return
+    const obs = new IntersectionObserver(([e]) => {
+      setBotonOculto(!e.isIntersecting && e.boundingClientRect.top < 0)
+    })
+    obs.observe(boton)
+    return () => obs.disconnect()
+  }, [hayStock])
 
   if (producto.stock <= 0) return null
 
@@ -39,6 +57,8 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
   function onAgregar() {
     if (conTalles && !talle) {
       setFaltaTalle(true)
+      // Desde la barra fija, el selector de talle quedó arriba: se lo muestra.
+      talleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
     if (disponible <= 0) return
@@ -52,7 +72,7 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
   return (
     <div className="add-cart">
       {conTalles && (
-        <div className="talles" role="radiogroup" aria-label="Talle" aria-describedby={faltaTalle ? 'talles-error' : undefined}>
+        <div className="talles" ref={talleRef} role="radiogroup" aria-label="Talle" aria-describedby={faltaTalle ? 'talles-error' : undefined}>
           <div className="talles-head">
             <span className="talles-titulo">
               Talle{talle ? <strong>: {talle.talle}</strong> : ''}
@@ -113,6 +133,7 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
         </button>
       </div>
       <button
+        ref={botonRef}
         type="button"
         className="btn btn-primary add-cart-btn"
         onClick={onAgregar}
@@ -153,6 +174,22 @@ export default function AddToCart({ producto }: { producto: ProductoConCategoria
         <p className="add-cart-nota">
           Ya tenés {enCarrito} en el carrito · podés sumar {disponible} más.
         </p>
+      )}
+      {botonOculto && (
+        <div className="compra-fija" role="region" aria-label="Agregar al carrito">
+          <div className="compra-fija-info">
+            <span className="compra-fija-precio">{money(producto.precio)}</span>
+            <span className="compra-fija-nombre">{producto.nombre}</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary compra-fija-btn"
+            onClick={onAgregar}
+            disabled={!(conTalles && !talle) && disponible <= 0 && !agregado}
+          >
+            {agregado ? 'Agregado' : conTalles && !talle ? 'Elegir talle' : disponible <= 0 ? 'Sin más stock' : 'Agregar'}
+          </button>
+        </div>
       )}
     </div>
   )
