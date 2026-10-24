@@ -505,18 +505,103 @@
   font-weight: 700;
   font-size: 0.9rem;
 }
-/* "Quitar": texto chico, pero con 44px de alto tocable. */
+/* Quitar: papelera discreta (antes era "Quitar" en rojo, con más peso que
+   el producto), con 44px tocables. */
 .drawer-remove {
   border: none;
   background: none;
-  color: var(--danger);
-  font-size: 0.75rem;
-  font-weight: 600;
+  color: var(--unavailable);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
+  min-width: 44px;
   min-height: 44px;
-  padding: 0 0 0 12px;
+  padding: 0;
+}
+.drawer-remove svg {
+  width: 19px;
+  height: 19px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .drawer-remove:hover {
+    color: var(--danger);
+  }
+}
+/* "Completá tu compra": hasta 2 productos para sumar con un toque. */
+.drawer-sugeridos {
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.drawer-sugeridos h3 {
+  margin: 0 0 2px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.drawer-sugerido {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: #fff;
+  border-radius: 12px;
+}
+.drawer-sugerido > img {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: var(--cream-deep);
+}
+.drawer-sugerido-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+.drawer-sugerido-nombre {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.drawer-sugerido-agregar {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 6px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .drawer-sugerido-agregar:hover {
+    border-color: var(--sage);
+    background: var(--sage-pale);
+  }
 }
 .drawer-foot {
   border-top: 1px solid var(--line);
@@ -551,6 +636,9 @@
 }
 
 /* variante compacta del selector de cantidad (drawer) */
+.qty-sm {
+  align-self: flex-start;
+}
 .qty-sm button {
   width: 28px;
   height: 28px;

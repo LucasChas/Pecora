@@ -32,6 +32,13 @@ import { aplanarProducto, conTalles } from '../lib/productosConsulta'
 // trajo otra. Ver lib/productsCache.
 const cache = crearCacheMonotona<ProductoConCategoria[]>()
 
+// Última lista traída (o vacía), sin suscribirse: para vistas que solo
+// necesitan un vistazo, como las sugerencias del carrito, y no deben abrir
+// otro canal de Realtime.
+export function productosEnCache(): ProductoConCategoria[] {
+  return cache.leer() ?? []
+}
+
 // Cada instancia del hook abre su propio canal con un nombre único. Con un
 // nombre fijo, supabase.channel() devuelve el canal de la instancia anterior
 // si todavía se está cerrando (ej. al pasar del muestrario a la ficha, que
