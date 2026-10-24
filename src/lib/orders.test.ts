@@ -33,6 +33,9 @@ import {
   totalesDe,
   type NuevoPedido,
   haceCuanto,
+  armarNotas,
+  esRegalo,
+  PREFIJO_REGALO,
 } from './orders'
 import { ErrorCotizacionVencida, MENSAJE_COTIZACION_VENCIDA } from './transportistas'
 
@@ -615,5 +618,26 @@ describe('haceCuanto', () => {
 
   it('fecha inválida: vacío', () => {
     expect(haceCuanto('x', ahora)).toBe('')
+  })
+})
+
+describe('pedido para regalo', () => {
+  it('sin regalo: solo las notas', () => {
+    expect(armarNotas('  Tocar timbre 2B ', { activo: false, mensaje: 'Hola' })).toBe('Tocar timbre 2B')
+  })
+  it('con regalo y mensaje, arriba de las notas', () => {
+    const n = armarNotas('Después de las 18', { activo: true, mensaje: '  Feliz   nacimiento!  ' })
+    expect(n).toBe(`${PREFIJO_REGALO}. Tarjeta: "Feliz nacimiento!"\nDespués de las 18`)
+    expect(esRegalo(n)).toBe(true)
+  })
+  it('con regalo sin mensaje ni notas', () => {
+    expect(armarNotas('', { activo: true, mensaje: '' })).toBe(PREFIJO_REGALO)
+  })
+  it('nunca pasa de 1000 caracteres', () => {
+    expect(armarNotas('x'.repeat(1000), { activo: true, mensaje: 'y'.repeat(500) }).length).toBe(1000)
+  })
+  it('reconoce pedidos que no son regalo', () => {
+    expect(esRegalo('Es para regalo')).toBe(false)
+    expect(esRegalo(null)).toBe(false)
   })
 })

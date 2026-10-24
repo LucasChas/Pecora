@@ -580,6 +580,29 @@
 .site-footer-copy {
   margin: 0;
 }
+/* Links de ayuda + botón de arrepentimiento (siempre visible). */
+.site-footer-ayuda {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 0.8125rem;
+}
+.site-footer-arrep {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--sage);
+  border-radius: 100px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+}
+.site-footer-pagos {
+  margin: 0;
+}
 /* En teléfonos los links pueden pasar a dos renglones y el separador quedaría
    colgando al final de uno: se oculta y alcanza con el gap. */
 @media (max-width: 480px) {
@@ -611,8 +634,18 @@
      tres columnas: si ocupara una celda de la grilla corre el © a otra fila. */
   .site-footer-inner > .instalar-app {
     grid-column: 1 / -1;
-    grid-row: 2;
+    grid-row: 4;
     justify-self: center;
+  }
+  /* Ayuda y medios de pago: renglones propios arriba de las tres columnas. */
+  .site-footer-ayuda {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .site-footer-pagos {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    text-align: center;
   }
 }
 
@@ -955,6 +988,97 @@
   font-weight: 600;
   color: #8A5A1C;
 }
+/* "Calculá el envío" (CalcularEnvio) */
+.calc-envio {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.calc-envio-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.calc-envio-titulo svg {
+  width: 20px;
+  height: 20px;
+  color: var(--sage-deep);
+}
+.calc-envio-campos {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px auto;
+  gap: 8px;
+}
+.calc-envio-campos select,
+.calc-envio-campos input {
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+.calc-envio-campos select:focus,
+.calc-envio-campos input:focus {
+  outline: none;
+  border-color: var(--sage);
+}
+.calc-envio-campos button {
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid var(--sage);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--sage-deep);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.calc-envio-campos button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.calc-envio-error {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+.calc-envio-lista {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.calc-envio-lista li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.calc-envio-lista strong {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.calc-envio-gratis {
+  color: #4F7A35;
+}
+.calc-envio-lista .calc-envio-nota {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
 .pd-note {
   margin: 6px 0 0;
   font-size: 0.82rem;
@@ -1108,6 +1232,10 @@
   font-size: 0.92rem;
   line-height: 1.65;
   color: var(--ink);
+}
+/* Secciones enlazadas (/ayuda#envios): que no queden debajo del header fijo. */
+.legal-card h2[id] {
+  scroll-margin-top: 90px;
 }
 .legal-card h2 {
   font-family: 'Fraunces', serif;

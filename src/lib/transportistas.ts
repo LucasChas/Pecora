@@ -593,3 +593,34 @@ export function esColumnaInexistente(error: { code?: string; message?: string } 
   if (error.code === 'PGRST204' || error.code === '42703') return true
   return /could not find the '.*' column|column .* does not exist/i.test(error.message ?? '')
 }
+
+// ---- Cálculo de envío en la ficha del producto ----------------------------------
+
+export interface LineaEnvioFicha {
+  texto: string
+  precio: number
+}
+
+// Resumen para "Calculá el envío" de la ficha: la opción más barata de cada
+// transportista + servicio (las de sucursal vienen una por sucursal), por
+// precio, hasta 4. Si no hay transportistas, el envío por zona (si cubre el
+// destino). Lista vacía = se coordina por WhatsApp.
+export function resumenEnvioFicha(
+  opciones: readonly OpcionEnvio[],
+  zona: { disponible: boolean; costo: number; zonaNombre: string | null } | null,
+): LineaEnvioFicha[] {
+  const porGrupo = new Map<string, OpcionEnvio>()
+  for (const op of opciones) {
+    const clave = claveGrupo(op)
+    const actual = porGrupo.get(clave)
+    if (!actual || op.precio < actual.precio) porGrupo.set(clave, op)
+  }
+  const lineas = ordenarOpciones([...porGrupo.values()])
+    .slice(0, 4)
+    .map((op) => ({ texto: etiquetaOpcion(op), precio: op.precio }))
+  if (lineas.length > 0) return lineas
+  if (zona?.disponible) {
+    return [{ texto: zona.zonaNombre ? `Envío a domicilio (${zona.zonaNombre})` : 'Envío a domicilio', precio: zona.costo }]
+  }
+  return []
+}

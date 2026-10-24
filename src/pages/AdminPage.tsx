@@ -21,6 +21,7 @@ import CatalogExport from '../components/admin/CatalogExport'
 import AjustesPanel from '../components/admin/AjustesPanel'
 import EstadisticasPanel from '../components/admin/EstadisticasPanel'
 import AvisosPedidos from '../components/admin/AvisosPedidos'
+import InicioPanel from '../components/admin/InicioPanel'
 import {
   leerPreferencia,
   notificarSistema,
@@ -36,7 +37,8 @@ import { useTitulo } from '../hooks/useTitulo'
 // 'exportar' = lista de precios para imprimir/PDF (pantalla completa, sin pestañas).
 // 'ajustes' = cupones, zonas de envío, carga masiva y equipo (solo admin).
 // 'estadisticas' = ventas y más vendidos (solo admin).
-type Vista = 'productos' | 'pedidos' | 'estadisticas' | 'ajustes' | 'exportar'
+// 'inicio' = lo pendiente del día, ventas del mes y accesos rápidos.
+type Vista = 'inicio' | 'productos' | 'pedidos' | 'estadisticas' | 'ajustes' | 'exportar'
 
 // Chips de filtro de la pestaña Pedidos. El texto es el que usa la clienta en
 // "Mis pedidos", para hablar el mismo idioma en las dos puntas.
@@ -71,15 +73,18 @@ export default function AdminPage() {
   } = useCategories()
   const { confirmar, notificar } = useDialog()
   // La pestaña se recuerda en este dispositivo: al recargar o volver al panel
-  // no vuelve siempre a Productos.
+  // sigue donde estaba. La primera vez, Inicio.
   const [vistaElegida, setVistaElegida] = useState<Vista>(() => {
     try {
       const guardada = localStorage.getItem('pecora-panel-vista')
-      return guardada === 'pedidos' || guardada === 'estadisticas' || guardada === 'ajustes'
+      return guardada === 'productos' ||
+        guardada === 'pedidos' ||
+        guardada === 'estadisticas' ||
+        guardada === 'ajustes'
         ? guardada
-        : 'productos'
+        : 'inicio'
     } catch {
-      return 'productos'
+      return 'inicio'
     }
   })
   const setVista = useCallback((v: Vista) => {
@@ -297,6 +302,14 @@ export default function AdminPage() {
             cada vista); en pantallas anchas, botones arriba. */}
         <nav className="admin-tabs" aria-label="Secciones del panel">
           <button
+            className={vista === 'inicio' ? 'active' : ''}
+            aria-current={vista === 'inicio' ? 'page' : undefined}
+            onClick={() => setVista('inicio')}
+          >
+            <IconoPestana d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
+            <span className="tab-texto">Inicio</span>
+          </button>
+          <button
             className={vista === 'productos' ? 'active' : ''}
             aria-current={vista === 'productos' ? 'page' : undefined}
             onClick={() => setVista('productos')}
@@ -335,7 +348,27 @@ export default function AdminPage() {
           )}
         </nav>
 
-        {vista === 'productos' ? (
+        {vista === 'inicio' ? (
+          <InicioPanel
+            nombre={perfil?.nombre ?? null}
+            conteos={conteos}
+            productos={productos}
+            verVentas={permisos.estadisticas}
+            onPedidos={(f) => {
+              setFiltroEstado(f)
+              setBusqueda('')
+              setVista('pedidos')
+            }}
+            onProductos={(f) => {
+              limpiarFiltrosProductos()
+              setFiltroStock(f)
+              setVista('productos')
+            }}
+            onNuevoPedido={() => setPedidoSheetAbierta(true)}
+            onNuevoProducto={abrirNuevo}
+            onExportar={() => setVista('exportar')}
+          />
+        ) : vista === 'productos' ? (
           <>
             <StatsStrip productos={productos} filtro={filtroStock} onFiltrar={setFiltroStock} />
             <div className="list-head">

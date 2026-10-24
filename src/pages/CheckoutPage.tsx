@@ -18,6 +18,8 @@ import {
   totalesDe,
   type DetallePedido,
   type TotalesPedido,
+  armarNotas,
+  MAX_MENSAJE_REGALO,
 } from '../lib/orders'
 import { validarCupon, type ResultadoCupon } from '../lib/cupones'
 import {
@@ -100,6 +102,9 @@ export default function CheckoutPage() {
   const [cp, setCp] = useState(borrador.cp ?? '')
   const [provincia, setProvincia] = useState(borrador.provincia ?? '')
   const [notas, setNotas] = useState(borrador.notas ?? '')
+  // Pedido para regalo: va al principio de las notas (ver armarNotas).
+  const [regalo, setRegalo] = useState(false)
+  const [mensajeRegalo, setMensajeRegalo] = useState('')
   const [resumenAbierto, setResumenAbierto] = useState(false)
   const telefonoRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -545,7 +550,7 @@ export default function CheckoutPage() {
         localidad: envio ? localidad : undefined,
         cp: envio ? cp : undefined,
         provincia: envio && provincia ? provincia : undefined,
-        notas: notas || undefined,
+        notas: armarNotas(notas, { activo: regalo, mensaje: mensajeRegalo }) || undefined,
       }
       // crear_pedido (SECURITY DEFINER) registra el pedido y devuelve el número
       // de orden, sin exponer la lectura de pedidos (ver lib/orders). La base
@@ -832,9 +837,29 @@ export default function CheckoutPage() {
                     </div>
                   )}
                   {/* Notas dentro de Entrega (antes quedaban sueltas entre tarjetas). */}
+                  <label className={regalo ? 'checkout-regalo activo' : 'checkout-regalo'}>
+                    <input type="checkbox" checked={regalo} onChange={(e) => setRegalo(e.target.checked)} />
+                    <span>
+                      <strong>🎁 Es para regalo</strong>
+                      <span>Lo preparamos para regalar y podés sumar una tarjeta con tu mensaje.</span>
+                    </span>
+                  </label>
+                  {regalo && (
+                    <div className="field checkout-notas">
+                      <label htmlFor="checkout-regalo-msg">Mensaje para la tarjeta (opcional)</label>
+                      <input
+                        id="checkout-regalo-msg"
+                        type="text"
+                        maxLength={MAX_MENSAJE_REGALO}
+                        value={mensajeRegalo}
+                        onChange={(e) => setMensajeRegalo(e.target.value)}
+                        placeholder="Ej: ¡Bienvenida, Emma! Con cariño, la tía Sofi"
+                      />
+                    </div>
+                  )}
                   <div className="field checkout-notas">
                     <label htmlFor="checkout-notas">Notas (opcional)</label>
-                    <textarea id="checkout-notas" maxLength={1000} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Horarios, si es para regalo, etc." />
+                    <textarea id="checkout-notas" maxLength={760} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Horarios, aclaraciones, etc." />
                   </div>
                 </section>
 

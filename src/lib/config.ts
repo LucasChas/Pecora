@@ -181,3 +181,17 @@ export function remitenteDireccion(): string {
 export function urlFeedMeta(): string {
   return `${CATALOG_URL.replace(/\/+$/, '')}/catalogo-meta.csv`
 }
+
+// Link de WhatsApp para ejercer el derecho de arrepentimiento (botón de
+// arrepentimiento, Res. 424/2020). Lleva los datos que pide el formulario
+// para que la dueña pueda ubicar el pedido.
+export function waArrepentimientoLink(datos: { nombre: string; email: string; pedido: string; motivo?: string }): string {
+  const lineas = [
+    'Hola! Quiero arrepentirme de mi compra en Pecora (botón de arrepentimiento).',
+    `Nombre: ${datos.nombre.trim()}`,
+    `Email: ${datos.email.trim()}`,
+    `Pedido: #${datos.pedido.replace(/\D/g, '')}`,
+  ]
+  if (datos.motivo?.trim()) lineas.push(`Motivo: ${datos.motivo.trim()}`)
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lineas.join('\n'))}`
+}
