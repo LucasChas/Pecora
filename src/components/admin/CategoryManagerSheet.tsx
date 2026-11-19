@@ -134,7 +134,7 @@ export default function CategoryManagerSheet({
                       <span className="cat-name">{c.nombre}</span>
                       <span className="cat-count">
                         {cantidad} producto{cantidad === 1 ? '' : 's'}
-                        {enUso && ' · no se puede borrar'}
+                        {enUso && ' · para eliminarla: Ajustes → Categorías'}
                       </span>
                     </div>
                   )}

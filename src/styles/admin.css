@@ -3567,3 +3567,41 @@
     box-shadow: 0 0 0 1px var(--sage);
   }
 }
+
+/* ---------- Ajustes → Categorías (CategoriasAdmin) ----------
+   Una fila por categoría: nombre + cantidad a la izquierda, acciones a la
+   derecha. En el celular las acciones bajan debajo del nombre. */
+.admin-root .cat-ajuste {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.admin-root .cat-ajuste-info {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.admin-root .cat-ajuste .ajuste-acciones {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+  flex-wrap: nowrap;
+}
+.admin-root .cat-ajuste .ajuste-btn--peligro {
+  border-color: var(--line);
+}
+@media (max-width: 520px) {
+  .admin-root .cat-ajuste .ajuste-acciones {
+    flex: 1 1 100%;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+}
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}

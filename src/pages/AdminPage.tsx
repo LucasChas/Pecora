@@ -459,7 +459,12 @@ export default function AdminPage() {
             </button>
           </>
         ) : vista === 'ajustes' ? (
-          <AjustesPanel onProductosImportados={refrescar} />
+          <AjustesPanel
+            onProductosImportados={refrescar}
+            categorias={categorias}
+            productos={productos}
+            onCategoriasCambiadas={refrescar}
+          />
         ) : vista === 'estadisticas' ? (
           <EstadisticasPanel />
         ) : (
