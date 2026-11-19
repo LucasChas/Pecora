@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { Fragment, useMemo } from 'react'
 import type { ProductoConCategoria } from '../../types'
 import { fotosPorCategoria } from '../../lib/filtrosCatalogo'
 import Miniatura from '../common/Miniatura'
@@ -11,33 +11,18 @@ interface Props {
   productos: ProductoConCategoria[]
 }
 
-// Categorías de la portada: una sola fila con foto en círculo, que en el
-// celular se desliza de costado. Antes eran chips de texto que en el celular
-// bajaban a 7 renglones y tapaban los productos en la primera pantalla. La
-// última foto queda cortada contra el borde: así se nota que hay más.
+// Categorías de la portada. Se ven todas de una, sin deslizar de costado:
+// - Tablet/desktop: fotos en círculo en renglones centrados.
+// - Celular (≤720px): "pastillas" compactas (foto chica + nombre) que se
+//   acomodan en renglones según el largo del nombre; ocupan mucho menos alto
+//   que los círculos y ningún nombre largo se pisa con el de al lado.
 export default function CategoriasCatalogo({ categorias, activa, onSelect, productos }: Props) {
   const fotos = useMemo(() => fotosPorCategoria(productos), [productos])
   const opciones = ['Todos', ...categorias]
-  const filaRef = useRef<HTMLUListElement>(null)
-
-  // Si la categoría activa quedó fuera de la fila (ej. se entró por un link
-  // con ?cat=), se desliza la fila hasta mostrarla. Solo la fila, no la página.
-  useEffect(() => {
-    const fila = filaRef.current
-    const boton = fila?.querySelector<HTMLElement>('.categoria.activa')
-    if (!fila || !boton) return
-    const item = boton.parentElement as HTMLElement
-    const margen = parseFloat(getComputedStyle(fila).paddingLeft) || 0
-    const izq = item.offsetLeft - fila.offsetLeft
-    const der = izq + item.offsetWidth
-    if (izq < fila.scrollLeft + margen || der > fila.scrollLeft + fila.clientWidth - margen) {
-      fila.scrollTo({ left: Math.max(0, izq - margen) })
-    }
-  }, [activa, categorias.length])
 
   return (
     <nav className="categorias" aria-label="Categorías">
-      <ul className="categorias-fila" ref={filaRef}>
+      <ul className="categorias-fila">
         {opciones.map((c) => {
           const activo = c === activa
           const foto = c === 'Todos' ? null : fotos.get(c)
@@ -63,7 +48,7 @@ export default function CategoriasCatalogo({ categorias, activa, onSelect, produ
                     <span className="categoria-inicial">{c.charAt(0)}</span>
                   )}
                 </span>
-                <span className="categoria-nombre">{c}</span>
+                <span className="categoria-nombre">{conCortes(c)}</span>
               </button>
             </li>
           )
@@ -71,4 +56,17 @@ export default function CategoriasCatalogo({ categorias, activa, onSelect, produ
       </ul>
     </nav>
   )
+}
+
+// Permite cortar el renglón después de "/" o "-" (ej. "Mordillos/<corte>Sonajeros"):
+// sin esto una palabra larga sin espacios no entra y se encima con la vecina.
+function conCortes(nombre: string) {
+  const partes = nombre.split(/(?<=[/-])/)
+  if (partes.length === 1) return nombre
+  return partes.map((p, i) => (
+    <Fragment key={i}>
+      {i > 0 && <wbr />}
+      {p}
+    </Fragment>
+  ))
 }

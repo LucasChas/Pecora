@@ -140,42 +140,35 @@
 }
 
 /* ---------- Categorías de la portada (CategoriasCatalogo) ----------
-   Una sola fila con foto en círculo. Si no entra, se desliza de costado y
-   la última queda cortada contra el borde (así se nota que hay más). En
-   pantallas anchas, si entran todas, quedan centradas. */
+   Se ven todas a la vez, sin scroll de costado en ningún tamaño.
+   Tablet/desktop: fotos en círculo en renglones centrados.
+   Celular: pastillas compactas (foto chica + nombre) en renglones. */
 .categorias {
-  margin: 18px calc(-1 * var(--shop-gutter, 24px)) 0;
+  margin: 18px 0 0;
 }
 .categorias-fila {
   list-style: none;
   margin: 0;
-  padding: 4px var(--shop-gutter, 24px) 6px;
+  padding: 4px 0 6px;
   display: flex;
-  gap: 14px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-  scroll-padding-inline: var(--shop-gutter, 24px);
-  scrollbar-width: none;
-}
-.categorias-fila::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px 14px;
 }
 .categorias-fila > li {
   flex: none;
-  scroll-snap-align: start;
-}
-.categorias-fila > li:first-child {
-  margin-left: auto;
-}
-.categorias-fila > li:last-child {
-  margin-right: auto;
+  display: flex;
 }
 .categoria {
   display: grid;
+  grid-template-rows: auto 1fr;
   justify-items: center;
+  align-content: start;
   gap: 7px;
-  width: 76px;
+  /* Ancho mínimo para el círculo; los nombres largos pueden ensanchar la
+     columna un poco, y si aun así no entran pasan a un segundo renglón. */
+  min-width: 76px;
+  max-width: 96px;
   padding: 0;
   border: 0;
   background: none;
@@ -190,6 +183,7 @@
   overflow: hidden;
   display: grid;
   place-items: center;
+  flex: none;
   background: var(--cream-deep);
   color: var(--sage-deep);
   border: 2px solid #fff;
@@ -217,6 +211,9 @@
   line-height: 1.2;
   text-align: center;
   color: var(--ink-soft);
+  /* Red de seguridad: nunca se sale de su casillero. */
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .categoria.activa .categoria-foto {
   box-shadow: 0 0 0 2px var(--sage);
@@ -236,40 +233,70 @@
     box-shadow: 0 0 0 2px var(--sage);
   }
 }
-/* Desktop: entran en dos renglones centrados, sin scroll de costado (con
-   mouse no es obvio que se pueda deslizar). */
-@media (min-width: 1024px) {
-  .categorias-fila {
-    flex-wrap: wrap;
-    justify-content: center;
-    row-gap: 16px;
-    overflow: visible;
-  }
-  .categorias-fila > li:first-child,
-  .categorias-fila > li:last-child {
-    margin: 0;
-  }
-}
-/* En celular el contenido tiene 14px de margen (ver .catalog-root main):
-   la fila llega de borde a borde y arranca alineada con el resto. */
+/* Celular: pastillas en renglones. Cada pastilla crece para completar su
+   renglón (sin huecos sueltos a la derecha) y el bloque entero queda en
+   ~5-6 renglones de 34px aun con 18 categorías. */
 @media (max-width: 720px) {
   .categorias {
-    margin: -6px -14px 0;
+    margin-top: -6px;
   }
   .categorias-fila {
-    gap: 10px;
-    padding: 4px 14px 6px;
-    scroll-padding-inline: 14px;
+    justify-content: flex-start;
+    gap: 6px 5px;
+    padding: 2px 0 4px;
   }
-  /* Ancho según el nombre (entre 64 y 90 px): "Portachupetes" no se sale. */
+  .categorias-fila > li {
+    flex: 1 1 auto;
+    max-width: 100%;
+  }
   .categoria {
-    width: auto;
-    min-width: 64px;
-    max-width: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: 34px;
+    padding: 3px 10px 3px 3px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--line);
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
   }
   .categoria-foto {
-    width: 60px;
-    height: 60px;
+    width: 26px;
+    height: 26px;
+    border-width: 0;
+    box-shadow: none;
+  }
+  .categoria-foto svg {
+    width: 15px;
+    height: 15px;
+  }
+  .categoria-inicial {
+    font-size: 0.85rem;
+  }
+  .categoria-nombre {
+    font-size: 0.75rem;
+    letter-spacing: -0.005em;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .categoria.activa {
+    background: var(--sage-pale);
+    box-shadow: inset 0 0 0 1.5px var(--sage);
+  }
+  .categoria.activa .categoria-foto {
+    box-shadow: none;
+  }
+  .categoria:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--sage-deep);
+  }
+  .categoria:focus-visible .categoria-foto {
+    box-shadow: none;
   }
 }
 
