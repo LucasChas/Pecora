@@ -5,10 +5,13 @@ import ImportarProductos from './ImportarProductos'
 import EquipoAdmin from './EquipoAdmin'
 import ResenasAdmin from './ResenasAdmin'
 import CatalogoInstagram from './CatalogoInstagram'
+import CategoriasAdmin from './CategoriasAdmin'
+import type { Categoria, ProductoConCategoria } from '../../types'
 
-type Seccion = 'cupones' | 'zonas' | 'importar' | 'resenas' | 'instagram' | 'equipo'
+export type Seccion = 'categorias' | 'cupones' | 'zonas' | 'importar' | 'resenas' | 'instagram' | 'equipo'
 
 const SECCIONES: { valor: Seccion; texto: string }[] = [
+  { valor: 'categorias', texto: 'Categorías' },
   { valor: 'cupones', texto: 'Cupones' },
   { valor: 'zonas', texto: 'Zonas de envío' },
   { valor: 'importar', texto: 'Importar productos' },
@@ -20,19 +23,32 @@ const SECCIONES: { valor: Seccion; texto: string }[] = [
 interface Props {
   // Tras una carga masiva, para refrescar productos y categorías del panel.
   onProductosImportados?: () => void
+  // Para la sección Categorías (cantidad de productos por categoría).
+  categorias: Categoria[]
+  productos: ProductoConCategoria[]
+  // Refresca productos y categorías tras crear, renombrar o eliminar.
+  onCategoriasCambiadas: () => void
+  // Sección con la que se abre (ej. desde el formulario de producto).
+  seccionInicial?: Seccion
 }
 
-// Pestaña "Ajustes" del panel (solo admin): cupones, zonas de envío, carga
+// Pestaña "Ajustes" del panel (solo admin): categorías, cupones, zonas de envío, carga
 // masiva de productos, moderación de reseñas y equipo.
-export default function AjustesPanel({ onProductosImportados }: Props) {
-  const [seccion, setSeccion] = useState<Seccion>('cupones')
+export default function AjustesPanel({
+  onProductosImportados,
+  categorias,
+  productos,
+  onCategoriasCambiadas,
+  seccionInicial = 'categorias',
+}: Props) {
+  const [seccion, setSeccion] = useState<Seccion>(seccionInicial)
 
   return (
     <>
       <div className="list-head">
         <div>
           <h1>Ajustes</h1>
-          <p>Cupones, envíos, carga masiva de productos, reseñas y equipo del panel.</p>
+          <p>Categorías, cupones, envíos, carga masiva de productos, reseñas y equipo del panel.</p>
         </div>
       </div>
 
@@ -52,7 +68,9 @@ export default function AjustesPanel({ onProductosImportados }: Props) {
         </div>
       </div>
 
-      {seccion === 'cupones' ? (
+      {seccion === 'categorias' ? (
+        <CategoriasAdmin categorias={categorias} productos={productos} onChanged={onCategoriasCambiadas} />
+      ) : seccion === 'cupones' ? (
         <CuponesAdmin />
       ) : seccion === 'zonas' ? (
         <ZonasEnvioAdmin />
